@@ -120,7 +120,39 @@ export default function App() {
   const fetchContainers = () => {
     return fetch('/api/containers')
       .then(res => res.json())
-      .then(data => setContainers(data || []))
+      .then(data => {
+        const processed = (data || []).map(c => {
+          const non_root = !c.is_root;
+          const privileged_safe = !c.is_privileged;
+          
+          let score = 100;
+          if (!c.tag_pinned) score -= 25;
+          if (c.is_root) score -= 25;
+          if (c.is_privileged) score -= 30;
+          if (c.secret_leaks && c.secret_leaks.length > 0) {
+            score -= Math.min(20, c.secret_leaks.length * 10);
+          }
+          if (score < 0) score = 0;
+          
+          let grade = 'A';
+          if (score < 40) grade = 'F';
+          else if (score < 60) grade = 'D';
+          else if (score < 75) grade = 'C';
+          else if (score < 90) grade = 'B';
+          
+          const update_available = !c.tag_pinned && (c.image_tag === 'latest' || c.image_tag === 'dev');
+          
+          return {
+            ...c,
+            non_root,
+            privileged_safe,
+            score,
+            grade,
+            update_available
+          };
+        });
+        setContainers(processed);
+      })
       .catch(err => console.error("Error fetching containers:", err));
   };
 
@@ -293,6 +325,7 @@ export default function App() {
           <ContainersView 
             containers={containers}
             onSelectContainer={setSelectedContainerId}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -319,6 +352,7 @@ export default function App() {
         onTriggerRollout={handleTriggerRollout}
         isRolloutLoading={isRolloutLoading}
         rolloutStatusMsg={rolloutStatusMsg}
+        onAudit={handleRefreshAll}
       />
     </div>
   );

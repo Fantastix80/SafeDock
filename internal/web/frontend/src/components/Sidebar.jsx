@@ -34,9 +34,8 @@ export default function Sidebar({ activePage, onNavigate }) {
             <path d="M60,46 L60,66" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
           </svg>
         </div>
-        <div class="logo-text">
+        <div className="logo-text">
           <h1>SafeDock</h1>
-          <span>SecOps Gatekeeper</span>
         </div>
       </div>
       

@@ -6,7 +6,8 @@ export default function DetailDrawer({
   onClose, 
   onTriggerRollout, 
   isRolloutLoading, 
-  rolloutStatusMsg 
+  rolloutStatusMsg,
+  onAudit
 }) {
   const [activeTab, setActiveTab] = useState('tab-overview');
 
@@ -311,18 +312,32 @@ export default function DetailDrawer({
           )}
         </div>
 
-        {/* Drawer Footer with Rollout Trigger */}
+        {/* Drawer Footer with Overhauled Dual Buttons */}
         <div className="drawer-footer">
-          <button 
-            className={`btn btn-accent w-full ${isRolloutLoading ? 'disabled' : ''}`}
-            id="btn-trigger-update"
-            onClick={() => onTriggerRollout(container.id, container.name)}
-            disabled={isRolloutLoading}
-            type="button"
-          >
-            <i className={`fa-solid fa-sync ${isRolloutLoading ? 'fa-spin' : ''}`}></i> 
-            <span>Vérifier & Appliquer les Mises à Jour</span>
-          </button>
+          <div className="drawer-footer-buttons">
+            {/* Rechercher MAJ (Primary Blue Button) */}
+            <button 
+              className={`btn btn-primary ${isRolloutLoading ? 'disabled' : ''}`}
+              id="btn-trigger-update"
+              onClick={() => onTriggerRollout(container.id, container.name)}
+              disabled={isRolloutLoading}
+              type="button"
+            >
+              <i className={`fa-solid fa-sync ${isRolloutLoading ? 'fa-spin' : ''}`}></i> 
+              <span>Rechercher MAJ</span>
+            </button>
+            
+            {/* Auditer Sécurité (Secondary Outlined Button) */}
+            <button 
+              className="btn btn-secondary"
+              id="btn-trigger-audit"
+              onClick={onAudit}
+              type="button"
+            >
+              <i className="fa-solid fa-shield-halved"></i> 
+              <span>Auditer Sécurité</span>
+            </button>
+          </div>
           
           {rolloutStatusMsg.text && (
             <div className={`update-status-msg ${rolloutStatusMsg.type}`}>

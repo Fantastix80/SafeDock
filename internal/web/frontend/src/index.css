@@ -11,8 +11,8 @@
     
     --primary: #4578F9;
     --primary-glow: rgba(69, 120, 249, 0.18);
-    --accent: #CB3EFF;
-    --accent-glow: rgba(203, 62, 255, 0.18);
+    --accent: #4578F9;
+    --accent-glow: rgba(69, 120, 249, 0.18);
     
     --success: #43B430;
     --success-glow: rgba(67, 180, 48, 0.15);
@@ -45,8 +45,8 @@ body.light-theme {
     
     --primary: #4578F9;
     --primary-glow: rgba(69, 120, 249, 0.08);
-    --accent: #CB3EFF;
-    --accent-glow: rgba(203, 62, 255, 0.08);
+    --accent: #4578F9;
+    --accent-glow: rgba(69, 120, 249, 0.08);
     
     --success: #43B430;
     --success-glow: rgba(67, 180, 48, 0.08);
@@ -94,7 +94,7 @@ body {
     left: -10%;
     width: 60vw;
     height: 60vw;
-    background: radial-gradient(circle, rgba(203, 62, 255, 0.05) 0%, rgba(69, 120, 249, 0.02) 50%, transparent 100%);
+    background: radial-gradient(circle, rgba(69, 120, 249, 0.015) 0%, transparent 100%);
     z-index: -1;
     pointer-events: none;
     filter: blur(100px);
@@ -102,7 +102,7 @@ body {
 }
 
 body.light-theme .glass-bg-glow {
-    background: radial-gradient(circle, rgba(203, 62, 255, 0.03) 0%, rgba(69, 120, 249, 0.01) 50%, transparent 100%);
+    background: radial-gradient(circle, rgba(69, 120, 249, 0.01) 0%, transparent 100%);
 }
 
 /* ==========================================================================
@@ -222,7 +222,7 @@ body.light-theme .nav-item:hover {
 
 .nav-item.active {
     color: #ffffff;
-    background: linear-gradient(135deg, rgba(69, 120, 249, 0.15), rgba(203, 62, 255, 0.08));
+    background: rgba(69, 120, 249, 0.12);
     border-color: rgba(69, 120, 249, 0.3);
     box-shadow: 0 4px 15px rgba(69, 120, 249, 0.1);
 }
@@ -937,7 +937,7 @@ body.light-theme .drawer-tabs {
     left: 0;
     width: 100%;
     height: 2px;
-    background: linear-gradient(to right, var(--primary), var(--accent));
+    background: var(--primary);
 }
 
 .tab-badge {
@@ -1346,11 +1346,11 @@ body.light-theme .slider-toggle {
     transition: var(--transition-smooth);
 }
 
-.audit-logs-table tr:hover td, .semantic-containers-table tr:hover td {
+.audit-logs-table tr:hover td {
     background-color: rgba(255, 255, 255, 0.015);
 }
 
-body.light-theme .audit-logs-table tr:hover td, body.light-theme .semantic-containers-table tr:hover td {
+body.light-theme .audit-logs-table tr:hover td {
     background-color: rgba(0, 0, 0, 0.01);
 }
 
@@ -1411,12 +1411,9 @@ body.light-theme .audit-logs-table tr:hover td, body.light-theme .semantic-conta
    ========================================================================== */
 .theme-switch-pill {
     position: relative;
-    display: flex;
-    align-items: center;
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 30px;
-    padding: 3px;
     width: 70px;
     height: 38px;
     cursor: pointer;
@@ -1435,10 +1432,11 @@ body.light-theme .audit-logs-table tr:hover td, body.light-theme .semantic-conta
     left: 3px;
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, var(--accent), var(--primary));
+    background: var(--primary);
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
 }
 
 body.light-theme .theme-switch-slider {
@@ -1447,10 +1445,13 @@ body.light-theme .theme-switch-slider {
 }
 
 .theme-switch-btn {
-    position: relative;
+    position: absolute;
+    top: 3px;
     z-index: 2;
     background: none;
     border: none;
+    padding: 0;
+    margin: 0;
     width: 32px;
     height: 32px;
     display: flex;
@@ -1460,6 +1461,14 @@ body.light-theme .theme-switch-slider {
     font-size: 0.95rem;
     cursor: pointer;
     transition: var(--transition-smooth);
+}
+
+.theme-switch-btn[data-theme="dark"] {
+    left: 3px;
+}
+
+.theme-switch-btn[data-theme="light"] {
+    left: 35px;
 }
 
 .theme-switch-btn:hover {
@@ -1531,3 +1540,131 @@ body.light-theme .theme-switch-btn[data-theme="dark"] {
     font-weight: 500;
     transition: var(--transition-smooth);
 }
+
+/* ==========================================================================
+   Utility Classes & Overrides
+   ========================================================================== */
+.text-success {
+    color: var(--success) !important;
+}
+
+.text-danger, .text-red {
+    color: var(--danger) !important;
+}
+
+.text-warning, .text-yellow {
+    color: var(--warning) !important;
+}
+
+/* Outlined Secondary Button */
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    color: var(--text-primary);
+}
+
+body.light-theme .btn-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Search Box Container without outer filter borders */
+.search-box-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 280px;
+}
+
+.search-box-container .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+
+.search-box-container .search-input {
+    width: 100%;
+    padding-left: 2.25rem !important;
+    font-size: 0.85rem;
+}
+
+/* Dashboard Visuals Grid (Chart + Gauge side-by-side) */
+.dashboard-visuals {
+    display: grid;
+    grid-template-columns: 2fr 1.25fr;
+    gap: 1.5rem;
+    margin-bottom: 3.5rem;
+}
+
+/* Chart card background glowing adjustments */
+.chart-card {
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+    font-family: var(--font-header);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.chart-header p {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-secondary);
+}
+
+.legend-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--primary);
+}
+
+/* Drawer button stacking adjustments */
+.drawer-footer-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-visuals {
+        grid-template-columns: 1fr;
+    }
+}
+
