@@ -1,11 +1,13 @@
 /* ==========================================================================
-   SafeDock Dashboard Client - Pure Vanilla JS Reactivity
+   SafeDock Dashboard Client - Sprint 5 Rich Interaction & Database Sync
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
     // Application State
     const state = {
         containers: [],
+        auditLogs: [],
+        registries: [],
         stats: {
             total: 0,
             secure: 0,
@@ -84,15 +86,35 @@ document.addEventListener('DOMContentLoaded', () => {
         // Action Buttons
         btnGlobalRefresh: document.getElementById('btn-global-refresh'),
         
-        // Settings Modal
+        // Settings Modal & Form (Sprint 5)
         btnNavSettings: document.getElementById('btn-nav-settings'),
         settingsPane: document.getElementById('settings-pane'),
         btnCloseSettings: document.getElementById('btn-close-settings'),
-        cfgSeverity: document.getElementById('cfg-severity'),
-        cfgAllowPrivileged: document.getElementById('cfg-allow-privileged'),
-        cfgAllowRoot: document.getElementById('cfg-allow-root'),
-        cfgSmtpHost: document.getElementById('cfg-smtp-host'),
-        cfgSmtpTo: document.getElementById('cfg-smtp-to'),
+        formSettings: document.getElementById('form-settings'),
+        settingsSaveStatus: document.getElementById('settings-save-status'),
+        
+        // Form Inputs Cache
+        selectSeverity: document.getElementById('select-severity'),
+        checkboxAllowRoot: document.getElementById('checkbox-allow-root'),
+        checkboxAllowPrivileged: document.getElementById('checkbox-allow-privileged'),
+        inputSmtpHost: document.getElementById('input-smtp-host'),
+        inputSmtpPort: document.getElementById('input-smtp-port'),
+        inputSmtpUser: document.getElementById('input-smtp-user'),
+        inputSmtpPass: document.getElementById('input-smtp-pass'),
+        inputSmtpFrom: document.getElementById('input-smtp-from'),
+        inputSmtpTo: document.getElementById('input-smtp-to'),
+        checkboxSmtpTlsSkip: document.getElementById('checkbox-smtp-tls-skip'),
+        
+        // Registries UI
+        registriesList: document.getElementById('settings-registries-list'),
+        regServer: document.getElementById('reg-server'),
+        regUser: document.getElementById('reg-user'),
+        regPass: document.getElementById('reg-pass'),
+        btnAddRegistry: document.getElementById('btn-add-registry'),
+        
+        // Audit Logs UI
+        auditLogsRows: document.getElementById('audit-logs-rows'),
+        btnRefreshLogs: document.getElementById('btn-refresh-logs'),
         
         // Nav Filters
         filterBtns: document.querySelectorAll('.filter-btn')
@@ -104,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function init() {
         fetchConfig();
         fetchContainers();
+        fetchAuditLogs();
+        fetchRegistries();
         setupEventListeners();
         setInterval(updateTime, 1000);
     }
@@ -116,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         el.btnGlobalRefresh.addEventListener('click', () => {
             el.btnGlobalRefresh.classList.add('disabled');
             el.btnGlobalRefresh.querySelector('i').classList.add('fa-spin');
-            fetchContainers().finally(() => {
+            Promise.all([fetchContainers(), fetchAuditLogs()]).finally(() => {
                 setTimeout(() => {
                     el.btnGlobalRefresh.classList.remove('disabled');
                     el.btnGlobalRefresh.querySelector('i').classList.remove('fa-spin');
@@ -157,9 +181,31 @@ document.addEventListener('DOMContentLoaded', () => {
         el.btnNavSettings.addEventListener('click', (e) => {
             e.preventDefault();
             el.settingsPane.classList.remove('hidden');
+            fetchConfig(); // reload to get latest before opening
         });
         el.btnCloseSettings.addEventListener('click', () => {
             el.settingsPane.classList.add('hidden');
+        });
+
+        // Save settings form submit (Sprint 5)
+        el.formSettings.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveConfig();
+        });
+
+        // Add private registry account
+        el.btnAddRegistry.addEventListener('click', () => {
+            addRegistryCredential();
+        });
+
+        // Manual refresh logs
+        el.btnRefreshLogs.addEventListener('click', () => {
+            el.btnRefreshLogs.querySelector('i').classList.add('fa-spin');
+            fetchAuditLogs().finally(() => {
+                setTimeout(() => {
+                    el.btnRefreshLogs.querySelector('i').classList.remove('fa-spin');
+                }, 800);
+            });
         });
     }
 
@@ -175,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // API Requests
     // ==========================================================================
 
-    // Fetch global server configurations
+    // Fetch global configurations
     async function fetchConfig() {
         try {
             const res = await fetch('/api/config');
@@ -185,6 +231,143 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error("Impossible de charger la config", err);
+        }
+    }
+
+    // Save configurations dynamically to SQLite (Sprint 5)
+    async function saveConfig() {
+        const submitBtn = document.getElementById('btn-save-settings-submit');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Application à chaud...`;
+        el.settingsSaveStatus.textContent = '';
+
+        const payload = {
+            smtp_host: el.inputSmtpHost.value.trim(),
+            smtp_port: parseInt(el.inputSmtpPort.value) || 587,
+            smtp_user: el.inputSmtpUser.value.trim(),
+            smtp_password: el.inputSmtpPass.value,
+            smtp_from: el.inputSmtpFrom.value.trim(),
+            smtp_to: el.inputSmtpTo.value.trim(),
+            smtp_tls_skip_verify: el.checkboxSmtpTlsSkip.checked,
+            secops_max_severity_allowed: el.selectSeverity.value,
+            secops_allow_root: el.checkboxAllowRoot.checked,
+            secops_allow_privileged: el.checkboxAllowPrivileged.checked
+        };
+
+        try {
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const text = await res.text();
+            
+            if (res.ok) {
+                el.settingsSaveStatus.className = "text-success";
+                el.settingsSaveStatus.innerHTML = `<i class="fa-solid fa-circle-check"></i> Enregistré !`;
+                
+                // Clear password input placeholder safety
+                el.inputSmtpPass.value = '';
+                el.inputSmtpPass.placeholder = "•••••••• (enregistré)";
+                
+                // Reload configuration in state and refresh dashboard UI variables
+                await fetchConfig();
+                await fetchContainers(); // calculated stats may change immediately!
+            } else {
+                throw new Error(text);
+            }
+        } catch (err) {
+            console.error("Failed to save config", err);
+            el.settingsSaveStatus.className = "text-red";
+            el.settingsSaveStatus.textContent = `Erreur : ${err.message}`;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-save"></i> Enregistrer les paramètres`;
+        }
+    }
+
+    // Fetch private registries credentials (Sprint 5)
+    async function fetchRegistries() {
+        try {
+            const res = await fetch('/api/registries');
+            if (res.ok) {
+                state.registries = await res.json();
+                renderRegistries();
+            }
+        } catch (err) {
+            console.error("Failed to fetch registries", err);
+        }
+    }
+
+    // Add private registry credential (Sprint 5)
+    async function addRegistryCredential() {
+        const server = el.regServer.value.trim();
+        const user = el.regUser.value.trim();
+        const pass = el.regPass.value;
+
+        if (!server || !user || !pass) {
+            alert("Veuillez remplir tous les champs du registre.");
+            return;
+        }
+
+        el.btnAddRegistry.disabled = true;
+        
+        try {
+            const res = await fetch('/api/registries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ server, username: user, password: pass })
+            });
+            
+            if (res.ok) {
+                el.regServer.value = '';
+                el.regUser.value = '';
+                el.regPass.value = '';
+                await fetchRegistries();
+            } else {
+                const text = await res.text();
+                alert(`Erreur : ${text}`);
+            }
+        } catch (err) {
+            alert(`Erreur d'enregistrement : ${err.message}`);
+        } finally {
+            el.btnAddRegistry.disabled = false;
+        }
+    }
+
+    // Delete registry credential (Sprint 5)
+    async function deleteRegistryCredential(id) {
+        if (!confirm("Voulez-vous vraiment supprimer ces accès de registre ?")) return;
+
+        try {
+            const res = await fetch('/api/registries/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            
+            if (res.ok) {
+                await fetchRegistries();
+            } else {
+                const text = await res.text();
+                alert(`Erreur : ${text}`);
+            }
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Fetch SQLite SecOps audit logs (Sprint 5)
+    async function fetchAuditLogs() {
+        try {
+            const res = await fetch('/api/audit-logs');
+            if (res.ok) {
+                state.auditLogs = await res.json();
+                renderAuditLogs();
+            }
+        } catch (err) {
+            console.error("Failed to fetch audit logs", err);
+            el.auditLogsRows.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--text-red);">Impossible de charger l'historique.</td></tr>`;
         }
     }
 
@@ -277,7 +460,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.updateStatusMsg.classList.remove('hidden');
                 
                 // Refresh data automatically
-                setTimeout(fetchContainers, 2000);
+                setTimeout(() => {
+                    fetchContainers();
+                    fetchAuditLogs();
+                }, 2000);
             } else {
                 throw new Error(resultText);
             }
@@ -286,6 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
             el.updateStatusMsg.className = "update-status-msg error";
             el.updateStatusMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>Rollout Échoué ou Bloqué :</strong><br>${err.message}`;
             el.updateStatusMsg.classList.remove('hidden');
+            // Refresh logs even on failure to see the block event
+            fetchAuditLogs();
         } finally {
             el.btnTriggerUpdate.disabled = false;
             el.btnTriggerUpdate.querySelector('i').className = "fa-solid fa-sync";
@@ -354,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.containers.forEach(c => {
             sumScore += c.score;
             if (c.score < 75) critCount++;
-            // Basic mock logic: any container whose tag isn't pinned is treated as having an update check pending
+            // Basic logic: any container whose tag isn't pinned is treated as having an update check pending
             if (!c.tag_pinned) {
                 updatesAvail++;
             }
@@ -490,16 +678,110 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Populates settings form with live configurations (Sprint 5)
     function renderSettings() {
         if (!state.config) return;
-        el.cfgSeverity.textContent = state.config.SecOps.MaxSeverityAllowed || "HIGH";
-        el.cfgAllowPrivileged.textContent = state.config.SecOps.AllowPrivileged ? "TRUE" : "FALSE";
-        el.cfgAllowPrivileged.className = state.config.SecOps.AllowPrivileged ? "cfg-val text-red" : "cfg-val text-success";
-        el.cfgAllowRoot.textContent = state.config.SecOps.AllowRoot ? "TRUE" : "FALSE";
-        el.cfgAllowRoot.className = state.config.SecOps.AllowRoot ? "cfg-val text-yellow" : "cfg-val text-success";
         
-        el.cfgSmtpHost.textContent = state.config.SMTP.Host || "Non Configuré";
-        el.cfgSmtpTo.textContent = state.config.SMTP.To || "Non Configuré";
+        el.selectSeverity.value = state.config.SecOps.MaxSeverityAllowed || "HIGH";
+        el.checkboxAllowRoot.checked = state.config.SecOps.AllowRoot;
+        el.checkboxAllowPrivileged.checked = state.config.SecOps.AllowPrivileged;
+        
+        el.inputSmtpHost.value = state.config.SMTP.Host || '';
+        el.inputSmtpPort.value = state.config.SMTP.Port || 587;
+        el.inputSmtpUser.value = state.config.SMTP.User || '';
+        el.inputSmtpFrom.value = state.config.SMTP.From || '';
+        el.inputSmtpTo.value = state.config.SMTP.To || '';
+        el.checkboxSmtpTlsSkip.checked = state.config.SMTP.TLSSkipVerify;
+
+        // Password placeholder warning
+        el.inputSmtpPass.value = '';
+        if (state.config.SMTP.HasPassword) {
+            el.inputSmtpPass.placeholder = "•••••••• (enregistré)";
+        } else {
+            el.inputSmtpPass.placeholder = "Aucun mot de passe associé";
+        }
+    }
+
+    // Renders the list of registered registries inside Settings modal (Sprint 5)
+    function renderRegistries() {
+        el.registriesList.innerHTML = '';
+        if (!state.registries || state.registries.length === 0) {
+            el.registriesList.innerHTML = `<p class="version" style="text-align: center; padding: 0.5rem 0;">Aucun registre privé associé</p>`;
+            return;
+        }
+
+        state.registries.forEach(reg => {
+            const item = document.createElement('div');
+            item.className = 'config-item';
+            item.style.padding = '0.5rem 0.85rem';
+            item.innerHTML = `
+                <div style="display: flex; flex-direction: column;">
+                    <strong style="font-size: 0.85rem; font-family: monospace;">${reg.server_address}</strong>
+                    <span class="version">User: ${reg.username}</span>
+                </div>
+                <button type="button" class="btn btn-primary" data-id="${reg.id}" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); color: #f87171;"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+
+            // Delete registry listener
+            item.querySelector('button').addEventListener('click', (e) => {
+                const id = parseInt(e.currentTarget.getAttribute('data-id'));
+                deleteRegistryCredential(id);
+            });
+
+            el.registriesList.appendChild(item);
+        });
+    }
+
+    // Renders the list of audit log historical events (Sprint 5)
+    function renderAuditLogs() {
+        el.auditLogsRows.innerHTML = '';
+
+        if (!state.auditLogs || state.auditLogs.length === 0) {
+            el.auditLogsRows.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                        <i class="fa-solid fa-circle-info"></i> Aucun événement d'audit ou de rollout enregistré dans SQLite pour le moment.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        state.auditLogs.forEach(log => {
+            const row = document.createElement('tr');
+            
+            // Format Timestamp
+            const date = new Date(log.timestamp);
+            const dateStr = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            // Format Status classes
+            let statusClass = "status-log-success";
+            let statusIcon = `<i class="fa-solid fa-circle-check"></i>`;
+            if (log.status === "BLOCKED") {
+                statusClass = "status-log-blocked";
+                statusIcon = `<i class="fa-solid fa-shield-halved"></i>`;
+            } else if (log.status === "FAILED") {
+                statusClass = "status-log-failed";
+                statusIcon = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+            }
+
+            // CVE details snippet
+            const cvesSum = log.cve_critical + log.cve_high + log.cve_medium;
+            const cveBadge = cvesSum > 0
+                ? `<span class="badge badge-danger" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">${log.cve_critical}/${log.cve_high}/${log.cve_medium}</span>`
+                : `<span class="badge badge-success" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">Sain</span>`;
+
+            row.innerHTML = `
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; color: var(--text-secondary); font-family: monospace;">${dateStr}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-weight: 700;">${log.container_name}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-family: monospace; font-size: 0.75rem; word-break: break-all; max-width: 250px;" title="${log.image}">${log.image.split('@')[0]}<span class="version" style="display:block;">${log.image.includes('@') ? log.image.split('@')[1].substring(0, 20) + '...' : ''}</span></td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap;" class="${statusClass}">${statusIcon} ${log.status}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.8rem; color: var(--text-secondary); max-width: 300px;" title="${log.reason}">${log.reason}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); text-align: center;">${cveBadge}</td>
+            `;
+
+            el.auditLogsRows.appendChild(row);
+        });
     }
 
     // ==========================================================================
@@ -551,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (c.all_mounts && c.all_mounts.length > 0) {
             c.all_mounts.forEach(m => {
                 const item = document.createElement('div');
-                const isSensitive = c.sensitive_mounts.some(sm => sm === m);
+                const isSensitive = c.sensitive_mounts && c.sensitive_mounts.some(sm => sm === m);
                 item.className = isSensitive ? 'mount-item border-color text-red bg-danger-glow' : 'mount-item';
                 item.innerHTML = `<i class="fa-solid fa-hard-drive"></i> ${m}`;
                 el.drawerMountsList.appendChild(item);

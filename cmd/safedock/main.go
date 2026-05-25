@@ -12,6 +12,7 @@ import (
 
 	"github.com/safedock/safedock/internal/api"
 	"github.com/safedock/safedock/internal/config"
+	"github.com/safedock/safedock/internal/db"
 	"github.com/safedock/safedock/internal/docker"
 )
 
@@ -21,7 +22,13 @@ func main() {
 	fmt.Println("==================================================")
 	fmt.Println("Initialisation et audit de démarrage en cours...")
 
-	// 1. Chargement de la configuration
+	// 1. Initialisation de la base de données SQLite (sans CGO)
+	_, err := db.InitDB("")
+	if err != nil {
+		log.Fatalf("❌ ÉCHEC INITIALISATION BASE DE DONNÉES : %v\n", err)
+	}
+
+	// 2. Chargement de la configuration
 	cfg := config.LoadConfig()
 	fmt.Println("\n⚙️  Configuration SecOps active :")
 	fmt.Printf("   ├─ Seuil de tolérance CVE : %s\n", cfg.SecOps.MaxSeverityAllowed)

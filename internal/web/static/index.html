@@ -45,7 +45,7 @@
                     <span class="pulse-dot"></span>
                     <span>Démon Actif</span>
                 </div>
-                <span class="version">v0.9.0-sprint4</span>
+                <span class="version">v0.9.5-sprint5</span>
             </div>
         </aside>
 
@@ -148,6 +148,36 @@
                 <!-- Container Grid -->
                 <div class="containers-grid" id="containers-list">
                     <!-- Cards are dynamically injected here by app.js -->
+                </div>
+            </section>
+
+            <!-- Audit Logs Section (NEW Sprint 5) -->
+            <section class="section-container" style="margin-top: 3.5rem;">
+                <div class="section-header">
+                    <h3>
+                        <i class="fa-solid fa-clock-rotate-left"></i> 
+                        Historique d'Audit & Activités SecOps
+                    </h3>
+                    <button class="filter-btn" id="btn-refresh-logs" style="font-size: 0.75rem;"><i class="fa-solid fa-sync"></i> Recharger</button>
+                </div>
+                
+                <div class="glass" style="padding: 1rem; overflow-x: auto;">
+                    <table class="audit-logs-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-family: var(--font-header); font-weight: 700; height: 35px;">
+                                <th style="padding: 0.5rem 1rem;">Date</th>
+                                <th style="padding: 0.5rem 1rem;">Conteneur</th>
+                                <th style="padding: 0.5rem 1rem;">Image / Digest ciblé</th>
+                                <th style="padding: 0.5rem 1rem;">Statut</th>
+                                <th style="padding: 0.5rem 1rem;">Détails / Motif</th>
+                                <th style="padding: 0.5rem 1rem; text-align: center;">CVEs (C/H/M)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-rows">
+                            <!-- Injected by app.js -->
+                            <tr style="color: var(--text-muted);"><td colspan="6" style="padding: 1.5rem; text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement de l'historique...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </main>
@@ -317,46 +347,121 @@
         </div>
     </aside>
 
-    <!-- Overlay settings pane -->
-    <div class="settings-modal glass hidden" id="settings-pane">
+    <!-- Overlay settings pane (NEW Sprint 5 Form) -->
+    <div class="settings-modal glass hidden" id="settings-pane" style="max-height: 90vh; overflow-y: auto;">
         <div class="settings-header">
             <h3>🛡️ Configuration SecOps SafeDock</h3>
             <button class="btn-close-modal" id="btn-close-settings">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
-        <div class="settings-body">
+        <form id="form-settings" class="settings-body">
+            <!-- Section SecOps -->
             <div class="settings-section">
                 <h4>Seuils SecOps Actifs</h4>
-                <div class="config-grid">
-                    <div class="config-item">
-                        <span class="cfg-label">Sévérité CVE maximum autorisée</span>
-                        <span class="cfg-val" id="cfg-severity">HIGH</span>
+                <div class="form-grid" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="select-severity" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tolérance de sévérité des failles CVE</label>
+                        <select id="select-severity" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; font-family: var(--font-body); font-weight: 600; outline: none; cursor: pointer;">
+                            <option value="CRITICAL">CRITICAL (Bloque toutes les failles Critiques)</option>
+                            <option value="HIGH">HIGH (Bloque Critiques et Hautes - Conseillé)</option>
+                            <option value="MEDIUM">MEDIUM (Bloque Critiques, Hautes et Moyennes)</option>
+                            <option value="LOW">LOW (Bloque toutes les failles sauf Info)</option>
+                            <option value="NONE">NONE (Bloque toutes les failles, même mineures)</option>
+                        </select>
                     </div>
-                    <div class="config-item">
-                        <span class="cfg-label">Autoriser le mode Privilégié</span>
-                        <span class="cfg-val text-red" id="cfg-allow-privileged">FALSE</span>
-                    </div>
-                    <div class="config-item">
-                        <span class="cfg-label">Autoriser l'utilisateur Root</span>
-                        <span class="cfg-val text-yellow" id="cfg-allow-root">TRUE</span>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group-checkbox glass" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <span style="font-size: 0.85rem; font-weight: 600;">Autoriser l'utilisateur ROOT</span>
+                            <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                                <input type="checkbox" id="checkbox-allow-root" style="opacity: 0; width: 0; height: 0;">
+                                <span class="slider-toggle"></span>
+                            </label>
+                        </div>
+                        <div class="form-group-checkbox glass" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Autoriser le mode PRIVILÉGIÉ</span>
+                            <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                                <input type="checkbox" id="checkbox-allow-privileged" style="opacity: 0; width: 0; height: 0;">
+                                <span class="slider-toggle"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Section SMTP -->
             <div class="settings-section">
                 <h4>Serveur d'Alerte SMTP</h4>
-                <div class="config-grid">
-                    <div class="config-item">
-                        <span class="cfg-label">Serveur SMTP Hôte</span>
-                        <span class="cfg-val" id="cfg-smtp-host">-</span>
+                <div class="form-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-host" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Hôte du Serveur SMTP</label>
+                        <input type="text" id="input-smtp-host" placeholder="smtp.domain.com" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
                     </div>
-                    <div class="config-item">
-                        <span class="cfg-label">Adresse de notification</span>
-                        <span class="cfg-val" id="cfg-smtp-to">-</span>
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-port" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Port SMTP</label>
+                        <input type="number" id="input-smtp-port" placeholder="587" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
                     </div>
                 </div>
+                
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-user" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Utilisateur SMTP</label>
+                        <input type="text" id="input-smtp-user" placeholder="user@domain.com" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
+                    </div>
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-pass" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Mot de Passe SMTP</label>
+                        <input type="password" id="input-smtp-pass" placeholder="•••••••• (inchangé)" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
+                    </div>
+                </div>
+
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-from" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Expéditeur de l'alerte</label>
+                        <input type="email" id="input-smtp-from" placeholder="alerts@safedock.local" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
+                    </div>
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        <label for="input-smtp-to" style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Destinataire de l'alerte</label>
+                        <input type="email" id="input-smtp-to" placeholder="admin@domain.com" class="glass-input" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.65rem; border-radius: 8px; outline: none;">
+                    </div>
+                </div>
+
+                <div class="form-group-checkbox glass" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                    <span style="font-size: 0.85rem; font-weight: 600;">Ignorer la vérification TLS (STARTTLS)</span>
+                    <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                        <input type="checkbox" id="checkbox-smtp-tls-skip" style="opacity: 0; width: 0; height: 0;">
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
             </div>
-        </div>
+
+            <!-- Section Registries (NEW Sprint 5) -->
+            <div class="settings-section">
+                <h4>Comptes de Registres Docker Privés</h4>
+                
+                <!-- List existing creds -->
+                <div id="settings-registries-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                    <!-- Dynamic registries with delete buttons -->
+                </div>
+
+                <!-- Add new registry credential form -->
+                <div class="glass" style="padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <strong style="font-size: 0.85rem;"><i class="fa-solid fa-plus-circle"></i> Associer un Registre Privé</strong>
+                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 0.5rem;">
+                        <input type="text" id="reg-server" placeholder="registry.gitlab.com" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; outline: none;">
+                        <input type="text" id="reg-user" placeholder="user-deploy" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; outline: none;">
+                        <input type="password" id="reg-pass" placeholder="Token / Pass" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; outline: none;">
+                    </div>
+                    <button type="button" class="btn btn-primary" id="btn-add-registry" style="padding: 0.5rem; font-size: 0.75rem; border-radius: 6px; align-self: flex-end;"><i class="fa-solid fa-key"></i> Enregistrer les identifiants</button>
+                </div>
+            </div>
+
+            <!-- Footer actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1rem;">
+                <span id="settings-save-status" style="font-size: 0.85rem; display: flex; align-items: center; font-weight: 600;"></span>
+                <button type="submit" class="btn btn-accent" id="btn-save-settings-submit"><i class="fa-solid fa-save"></i> Enregistrer les paramètres</button>
+            </div>
+        </form>
     </div>
 
     <!-- Script Entrypoint -->

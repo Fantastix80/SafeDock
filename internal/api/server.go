@@ -45,6 +45,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/containers", s.HandleContainers)
 	mux.HandleFunc("/api/containers/", s.HandleSingleContainerSubRoutes)
 	mux.HandleFunc("/api/config", s.HandleConfig)
+	mux.HandleFunc("/api/registries", s.HandleRegistries)
+	mux.HandleFunc("/api/registries/delete", s.HandleRegistriesDelete)
+	mux.HandleFunc("/api/audit-logs", s.HandleAuditLogs)
 
 	// 2. Enregistrement du point d'entrée pour les fichiers statiques de l'UI
 	// On extrait le sous-répertoire "static" de notre système de fichiers embarqué

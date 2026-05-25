@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/safedock/safedock/internal/config"
+	"github.com/safedock/safedock/internal/db"
 	"github.com/safedock/safedock/internal/notifier"
 	"github.com/safedock/safedock/internal/registry"
 	"github.com/safedock/safedock/internal/secops"
@@ -141,6 +142,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	if !isSecOpsApproved {
 		fmt.Printf("   ❌ [BLOCAGE SECURE] Mise à jour annulée pour %s ! Motif : %s\n", containerName, secopsReason)
 		
+		// Enregistrement dans l'historique d'audit SQLite
+		_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "BLOCKED", secopsReason, critCount, highCount, trivyReport.Summary.Medium)
+		
 		// Envoi de l'alerte par e-mail
 		mailSubject := fmt.Sprintf("🚨 Bloqué : Alerte SecOps sur la mise à jour de %s", containerName)
 		mailContent := fmt.Sprintf(`
@@ -164,6 +168,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	
 	err = lo.executeTransactionalRollout(ctx, containerID, &inspect, fullNewImage)
 	if err != nil {
+		// Enregistrement de l'échec dans l'historique d'audit SQLite
+		_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "FAILED", err.Error(), critCount, highCount, trivyReport.Summary.Medium)
+
 		// Rollback mail
 		mailSubject := fmt.Sprintf("⚠️ Rollback : Échec du redéploiement de %s", containerName)
 		mailContent := fmt.Sprintf(`
@@ -174,6 +181,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
 		return err
 	}
+
+	// Enregistrement du succès dans l'historique d'audit SQLite
+	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot SecOps complété avec succès", critCount, highCount, trivyReport.Summary.Medium)
 
 	// Déploiement réussi mail
 	mailSubject := fmt.Sprintf("✅ Déployé : Mise à jour SecOps réussie pour %s", containerName)

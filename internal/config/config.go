@@ -1,19 +1,23 @@
 package config
 
 import (
+	"database/sql"
+	"log"
 	"os"
 	"strconv"
+
+	"github.com/safedock/safedock/internal/db"
 )
 
 // SMTPConfig contient la configuration du serveur SMTP pour les alertes.
 type SMTPConfig struct {
-	Host            string
-	Port            int
-	User            string
-	Password        string
-	From            string
-	To              string
-	TLSSkipVerify   bool
+	Host          string
+	Port          int
+	User          string
+	Password      string
+	From          string
+	To            string
+	TLSSkipVerify bool
 }
 
 // SecOpsConfig contient les seuils de tolérance et les règles d'évaluation SecOps.
@@ -29,9 +33,39 @@ type Config struct {
 	SecOps SecOpsConfig
 }
 
-// LoadConfig charge les variables d'environnement et applique des valeurs par défaut sécurisées.
+// Global active configuration reference
+var activeConfig *Config
+
+// LoadConfig charge les variables d'environnement ou les paramètres SQLite et applique des valeurs par défaut.
 func LoadConfig() *Config {
-	return &Config{
+	// Si SQLite est déjà initialisé et contient des paramètres, on charge depuis la DB
+	if db.GetDB() != nil {
+		host, port, user, pass, from, to, skip, maxSev, allowRoot, allowPriv, err := db.GetSettings()
+		if err == nil {
+			activeConfig = &Config{
+				SMTP: SMTPConfig{
+					Host:          host,
+					Port:          port,
+					User:          user,
+					Password:      pass,
+					From:          from,
+					To:            to,
+					TLSSkipVerify: skip,
+				},
+				SecOps: SecOpsConfig{
+					MaxSeverityAllowed: maxSev,
+					AllowRoot:          allowRoot,
+					AllowPrivileged:    allowPriv,
+				},
+			}
+			return activeConfig
+		} else if err != sql.ErrNoRows {
+			log.Printf("[CONFIG WARNING] Erreur lecture DB settings : %v, repli vers les variables d'env\n", err)
+		}
+	}
+
+	// Repli vers les variables d'environnement (Default Env fallback)
+	cfg := &Config{
 		SMTP: SMTPConfig{
 			Host:          getEnv("SAFEDOCK_SMTP_HOST", ""),
 			Port:          getEnvAsInt("SAFEDOCK_SMTP_PORT", 587),
@@ -47,6 +81,27 @@ func LoadConfig() *Config {
 			AllowPrivileged:    getEnvAsBool("SAFEDOCK_ALLOW_PRIVILEGED", false), // Privilégié bloqué par défaut
 		},
 	}
+
+	// Si la DB est en ligne mais vide, on y insère les paramètres Env pour l'initialisation
+	if db.GetDB() != nil {
+		err := db.SaveSettings(
+			cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User, cfg.SMTP.Password, cfg.SMTP.From, cfg.SMTP.To, cfg.SMTP.TLSSkipVerify,
+			cfg.SecOps.MaxSeverityAllowed, cfg.SecOps.AllowRoot, cfg.SecOps.AllowPrivileged,
+		)
+		if err != nil {
+			log.Printf("[CONFIG WARNING] Impossible d'enregistrer la config initiale en DB : %v\n", err)
+		} else {
+			log.Println("📝 Configuration par défaut persistée en base de données avec succès.")
+		}
+	}
+
+	activeConfig = cfg
+	return activeConfig
+}
+
+// ReloadConfig force le rechargement à chaud des configurations depuis la base de données.
+func ReloadConfig() *Config {
+	return LoadConfig()
 }
 
 // Fonctions utilitaires d'extraction
