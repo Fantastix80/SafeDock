@@ -43,6 +43,8 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// 1. Enregistrement des routes de l'API REST
 	mux.HandleFunc("/api/containers", s.HandleContainers)
+	mux.HandleFunc("/api/containers/settings", s.HandleContainersSettings)
+	mux.HandleFunc("/api/containers/settings/delete", s.HandleContainersSettingsDelete)
 	mux.HandleFunc("/api/containers/", s.HandleSingleContainerSubRoutes)
 	mux.HandleFunc("/api/config", s.HandleConfig)
 	mux.HandleFunc("/api/registries", s.HandleRegistries)

@@ -1,0 +1,58 @@
+# ==========================================================================
+# SafeDock - Release & Docker Hub Publication (BROUILLON DE PRODUCTION)
+# Ce workflow automatique est désactivé/draft par défaut jusqu'au jalon final.
+# Il se déclenchera uniquement lors de la création d'un tag Git stable (ex: v1.0.0).
+# ==========================================================================
+
+name: SafeDock - Docker Hub Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Se déclenche sur les tags commençant par 'v' (ex: v1.0.0, v1.1.2)
+
+jobs:
+  release:
+    name: Build Multi-Arch Image & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker QEMU (pour support multi-architectures arm64/amd64)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # Identifiants de connexion configurés de façon ultra-sécurisée dans vos Secrets GitHub :
+          # DOCKERHUB_USERNAME = Hell0W0rld
+          # DOCKERHUB_TOKEN = <votre-token-d-acces-docker-hub>
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker Image Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            Hell0W0rld/safedock
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=true
+
+      - name: Compile & Publish Multi-Arch Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64 # Support multi-architectures amd64 et ARM (ex: Raspberry Pi, serveurs ARM)
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

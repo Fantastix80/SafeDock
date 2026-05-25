@@ -92,11 +92,8 @@ func (da *DockerAuditor) AuditSingleContainer(ctx context.Context, containerID s
 		imageTag = parts[1]
 	}
 
-	// 2. Détection de Tag Pinning
-	tagPinned := true
-	if imageTag == "latest" || imageTag == "dev" || imageTag == "nightly" || imageTag == "master" || imageTag == "main" {
-		tagPinned = false
-	}
+	// 2. Détection de Tag Pinning (strictement par Digest SHA256 pour éviter l'empoisonnement de tag)
+	tagPinned := strings.Contains(fullImageName, "@sha256:")
 
 	// 3. Extraction du Digest SHA256 (Image ID ou RepoDigest)
 	currentDigest := inspect.Image

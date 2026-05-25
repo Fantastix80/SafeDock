@@ -163,3 +163,64 @@ func TestAuditLogsCRUD(t *testing.T) {
 		t.Errorf(" CVE counts incorrects pour log bloqué")
 	}
 }
+
+func TestContainerSettingsCRUD(t *testing.T) {
+	globalDB = nil
+	_, _ = InitDB(":memory:")
+
+	// 1. Check default settings for container on empty DB (should return nil values)
+	maxSev, allowRoot, allowPriv, err := GetContainerSettings("my-app")
+	if err != nil {
+		t.Fatalf("Erreur lecture sur table vide : %v", err)
+	}
+	if maxSev != "" || allowRoot != nil || allowPriv != nil {
+		t.Errorf("Attendu des valeurs vides/nil, obtenu maxSev=%s", maxSev)
+	}
+
+	// 2. Save settings (SaveContainerSettings)
+	trueVal := true
+	falseVal := false
+	err = SaveContainerSettings("my-app", "HIGH", &trueVal, &falseVal)
+	if err != nil {
+		t.Fatalf("Impossible de sauvegarder la surcharge : %v", err)
+	}
+
+	// 3. Read specific container settings (GetContainerSettings)
+	maxSev, allowRoot, allowPriv, err = GetContainerSettings("my-app")
+	if err != nil {
+		t.Fatalf("Impossible de charger la surcharge : %v", err)
+	}
+	if maxSev != "HIGH" || allowRoot == nil || *allowRoot != true || allowPriv == nil || *allowPriv != false {
+		t.Errorf("Surcharge lue incorrecte : maxSev=%s, root=%v, priv=%v", maxSev, allowRoot, allowPriv)
+	}
+
+	// 4. Read all container settings (GetAllContainerSettings)
+	list, err := GetAllContainerSettings()
+	if err != nil {
+		t.Fatalf("Erreur lecture globale des surcharges : %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("Attendu 1 surcharge, obtenu %d", len(list))
+	}
+	item, exists := list["my-app"]
+	if !exists {
+		t.Fatalf("Surcharge my-app introuvable dans la liste")
+	}
+	if item.MaxSeverityAllowed != "HIGH" || item.AllowRoot == nil || *item.AllowRoot != true || item.AllowPrivileged == nil || *item.AllowPrivileged != false {
+		t.Errorf("Surcharge liste incorrecte")
+	}
+
+	// 5. Delete specific container settings (DeleteContainerSettings)
+	err = DeleteContainerSettings("my-app")
+	if err != nil {
+		t.Fatalf("Erreur lors de la suppression de la surcharge : %v", err)
+	}
+
+	maxSev, allowRoot, allowPriv, err = GetContainerSettings("my-app")
+	if err != nil {
+		t.Fatalf("Erreur après suppression : %v", err)
+	}
+	if maxSev != "" || allowRoot != nil || allowPriv != nil {
+		t.Errorf("La surcharge n'a pas été supprimée de la DB")
+	}
+}

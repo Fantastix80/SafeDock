@@ -136,7 +136,16 @@ func runMigrations(db *sql.DB) error {
 		cve_medium INTEGER
 	);`
 
-	tables := []string{settingsTable, registriesTable, auditLogsTable}
+	// 4. Table container_settings (Surcharges de sécurité par conteneur)
+	containerSettingsTable := `
+	CREATE TABLE IF NOT EXISTS container_settings (
+		container_name TEXT PRIMARY KEY,
+		secops_max_severity_allowed TEXT DEFAULT "",
+		secops_allow_root INTEGER DEFAULT -1,
+		secops_allow_privileged INTEGER DEFAULT -1
+	);`
+
+	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable}
 	for _, sqlStmt := range tables {
 		_, err := db.Exec(sqlStmt)
 		if err != nil {
@@ -323,4 +332,156 @@ func GetAuditLogs() ([]AuditLog, error) {
 		logs = append(logs, l)
 	}
 	return logs, nil
+}
+
+// ContainerSettings représente les surcharges de configuration de sécurité pour un conteneur donné.
+type ContainerSettings struct {
+	ContainerName      string `json:"container_name"`
+	MaxSeverityAllowed string `json:"secops_max_severity_allowed"` // "", "LOW", "MEDIUM", "HIGH", "CRITICAL", "NONE"
+	AllowRoot          *bool  `json:"secops_allow_root"`           // nil pour utiliser global, sinon bool
+	AllowPrivileged    *bool  `json:"secops_allow_privileged"`     // nil pour utiliser global, sinon bool
+}
+
+// SaveContainerSettings insère ou met à jour la configuration d'un conteneur spécifique.
+func SaveContainerSettings(name string, maxSev string, allowRoot *bool, allowPrivilege *bool) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+
+	rootVal := -1
+	if allowRoot != nil {
+		if *allowRoot {
+			rootVal = 1
+		} else {
+			rootVal = 0
+		}
+	}
+
+	privVal := -1
+	if allowPrivilege != nil {
+		if *allowPrivilege {
+			privVal = 1
+		} else {
+			privVal = 0
+		}
+	}
+
+	query := `
+	INSERT INTO container_settings (
+		container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+	) VALUES (?, ?, ?, ?)
+	ON CONFLICT(container_name) DO UPDATE SET
+		secops_max_severity_allowed=excluded.secops_max_severity_allowed,
+		secops_allow_root=excluded.secops_allow_root,
+		secops_allow_privileged=excluded.secops_allow_privileged;`
+
+	_, err := db.Exec(query, name, maxSev, rootVal, privVal)
+	return err
+}
+
+// GetContainerSettings charge les surcharges de configuration pour un conteneur donné.
+func GetContainerSettings(name string) (maxSev string, allowRoot *bool, allowPrivilege *bool, err error) {
+	db := GetDB()
+	if db == nil {
+		err = fmt.Errorf("base de données non initialisée")
+		return
+	}
+
+	query := `
+	SELECT secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+	FROM container_settings WHERE container_name = ?;`
+
+	var maxS string
+	var rootVal, privVal int
+	err = db.QueryRow(query, name).Scan(&maxS, &rootVal, &privVal)
+	if err == sql.ErrNoRows {
+		// Pas de surcharge, on retourne des valeurs par défaut/nil
+		return "", nil, nil, nil
+	} else if err != nil {
+		return "", nil, nil, err
+	}
+
+	maxSev = maxS
+	if rootVal == 1 {
+		b := true
+		allowRoot = &b
+	} else if rootVal == 0 {
+		b := false
+		allowRoot = &b
+	}
+
+	if privVal == 1 {
+		b := true
+		allowPrivilege = &b
+	} else if privVal == 0 {
+		b := false
+		allowPrivilege = &b
+	}
+
+	return maxSev, allowRoot, allowPrivilege, nil
+}
+
+// GetAllContainerSettings renvoie toutes les surcharges actives sous forme de map.
+func GetAllContainerSettings() (map[string]ContainerSettings, error) {
+	db := GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("base de données non initialisée")
+	}
+
+	query := `
+	SELECT container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+	FROM container_settings;`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	settings := make(map[string]ContainerSettings)
+	for rows.Next() {
+		var name, maxS string
+		var rootVal, privVal int
+		if err := rows.Scan(&name, &maxS, &rootVal, &privVal); err != nil {
+			return nil, err
+		}
+
+		var rootBool *bool
+		if rootVal == 1 {
+			b := true
+			rootBool = &b
+		} else if rootVal == 0 {
+			b := false
+			rootBool = &b
+		}
+
+		var privBool *bool
+		if privVal == 1 {
+			b := true
+			privBool = &b
+		} else if privVal == 0 {
+			b := false
+			privBool = &b
+		}
+
+		settings[name] = ContainerSettings{
+			ContainerName:      name,
+			MaxSeverityAllowed: maxS,
+			AllowRoot:          rootBool,
+			AllowPrivileged:    privBool,
+		}
+	}
+	return settings, nil
+}
+
+// DeleteContainerSettings supprime les surcharges pour un conteneur donné.
+func DeleteContainerSettings(name string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+
+	_, err := db.Exec("DELETE FROM container_settings WHERE container_name = ?;", name)
+	return err
 }

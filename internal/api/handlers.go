@@ -411,3 +411,79 @@ func (s *Server) triggerRolloutUpdate(w http.ResponseWriter, r *http.Request, co
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Mise à jour et pivotement de cycle de vie effectués avec succès !"))
 }
+
+// HandleContainersSettings gère la liste (GET) et la création/mise à jour (POST) de surcharges pour conteneur.
+func (s *Server) HandleContainersSettings(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		list, err := db.GetAllContainerSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(list)
+
+	case http.MethodPost:
+		var req struct {
+			ContainerName      string `json:"container_name"`
+			MaxSeverityAllowed string `json:"secops_max_severity_allowed"`
+			AllowRoot          *bool  `json:"secops_allow_root"`
+			AllowPrivileged    *bool  `json:"secops_allow_privileged"`
+		}
+		
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Format JSON invalide", http.StatusBadRequest)
+			return
+		}
+		
+		if req.ContainerName == "" {
+			http.Error(w, "Nom de conteneur obligatoire", http.StatusBadRequest)
+			return
+		}
+		
+		err := db.SaveContainerSettings(req.ContainerName, req.MaxSeverityAllowed, req.AllowRoot, req.AllowPrivileged)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Erreur sauvegarde surcharge : %v", err), http.StatusInternalServerError)
+			return
+		}
+		
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Surcharge de sécurité enregistrée avec succès !"))
+
+	default:
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandleContainersSettingsDelete supprime une surcharge pour conteneur.
+// POST /api/containers/settings/delete
+func (s *Server) HandleContainersSettingsDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ContainerName string `json:"container_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Format JSON invalide", http.StatusBadRequest)
+		return
+	}
+
+	if req.ContainerName == "" {
+		http.Error(w, "Nom de conteneur obligatoire", http.StatusBadRequest)
+		return
+	}
+
+	err := db.DeleteContainerSettings(req.ContainerName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Erreur suppression surcharge : %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Surcharge supprimée."))
+}

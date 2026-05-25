@@ -76,7 +76,7 @@ func SendEmail(cfg *config.SMTPConfig, subject, htmlBody string) error {
 	// 2. Gestion du chiffrement Standard / STARTTLS (ports standards 587, 25)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("impossible de se connecter au port %d : %w", err, cfg.Port)
+		return fmt.Errorf("impossible de se connecter au port %d : %w", cfg.Port, err)
 	}
 	defer conn.Close()
 

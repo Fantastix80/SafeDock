@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         containers: [],
         auditLogs: [],
         registries: [],
+        containerOverrides: {},
         stats: {
             total: 0,
             secure: 0,
@@ -128,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchContainers();
         fetchAuditLogs();
         fetchRegistries();
+        fetchContainerOverrides();
         setupEventListeners();
         setInterval(updateTime, 1000);
     }
@@ -177,15 +179,46 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Settings Modal Navigation
-        el.btnNavSettings.addEventListener('click', (e) => {
-            e.preventDefault();
-            el.settingsPane.classList.remove('hidden');
-            fetchConfig(); // reload to get latest before opening
-        });
-        el.btnCloseSettings.addEventListener('click', () => {
-            el.settingsPane.classList.add('hidden');
-        });
+        // SPA Page Navigation
+        const btnNavDashboard = document.getElementById('btn-nav-dashboard');
+        const btnNavContainers = document.getElementById('btn-nav-containers');
+        const btnNavSettings = document.getElementById('btn-nav-settings');
+
+        if (btnNavDashboard) {
+            btnNavDashboard.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToPage('view-dashboard');
+            });
+        }
+        if (btnNavContainers) {
+            btnNavContainers.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToPage('view-containers');
+                renderContainersTable();
+            });
+        }
+        if (btnNavSettings) {
+            btnNavSettings.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToPage('view-settings');
+            });
+        }
+
+        // Table search input
+        const searchInput = document.getElementById('containers-table-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                renderContainersTable();
+            });
+        }
+
+        // Save container override submit
+        const btnSaveOverride = document.getElementById('btn-save-override');
+        if (btnSaveOverride) {
+            btnSaveOverride.addEventListener('click', () => {
+                saveContainerOverride();
+            });
+        }
 
         // Save settings form submit (Sprint 5)
         el.formSettings.addEventListener('submit', (e) => {
@@ -414,6 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTrivyReport(report);
         } catch (err) {
             console.error("Trivy scan error", err);
+            el.cveCountBadge.textContent = '0';
+            el.trivyCrit.textContent = '0';
+            el.trivyHigh.textContent = '0';
+            el.trivyMed.textContent = '0';
+            el.trivyLow.textContent = '0';
             el.trivyLoading.classList.add('hidden');
             el.trivyList.innerHTML = `<div class="vuln-item"><span class="vuln-title">Scan indisponible</span><p class="vuln-desc">${err.message}</p></div>`;
             el.trivyList.classList.remove('hidden');
@@ -434,6 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDockleReport(report);
         } catch (err) {
             console.error("Dockle report error", err);
+            el.dockleCountBadge.textContent = '0';
+            el.dockleFatal.textContent = '0';
+            el.dockleWarn.textContent = '0';
+            el.dockleInfo.textContent = '0';
             el.dockleLoading.classList.add('hidden');
             el.dockleList.innerHTML = `<div class="compliance-item"><span class="compliance-title">Audit Dockle indisponible</span><p class="compliance-desc">${err.message}</p></div>`;
             el.dockleList.classList.remove('hidden');
@@ -850,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = 'secret-item';
                 item.innerHTML = `
                     <span class="sec-key"><i class="fa-solid fa-lock"></i> ${leak.key}</span>
-                    <span class="sec-val">Valeur: ${leak.snippet}</span>
+                    <span class="sec-val">Valeur: ${leak.value_snippet}</span>
                 `;
                 el.drawerSecretsList.appendChild(item);
             });
@@ -858,9 +900,16 @@ document.addEventListener('DOMContentLoaded', () => {
             el.drawerSecretsList.innerHTML = '<p class="version">Aucune variable d\'env sensible trouvée</p>';
         }
 
-        // Reset badge counters on tabs
+        // Reset badge counters and stats on tabs to avoid caching previous container results
         el.cveCountBadge.textContent = '...';
         el.dockleCountBadge.textContent = '...';
+        el.trivyCrit.textContent = '-';
+        el.trivyHigh.textContent = '-';
+        el.trivyMed.textContent = '-';
+        el.trivyLow.textContent = '-';
+        el.dockleFatal.textContent = '-';
+        el.dockleWarn.textContent = '-';
+        el.dockleInfo.textContent = '-';
 
         // Select the default Overview tab
         const defaultTabBtn = el.tabBtns[0];
@@ -1007,4 +1056,302 @@ document.addEventListener('DOMContentLoaded', () => {
             default: return 'badge-success';
         }
     }
+
+    // ==========================================================================
+    // SPA Routing & Navigation
+    // ==========================================================================
+    function navigateToPage(pageId) {
+        const pages = ['view-dashboard', 'view-containers', 'view-settings'];
+        pages.forEach(p => {
+            const elPage = document.getElementById(p);
+            if (elPage) elPage.classList.add('hidden');
+        });
+
+        const activePage = document.getElementById(pageId);
+        if (activePage) activePage.classList.remove('hidden');
+
+        const navMap = {
+            'view-dashboard': 'btn-nav-dashboard',
+            'view-containers': 'btn-nav-containers',
+            'view-settings': 'btn-nav-settings'
+        };
+
+        Object.keys(navMap).forEach(key => {
+            const btn = document.getElementById(navMap[key]);
+            if (btn) {
+                if (key === pageId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+        });
+
+        const headerTitle = document.querySelector('.main-header h2');
+        const headerDesc = document.getElementById('current-time');
+        
+        if (pageId === 'view-dashboard') {
+            if (headerTitle) headerTitle.textContent = "Tableau de bord de sécurité";
+            updateTime();
+        } else if (pageId === 'view-containers') {
+            if (headerTitle) headerTitle.textContent = "Statuts et métadonnées de sécurité";
+            if (headerDesc) headerDesc.textContent = "Liste complète de vos conteneurs actifs et évaluation SecOps";
+        } else if (pageId === 'view-settings') {
+            if (headerTitle) headerTitle.textContent = "Configuration de sécurité";
+            if (headerDesc) headerDesc.textContent = "Ajustez les règles SecOps globales et configurez vos accès et surcharges";
+            fetchConfig();
+            fetchContainerOverrides();
+        }
+    }
+
+    // ==========================================================================
+    // Conteneurs Page: Table Renderer
+    // ==========================================================================
+    function renderContainersTable() {
+        const rowsEl = document.getElementById('containers-table-rows');
+        if (!rowsEl) return;
+
+        rowsEl.innerHTML = '';
+
+        const searchQuery = document.getElementById('containers-table-search') 
+            ? document.getElementById('containers-table-search').value.toLowerCase().trim() 
+            : '';
+
+        const filtered = state.containers.filter(c => {
+            if (searchQuery) {
+                return c.name.toLowerCase().includes(searchQuery) || c.image_name.toLowerCase().includes(searchQuery);
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            rowsEl.innerHTML = `
+                <tr style="color: var(--text-muted);">
+                    <td colspan="8" style="padding: 2rem; text-align: center;">
+                        <i class="fa-solid fa-folder-open" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                        Aucun conteneur trouvé.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        filtered.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.style.height = '50px';
+            tr.style.transition = 'background-color 0.2s ease';
+            
+            tr.addEventListener('mouseenter', () => {
+                tr.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+            });
+            tr.addEventListener('mouseleave', () => {
+                tr.style.backgroundColor = 'transparent';
+            });
+
+            const statusCell = `
+                <span class="badge badge-${c.score >= 75 ? 'success' : 'warning'}" style="font-weight: 800; font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <strong>${c.grade}</strong> (${c.score}/100)
+                </span>
+            `;
+
+            const nameCell = `<strong style="color: var(--text-primary); font-family: var(--font-header);">${c.name}</strong><br><span style="font-size: 0.7rem; color: var(--text-muted);">ID: ${c.id.substring(0, 12)}</span>`;
+            const imageCell = `<code style="font-size: 0.75rem; color: var(--info);">${c.image_name}</code><br><span style="font-size: 0.7rem; color: var(--text-secondary);"><i class="fa-solid fa-tag"></i> ${c.image_tag}</span>`;
+
+            const digestCell = c.tag_pinned
+                ? `<i class="fa-solid fa-circle-check text-success" style="font-size: 1.1rem;" title="Image figée de façon immuable par digest"></i>`
+                : `<i class="fa-solid fa-circle-xmark text-danger" style="font-size: 1.1rem;" title="Image non figée (vulnérable à l'empoisonnement de tag)"></i>`;
+
+            const rootCell = !c.is_root
+                ? `<i class="fa-solid fa-circle-check text-success" style="font-size: 1.1rem;" title="Utilisateur non-root sécurisé"></i>`
+                : `<i class="fa-solid fa-skull text-danger" style="font-size: 1.1rem;" title="Fonctionne en root (UID 0)"></i>`;
+
+            const privilegedCell = !c.is_privileged
+                ? `<i class="fa-solid fa-circle-check text-success" style="font-size: 1.1rem;" title="Aucun privilège hôte élevé"></i>`
+                : `<i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 1.1rem;" title="Fonctionne en mode privilégié (accès total hôte)"></i>`;
+
+            const secretsCount = c.secret_leaks ? c.secret_leaks.length : 0;
+            const secretsCell = secretsCount === 0
+                ? `<i class="fa-solid fa-circle-check text-success" style="font-size: 1.1rem;" title="Aucun secret détecté dans l'environnement"></i>`
+                : `<span class="indicator-pill fail" style="padding: 0.15rem 0.4rem; font-size: 0.65rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.2rem;"><i class="fa-solid fa-key"></i> ${secretsCount}</span>`;
+
+            const actionsCell = `
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openDrawer('${c.id}')" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem;">
+                        <i class="fa-solid fa-eye"></i> Inspecter
+                    </button>
+                </div>
+            `;
+
+            tr.innerHTML = `
+                <td style="padding: 0.75rem 1rem;">${statusCell}</td>
+                <td style="padding: 0.75rem 1rem;">${nameCell}</td>
+                <td style="padding: 0.75rem 1rem;">${imageCell}</td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">${digestCell}</td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">${rootCell}</td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">${privilegedCell}</td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">${secretsCell}</td>
+                <td style="padding: 0.75rem 1rem; text-align: right;">${actionsCell}</td>
+            `;
+
+            tr.addEventListener('click', () => openDrawer(c.id));
+            rowsEl.appendChild(tr);
+        });
+    }
+
+    // ==========================================================================
+    // Container Overrides Management (Sprint 6)
+    // ==========================================================================
+    function fetchContainerOverrides() {
+        fetch('/api/containers/settings')
+            .then(res => {
+                if (!res.ok) throw new Error("Impossible de récupérer les surcharges");
+                return res.json();
+            })
+            .then(data => {
+                state.containerOverrides = data || {};
+                renderContainerOverridesList();
+                populateContainerSelect();
+            })
+            .catch(err => {
+                console.error("Erreur chargement surcharges :", err);
+            });
+    }
+
+    function renderContainerOverridesList() {
+        const rowsEl = document.getElementById('override-settings-list-rows');
+        if (!rowsEl) return;
+
+        rowsEl.innerHTML = '';
+
+        const keys = Object.keys(state.containerOverrides);
+        if (keys.length === 0) {
+            rowsEl.innerHTML = `
+                <tr>
+                    <td colspan="5" style="padding: 1rem; text-align: center; color: var(--text-muted);">
+                        Aucune surcharge active pour le moment.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        keys.forEach(name => {
+            const override = state.containerOverrides[name];
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.style.height = '40px';
+
+            const cveText = override.secops_max_severity_allowed || `<span style="color: var(--text-muted); font-style: italic;">Hérité</span>`;
+            
+            const rootText = override.secops_allow_root === null 
+                ? `<span style="color: var(--text-muted); font-style: italic;">Hérité</span>` 
+                : (override.secops_allow_root ? `<span class="text-success"><i class="fa-solid fa-circle-check"></i> Autorisé</span>` : `<span class="text-danger"><i class="fa-solid fa-circle-xmark"></i> Interdit</span>`);
+            
+            const privilegedText = override.secops_allow_privileged === null 
+                ? `<span style="color: var(--text-muted); font-style: italic;">Hérité</span>` 
+                : (override.secops_allow_privileged ? `<span class="text-success"><i class="fa-solid fa-circle-check"></i> Autorisé</span>` : `<span class="text-danger"><i class="fa-solid fa-circle-xmark"></i> Interdit</span>`);
+
+            const deleteBtn = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="deleteContainerOverride('${name}')" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; border-radius: 4px; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">
+                    <i class="fa-solid fa-trash"></i> Supprimer
+                </button>
+            `;
+
+            tr.innerHTML = `
+                <td style="padding: 0.5rem; font-weight: 600; font-family: var(--font-header);">${name}</td>
+                <td style="padding: 0.5rem;">${cveText}</td>
+                <td style="padding: 0.5rem; text-align: center;">${rootText}</td>
+                <td style="padding: 0.5rem; text-align: center;">${privilegedText}</td>
+                <td style="padding: 0.5rem; text-align: right;">${deleteBtn}</td>
+            `;
+
+            rowsEl.appendChild(tr);
+        });
+    }
+
+    function populateContainerSelect() {
+        const selectEl = document.getElementById('override-select-container');
+        if (!selectEl) return;
+
+        selectEl.innerHTML = '<option value="">-- Sélectionner un conteneur --</option>';
+
+        state.containers.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            opt.textContent = c.name;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    function saveContainerOverride() {
+        const containerName = document.getElementById('override-select-container').value;
+        if (!containerName) {
+            alert("Veuillez sélectionner un conteneur.");
+            return;
+        }
+
+        const maxSeverity = document.getElementById('override-select-severity').value;
+        
+        const rootSelect = document.getElementById('override-select-root').value;
+        const allowRoot = rootSelect === "" ? null : (rootSelect === "true");
+
+        const privilegedSelect = document.getElementById('override-select-privileged').value;
+        const allowPrivileged = privilegedSelect === "" ? null : (privilegedSelect === "true");
+
+        const payload = {
+            container_name: containerName,
+            secops_max_severity_allowed: maxSeverity,
+            secops_allow_root: allowRoot,
+            secops_allow_privileged: allowPrivileged
+        };
+
+        const btn = document.getElementById('btn-save-override');
+        if (btn) btn.disabled = true;
+
+        fetch('/api/containers/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Erreur de sauvegarde");
+            return res.text();
+        })
+        .then(() => {
+            fetchContainerOverrides();
+            document.getElementById('override-select-container').value = '';
+            document.getElementById('override-select-severity').value = '';
+            document.getElementById('override-select-root').value = '';
+            document.getElementById('override-select-privileged').value = '';
+        })
+        .catch(err => {
+            alert("Erreur lors de l'enregistrement de la surcharge : " + err.message);
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+        });
+    }
+
+    window.deleteContainerOverride = function(containerName) {
+        if (!confirm(`Supprimer la surcharge de sécurité pour ${containerName} ?`)) {
+            return;
+        }
+
+        fetch('/api/containers/settings/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ container_name: containerName })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Erreur de suppression");
+            return res.text();
+        })
+        .then(() => {
+            fetchContainerOverrides();
+        })
+        .catch(err => {
+            alert("Erreur lors de la suppression de la surcharge : " + err.message);
+        });
+    };
 });

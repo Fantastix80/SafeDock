@@ -109,16 +109,82 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	fmt.Printf("   │  ├─ Failles Trivy détectées : %d Critiques, %d Hautes, %d Moyennes\n", 
 		critCount, highCount, trivyReport.Summary.Medium)
 
-	// Décision automatique de sécurité sur Trivy
+	// Décision automatique de sécurité avec prise en compte des surcharges par conteneur
 	isSecOpsApproved := true
 	secopsReason := ""
 
-	if lo.cfg.SecOps.MaxSeverityAllowed == "HIGH" && critCount > 0 {
+	// Résolution de la configuration active (surcharges par conteneur ou configuration globale)
+	maxSev := lo.cfg.SecOps.MaxSeverityAllowed
+	allowRoot := lo.cfg.SecOps.AllowRoot
+	allowPrivileged := lo.cfg.SecOps.AllowPrivileged
+
+	maxSevOverride, allowRootOverride, allowPrivilegedOverride, err := db.GetContainerSettings(containerName)
+	if err != nil {
+		fmt.Printf("   │  ⚠️  Impossible de charger les surcharges de configuration de DB : %v. Repli sur le global.\n", err)
+	} else {
+		if maxSevOverride != "" {
+			maxSev = maxSevOverride
+			fmt.Printf("   │  ℹ️  Surcharge active pour ce conteneur - Tolérance CVE : %s\n", maxSev)
+		}
+		if allowRootOverride != nil {
+			allowRoot = *allowRootOverride
+			fmt.Printf("   │  ℹ️  Surcharge active pour ce conteneur - Autoriser Root : %t\n", allowRoot)
+		}
+		if allowPrivilegedOverride != nil {
+			allowPrivileged = *allowPrivilegedOverride
+			fmt.Printf("   │  ℹ️  Surcharge active pour ce conteneur - Autoriser Privilégié : %t\n", allowPrivileged)
+		}
+	}
+
+	// 5a. Validation SecOps : Règle Non-Root
+	user := inspect.Config.User
+	isRoot := user == "" || user == "root" || user == "0" || strings.HasPrefix(user, "0:")
+	if isRoot && !allowRoot {
 		isSecOpsApproved = false
-		secopsReason = fmt.Sprintf("Présence de %d vulnérabilités critiques non corrigées dans l'image", critCount)
-	} else if lo.cfg.SecOps.MaxSeverityAllowed == "MEDIUM" && (critCount > 0 || highCount > 0) {
+		secopsReason = "Le conteneur s'exécute en tant qu'utilisateur root, ce qui n'est pas autorisé par vos règles de sécurité."
+	}
+
+	// 5b. Validation SecOps : Règle Privilégiée
+	isPrivileged := inspect.HostConfig.Privileged
+	if isPrivileged && !allowPrivileged && isSecOpsApproved {
 		isSecOpsApproved = false
-		secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d) ou hautes (%d) non tolérées", critCount, highCount)
+		secopsReason = "Le conteneur s'exécute en mode privilégié, ce qui n'est pas autorisé par vos règles de sécurité."
+	}
+
+	// 5c. Validation SecOps : Règle CVE Sévérités
+	if isSecOpsApproved {
+		medCount := trivyReport.Summary.Medium
+		lowCount := trivyReport.Summary.Low
+		unknownCount := trivyReport.Summary.Unknown
+
+		switch maxSev {
+		case "CRITICAL":
+			if critCount > 0 {
+				isSecOpsApproved = false
+				secopsReason = fmt.Sprintf("Présence de %d vulnérabilités critiques non tolérées (seuil: CRITICAL)", critCount)
+			}
+		case "HIGH":
+			if critCount > 0 || highCount > 0 {
+				isSecOpsApproved = false
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d) ou hautes (%d) non tolérées (seuil: HIGH)", critCount, highCount)
+			}
+		case "MEDIUM":
+			if critCount > 0 || highCount > 0 || medCount > 0 {
+				isSecOpsApproved = false
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d), hautes (%d) ou moyennes (%d) non tolérées (seuil: MEDIUM)", critCount, highCount, medCount)
+			}
+		case "LOW":
+			if critCount > 0 || highCount > 0 || medCount > 0 || lowCount > 0 {
+				isSecOpsApproved = false
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités non tolérées (critiques: %d, hautes: %d, moyennes: %d, basses: %d) (seuil: LOW)", critCount, highCount, medCount, lowCount)
+			}
+		case "NONE":
+			totalCVE := critCount + highCount + medCount + lowCount + unknownCount
+			if totalCVE > 0 {
+				isSecOpsApproved = false
+				secopsReason = fmt.Sprintf("Présence de %d vulnérabilités détectées alors qu'aucune n'est tolérée (seuil: NONE)", totalCVE)
+			}
+		}
 	}
 
 	// 6. Batterie SecOps : Scan de Structure (Dockle)

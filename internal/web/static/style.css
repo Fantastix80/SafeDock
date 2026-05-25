@@ -1263,3 +1263,19 @@ body {
     font-weight: 700;
     text-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
 }
+
+/* Semantic Containers Table styling */
+.semantic-containers-table th {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+}
+
+.semantic-containers-table td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.semantic-containers-table tr {
+    cursor: pointer;
+}
