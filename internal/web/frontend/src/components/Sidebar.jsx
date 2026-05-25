@@ -9,10 +9,10 @@ export default function Sidebar({
   isRefreshing 
 }) {
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ position: 'relative' }}>
       
       {/* Logo Area & Collapse Button */}
-      <div className="logo-area" style={{ display: 'flex', justifyContent: isCollapsed ? 'center' : 'space-between', alignItems: 'center', width: '100%', marginBottom: '2.5rem' }}>
+      <div className="logo-area" style={{ display: 'flex', justifyContent: isCollapsed ? 'center' : 'flex-start', alignItems: 'center', width: '100%', marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           <div className="logo-icon">
             <svg className="safedock-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -51,25 +51,28 @@ export default function Sidebar({
           )}
         </div>
         
+        {/* Floating Absolute Collapse Toggle Button */}
         <button 
           className="sidebar-collapse-btn" 
           onClick={onToggleCollapse}
           style={{ 
-            background: 'none', 
-            border: 'none', 
+            position: 'absolute', 
+            right: '-14px', 
+            top: '2.75rem',
+            background: 'var(--bg-card)', 
+            border: '1px solid var(--border-color)', 
             color: 'var(--text-secondary)', 
             cursor: 'pointer', 
-            fontSize: '0.85rem', 
+            fontSize: '0.75rem', 
             width: '28px', 
             height: '28px', 
             borderRadius: '50%', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            background: 'rgba(255, 255, 255, 0.02)', 
-            border: '1px solid var(--border-color)',
-            marginLeft: isCollapsed ? '0' : '0.5rem',
-            marginTop: isCollapsed ? '0.75rem' : '0'
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+            zIndex: 100,
+            transition: 'var(--transition-smooth)'
           }}
           title={isCollapsed ? "Déplier le menu" : "Replier le menu"}
           type="button"
@@ -96,6 +99,24 @@ export default function Sidebar({
         >
           <i className="fa-solid fa-cubes"></i>
           <span>Conteneurs</span>
+        </div>
+
+        <div 
+          className={`nav-item ${activePage === 'actions' ? 'active' : ''}`} 
+          onClick={() => onNavigate('actions')}
+          title="Actions Nécessaires"
+        >
+          <i className="fa-solid fa-shield-halved"></i>
+          <span>Actions</span>
+        </div>
+
+        <div 
+          className={`nav-item ${activePage === 'agents' ? 'active' : ''}`} 
+          onClick={() => onNavigate('agents')}
+          title="Agents SecOps"
+        >
+          <i className="fa-solid fa-server"></i>
+          <span>Agents</span>
         </div>
         
         <div 
@@ -152,15 +173,6 @@ export default function Sidebar({
       >
         <i className="fa-solid fa-sliders"></i>
         <span>Paramètres</span>
-      </div>
-
-      {/* Sidebar Footer */}
-      <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
-        <div className="status-indicator online">
-          <span className="pulse-dot"></span>
-          <span>Démon Actif</span>
-        </div>
-        <span className="version" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>v0.9.5</span>
       </div>
     </aside>
   );

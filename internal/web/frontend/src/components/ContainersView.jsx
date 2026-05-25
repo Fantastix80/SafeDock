@@ -155,8 +155,8 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                 currentItems.map(c => {
                   const grade = c.grade ? c.grade.toLowerCase() : 'f';
                   let scoreClass = 'score-a';
-                  if (c.score < 60) scoreClass = 'score-f';
-                  else if (c.score < 90) scoreClass = 'score-c';
+                  if (c.score < 50) scoreClass = 'score-f';
+                  else if (c.score < 75) scoreClass = 'score-c';
 
                   return (
                     <tr 

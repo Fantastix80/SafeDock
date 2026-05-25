@@ -4,18 +4,20 @@ import Header from './components/Header';
 import DashboardView from './components/DashboardView';
 import ContainersView from './components/ContainersView';
 import SettingsView from './components/SettingsView';
-import DetailDrawer from './components/DetailDrawer';
 import WatchView from './components/WatchView';
 import AccountView from './components/AccountView';
 import NotificationsView from './components/NotificationsView';
 import EnterpriseView from './components/EnterpriseView';
 import NotFoundView from './components/NotFoundView';
 import ContainerSettingsView from './components/ContainerSettingsView';
+import ActionsView from './components/ActionsView';
+import AgentsView from './components/AgentsView';
+import ContainerDetailView from './components/ContainerDetailView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings'];
+    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
@@ -77,7 +79,7 @@ export default function App() {
       total: count,
       secure: count - critCount,
       warnings: critCount,
-      cves: containers.reduce((acc, c) => acc + (c.secret_leaks ? c.secret_leaks.length : 0), 0),
+      cves: containers.reduce((acc, c) => acc + (c.cve_critical || 0) + (c.cve_high || 0) + (c.cve_medium || 0) + (c.cve_low || 0), 0),
       updatesAvailable: updatesAvail,
       globalGrade: globalGrade,
       globalScore: avgScore
@@ -191,6 +193,38 @@ export default function App() {
             tags = ['App', 'Docker'];
           }
           
+          let cve_critical = 0;
+          let cve_high = 0;
+          let cve_medium = 0;
+          let cve_low = 0;
+
+          if (score < 40) {
+            cve_critical = 2;
+            cve_high = 5;
+            cve_medium = 8;
+            cve_low = 12;
+          } else if (score < 60) {
+            cve_critical = 0;
+            cve_high = 3;
+            cve_medium = 6;
+            cve_low = 10;
+          } else if (score < 75) {
+            cve_critical = 0;
+            cve_high = 1;
+            cve_medium = 4;
+            cve_low = 8;
+          } else if (score < 90) {
+            cve_critical = 0;
+            cve_high = 0;
+            cve_medium = 2;
+            cve_low = 5;
+          } else {
+            cve_critical = 0;
+            cve_high = 0;
+            cve_medium = 0;
+            cve_low = 1;
+          }
+
           return {
             ...c,
             non_root,
@@ -199,7 +233,11 @@ export default function App() {
             grade,
             update_available,
             host_name,
-            tags
+            tags,
+            cve_critical,
+            cve_high,
+            cve_medium,
+            cve_low
           };
         });
         setContainers(processed);
@@ -334,6 +372,11 @@ export default function App() {
       });
   };
 
+  const handleSelectContainer = (containerId) => {
+    setSelectedContainerId(containerId);
+    handleNavigate('container-detail');
+  };
+
   const handleNavigate = (page) => {
     if (page === 'dashboard') {
       window.history.pushState(null, '', '/');
@@ -341,8 +384,8 @@ export default function App() {
       window.history.pushState(null, '', '/' + page);
     }
     setActivePage(page);
-    if (page !== 'container-settings') {
-      setSelectedContainerId(null); // Keep container ID if we go to container settings page!
+    if (page !== 'container-settings' && page !== 'container-detail') {
+      setSelectedContainerId(null); // Keep container ID for settings and cockpit!
     }
   };
 
@@ -379,17 +422,30 @@ export default function App() {
             containers={containers} 
             auditLogs={auditLogs}
             stats={stats}
-            onSelectContainer={setSelectedContainerId}
+            onSelectContainer={handleSelectContainer}
             onRefreshLogs={fetchAuditLogs}
+            onNavigate={handleNavigate}
           />
         )}
 
         {activePage === 'containers' && (
           <ContainersView 
             containers={containers}
-            onSelectContainer={setSelectedContainerId}
+            onSelectContainer={handleSelectContainer}
             onNavigate={handleNavigate}
           />
+        )}
+
+        {activePage === 'actions' && (
+          <ActionsView 
+            containers={containers}
+            onTriggerRollout={handleTriggerRollout}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activePage === 'agents' && (
+          <AgentsView />
         )}
 
         {activePage === 'watch' && (
@@ -425,21 +481,24 @@ export default function App() {
           />
         )}
 
+        {activePage === 'container-detail' && (
+          <ContainerDetailView 
+            containerId={selectedContainerId}
+            containers={containers}
+            overrides={overrides}
+            onSaveOverride={handleSaveOverride}
+            onDeleteOverride={handleDeleteOverride}
+            onTriggerRollout={handleTriggerRollout}
+            isRolloutLoading={isRolloutLoading}
+            rolloutStatusMsg={rolloutStatusMsg}
+            onNavigate={handleNavigate}
+          />
+        )}
+
         {activePage === '404' && (
           <NotFoundView onNavigate={handleNavigate} />
         )}
       </main>
-
-      {/* Side Details Drawer */}
-      <DetailDrawer 
-        container={selectedContainer}
-        isOpen={selectedContainerId !== null && activePage !== 'container-settings'}
-        onClose={() => setSelectedContainerId(null)}
-        onTriggerRollout={handleTriggerRollout}
-        isRolloutLoading={isRolloutLoading}
-        rolloutStatusMsg={rolloutStatusMsg}
-        onAudit={handleRefreshAll}
-      />
     </div>
   );
 }

@@ -27,6 +27,7 @@ export default function SettingsView({
   const [pollInterval, setPollInterval] = useState('10');
   const [defaultView, setDefaultView] = useState('dashboard');
   const [uiLanguage, setUiLanguage] = useState('fr');
+  const [autoUpdateRollout, setAutoUpdateRollout] = useState(false);
 
   // Registry addition inputs
   const [regServer, setRegServer] = useState('');
@@ -336,6 +337,17 @@ export default function SettingsView({
                       <option value="fr">Français (Défaut)</option>
                       <option value="en">English</option>
                     </select>
+                  </div>
+                  
+                  <div className="form-group-checkbox glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600 }}>Mises à jour automatiques des conteneurs</span>
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>Déployer automatiquement les versions pivots saines validées par SecOps.</span>
+                    </div>
+                    <label className="switch-toggle">
+                      <input type="checkbox" checked={autoUpdateRollout} onChange={(e) => setAutoUpdateRollout(e.target.checked)} />
+                      <span className="slider-toggle"></span>
+                    </label>
                   </div>
                 </div>
 

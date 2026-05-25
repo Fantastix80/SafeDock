@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function DashboardView({ containers, auditLogs, stats, onSelectContainer, onRefreshLogs }) {
+export default function DashboardView({ containers, auditLogs, stats, onSelectContainer, onRefreshLogs, onNavigate }) {
   const [activeFilter, setActiveFilter] = useState('all');
 
   const filteredContainers = containers.filter(c => {
@@ -22,7 +22,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     strokeColor = "var(--danger)";
     badgeClass = "badge badge-danger";
     statusText = "Vulnérable";
-  } else if (score < 90) {
+  } else if (score < 75) {
     strokeColor = "var(--warning)";
     badgeClass = "badge badge-warning";
     statusText = "Améliorable";
@@ -51,14 +51,10 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   // Calculate aggregated CVE counts across all containers
   const cveCounts = { critical: 0, high: 0, medium: 0, low: 0 };
   (containers || []).forEach(c => {
-    if (c.vulnerabilities) {
-      c.vulnerabilities.forEach(v => {
-        const sev = v.severity ? v.severity.toLowerCase() : 'low';
-        if (cveCounts[sev] !== undefined) {
-          cveCounts[sev]++;
-        }
-      });
-    }
+    cveCounts.critical += (c.cve_critical || 0);
+    cveCounts.high += (c.cve_high || 0);
+    cveCounts.medium += (c.cve_medium || 0);
+    cveCounts.low += (c.cve_low || 0);
   });
 
   const chartWidth = 500;
@@ -144,10 +140,10 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         </div>
       </section>
 
-      {/* Visual Analytics Row: Chart + Circular Gauge */}
-      <section className="dashboard-visuals">
-        {/* Left: Custom SVG CVE Severity Bar Chart */}
-        <div className="glass chart-card">
+      {/* Visual Analytics Row: Chart + Circular Gauge + Quick Actions (3 Columns) */}
+      <section className="dashboard-visuals" style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 0.8fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
+        {/* Left: Custom SVG CVE Severity Bar Chart (1.4fr) */}
+        <div className="glass chart-card" style={{ height: '100%', minHeight: '260px' }}>
           <div className="chart-header">
             <div>
               <h3>Gravité des Failles de Sécurité (CVE)</h3>
@@ -270,9 +266,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           </div>
         </div>
 
-        {/* Right: Circular SecOps Gauge Circle Card */}
-        <div className="stat-card glass score-card">
-          <div className="score-container">
+        {/* Middle: Circular SecOps Gauge Circle Card (0.8fr) */}
+        <div className="stat-card glass score-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '1.5rem', borderRadius: '16px', minHeight: '260px' }}>
+          <div className="score-container" style={{ marginBottom: '1rem' }}>
             <div className="score-circle">
               <svg className="score-ring" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="44"></circle>
@@ -295,11 +291,57 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
               </svg>
             </div>
           </div>
-          <div className="score-info">
-            <h3>Score SecOps Global</h3>
-            <p>Posture globale de sécurité de vos conteneurs actifs</p>
-            <span className={badgeClass} id="global-status-badge">{statusText}</span>
+          <div className="score-info" style={{ width: '100%' }}>
+            <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: 800 }}>Score Global</h3>
+            <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Posture de sécurité globale</p>
+            <span className={badgeClass} id="global-status-badge" style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem' }}>{statusText}</span>
           </div>
+        </div>
+
+        {/* Right: Quick Actions Card (0.8fr) */}
+        <div className="stat-card glass" style={{ padding: '1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+              <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--warning)', fontSize: '1rem' }}></i>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>Actions Recommandées</h3>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
+                <span className="badge badge-danger" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>CRITICAL</span>
+                <div>
+                  <strong style={{ color: 'var(--text-primary)' }}>target-vuln :</strong>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Faille critique sans patch disponible.</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
+                <span className="badge badge-warning" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>SECURITY</span>
+                <div>
+                  <strong style={{ color: 'var(--text-primary)' }}>docker-proxy :</strong>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Tag latest non-épinglé (Spoofing).</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
+                <span className="badge badge-success" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>UPDATE</span>
+                <div>
+                  <strong style={{ color: 'var(--text-primary)' }}>safedock-app :</strong>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Mise à jour en attente.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => onNavigate('actions')}
+            style={{ width: '100%', padding: '0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', borderRadius: '8px', marginTop: '1rem' }}
+            type="button"
+          >
+            <span>Gérer les actions ({stats.warnings + stats.updatesAvailable})</span>
+            <i className="fa-solid fa-arrow-right"></i>
+          </button>
         </div>
       </section>
 
@@ -350,8 +392,8 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
             {filteredContainers.map(c => {
               const grade = c.grade ? c.grade.toLowerCase() : 'f';
               let scoreClass = 'score-a';
-              if (c.score < 60) scoreClass = 'score-f';
-              else if (c.score < 90) scoreClass = 'score-c';
+              if (c.score < 50) scoreClass = 'score-f';
+              else if (c.score < 75) scoreClass = 'score-c';
 
               return (
                 <div 

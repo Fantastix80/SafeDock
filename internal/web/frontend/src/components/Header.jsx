@@ -117,22 +117,36 @@ export default function Header({
         {/* Separator line */}
         <div className="header-separator"></div>
 
-        {/* Clickable User Profile Dropdown */}
+        {/* Clickable User Profile Area */}
         <div 
           className="user-profile" 
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsDropdownOpen(!isDropdownOpen);
-          }}
-          style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }}
+          style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', userSelect: 'none' }}
         >
-          <img src="/avatar.png" alt="Hell0W0rld" className="user-avatar" />
-          <div className="user-info">
-            <span className="user-name">Hell0W0rld</span>
-            <span className="user-role">SecOps Admin</span>
+          {/* Avatar and Name: Redirects to Account page directly */}
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate('account');
+            }}
+          >
+            <img src="/avatar.png" alt="Hell0W0rld" className="user-avatar" />
+            <div className="user-info">
+              <span className="user-name">Hell0W0rld</span>
+              <span className="user-role">SecOps Admin</span>
+            </div>
           </div>
           
-          <i className="fa-solid fa-chevron-down" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.4rem' }}></i>
+          {/* Chevron: Toggles dropdown list */}
+          <div 
+            style={{ cursor: 'pointer', padding: '0.4rem 0.25rem', display: 'flex', alignItems: 'center' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDropdownOpen(!isDropdownOpen);
+            }}
+          >
+            <i className="fa-solid fa-chevron-down" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}></i>
+          </div>
 
           {/* Profile Dropdown Card */}
           {isDropdownOpen && (
