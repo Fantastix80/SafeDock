@@ -34,4 +34,4 @@ go.work
 
 # SafeDock custom build / temp output
 dist/
-safedock
+/safedock

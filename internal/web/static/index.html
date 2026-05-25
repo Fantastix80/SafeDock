@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeDock - SecOps Dashboard</title>
+    <!-- Modern Typography from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for high-quality security and docker icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glass-bg-glow"></div>
+    
+    <div class="dashboard-wrapper">
+        <!-- Sidebar Navigation (Sleek minimalist style) -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>SafeDock</h1>
+                    <span>SecOps Gatekeeper</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" id="btn-nav-dashboard">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </a>
+                <a href="#" class="nav-item" id="btn-nav-containers">
+                    <i class="fa-solid fa-cubes"></i> Conteneurs
+                </a>
+                <a href="#" class="nav-item" id="btn-nav-settings">
+                    <i class="fa-solid fa-sliders"></i> Paramètres
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator online">
+                    <span class="pulse-dot"></span>
+                    <span>Démon Actif</span>
+                </div>
+                <span class="version">v0.9.0-sprint4</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Area -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h2>Tableau de Bord de Sécurité</h2>
+                    <p id="current-time">Analyse en temps réel de votre hôte Docker</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-global-refresh">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Lancer un Audit Global</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <section class="stats-grid">
+                <!-- Circular Score Gauge Card -->
+                <div class="stat-card glass score-card">
+                    <div class="score-container">
+                        <div class="score-circle">
+                            <span id="global-grade">A</span>
+                            <svg class="score-ring">
+                                <circle cx="50" cy="50" r="44"></circle>
+                                <circle cx="50" cy="50" r="44" id="score-ring-progress"></circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="score-info">
+                        <h3>Score SecOps Global</h3>
+                        <p>Posture globale de sécurité de vos conteneurs actifs</p>
+                        <span class="badge badge-success" id="global-status-badge">Excellent</span>
+                    </div>
+                </div>
+
+                <!-- Generic Stat Card 1 -->
+                <div class="stat-card glass">
+                    <div class="stat-icon bg-blue">
+                        <i class="fa-solid fa-box"></i>
+                    </div>
+                    <div class="stat-data">
+                        <span class="stat-value" id="stat-containers-count">0</span>
+                        <span class="stat-label">Conteneurs Audités</span>
+                    </div>
+                </div>
+
+                <!-- Generic Stat Card 2 -->
+                <div class="stat-card glass">
+                    <div class="stat-icon bg-red">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="stat-data">
+                        <span class="stat-value" id="stat-alerts-count">0</span>
+                        <span class="stat-label">Alertes Critiques</span>
+                    </div>
+                </div>
+
+                <!-- Generic Stat Card 3 -->
+                <div class="stat-card glass">
+                    <div class="stat-icon bg-yellow">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                    </div>
+                    <div class="stat-data">
+                        <span class="stat-value" id="stat-updates-count">0</span>
+                        <span class="stat-label">Mises à Jour Dispo</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Containers Section -->
+            <section class="section-container">
+                <div class="section-header">
+                    <h3>
+                        <i class="fa-solid fa-list-check"></i> 
+                        Statuts des Conteneurs en Cours d'Audit
+                    </h3>
+                    <div class="filters">
+                        <button class="filter-btn active" data-filter="all">Tous</button>
+                        <button class="filter-btn" data-filter="secure">Sains</button>
+                        <button class="filter-btn" data-filter="warning">Alertes</button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-state" id="containers-loading">
+                    <div class="spinner"></div>
+                    <p>Audit SecOps en cours de génération...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state hidden" id="containers-empty">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <p>Aucun conteneur Docker actif trouvé sur cet hôte.</p>
+                </div>
+
+                <!-- Container Grid -->
+                <div class="containers-grid" id="containers-list">
+                    <!-- Cards are dynamically injected here by app.js -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Side Drawer (Detail View) -->
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <aside class="drawer glass" id="container-drawer">
+        <div class="drawer-header">
+            <div class="drawer-title-area">
+                <h3 id="drawer-container-name">Nom du conteneur</h3>
+                <span class="drawer-subtitle" id="drawer-container-image">image:tag</span>
+            </div>
+            <button class="btn-close-drawer" id="btn-close-drawer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="drawer-tabs">
+            <button class="tab-btn active" data-tab="tab-overview">Aperçu</button>
+            <button class="tab-btn" data-tab="tab-trivy">
+                CVE (Trivy) <span class="tab-badge" id="cve-count-badge">0</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-dockle">
+                Linter (Dockle) <span class="tab-badge" id="dockle-count-badge">0</span>
+            </button>
+        </div>
+
+        <div class="drawer-content">
+            <!-- TAB: OVERVIEW -->
+            <div class="tab-pane active" id="tab-overview">
+                <!-- General Security Score Card -->
+                <div class="drawer-section-card glass">
+                    <h4>Évaluation SecOps</h4>
+                    <div class="evaluation-grid">
+                        <div class="eval-item">
+                            <span class="eval-icon" id="eval-icon-pinning"><i class="fa-solid fa-check"></i></span>
+                            <div class="eval-desc">
+                                <strong>Image Tag Pinning</strong>
+                                <span id="eval-text-pinning">Vérification...</span>
+                            </div>
+                        </div>
+                        <div class="eval-item">
+                            <span class="eval-icon" id="eval-icon-root"><i class="fa-solid fa-check"></i></span>
+                            <div class="eval-desc">
+                                <strong>Utilisateur Non-Root</strong>
+                                <span id="eval-text-root">Vérification...</span>
+                            </div>
+                        </div>
+                        <div class="eval-item">
+                            <span class="eval-icon" id="eval-icon-privileged"><i class="fa-solid fa-check"></i></span>
+                            <div class="eval-desc">
+                                <strong>Privilèges Standard</strong>
+                                <span id="eval-text-privileged">Vérification...</span>
+                            </div>
+                        </div>
+                        <div class="eval-item">
+                            <span class="eval-icon" id="eval-icon-mounts"><i class="fa-solid fa-check"></i></span>
+                            <div class="eval-desc">
+                                <strong>Montages Système</strong>
+                                <span id="eval-text-mounts">Vérification...</span>
+                            </div>
+                        </div>
+                        <div class="eval-item">
+                            <span class="eval-icon" id="eval-icon-secrets"><i class="fa-solid fa-check"></i></span>
+                            <div class="eval-desc">
+                                <strong>Variables d'Environnement</strong>
+                                <span id="eval-text-secrets">Vérification...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volumes & Mounts Section -->
+                <div class="drawer-section-card glass">
+                    <h4>Partages de Volumes Sensibles</h4>
+                    <div class="mounts-list" id="drawer-mounts-list">
+                        <!-- Dynamic list -->
+                    </div>
+                </div>
+
+                <!-- Env Variable Secrets leaks -->
+                <div class="drawer-section-card glass">
+                    <h4>Secrets Détectés en Clair</h4>
+                    <div class="secrets-list" id="drawer-secrets-list">
+                        <!-- Dynamic list -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: TRIVY CVEs -->
+            <div class="tab-pane" id="tab-trivy">
+                <div class="scan-summary-bar">
+                    <div class="severity-stat critical">
+                        <span class="count" id="trivy-crit-count">0</span>
+                        <span class="label">Critique</span>
+                    </div>
+                    <div class="severity-stat high">
+                        <span class="count" id="trivy-high-count">0</span>
+                        <span class="label">Haute</span>
+                    </div>
+                    <div class="severity-stat medium">
+                        <span class="count" id="trivy-med-count">0</span>
+                        <span class="label">Moyenne</span>
+                    </div>
+                    <div class="severity-stat low">
+                        <span class="count" id="trivy-low-count">0</span>
+                        <span class="label">Basse</span>
+                    </div>
+                </div>
+
+                <div class="loading-state hidden" id="trivy-loading">
+                    <div class="spinner"></div>
+                    <p>Récupération du rapport de vulnérabilité Trivy...</p>
+                </div>
+
+                <div class="empty-state hidden" id="trivy-empty">
+                    <i class="fa-solid fa-circle-check text-success"></i>
+                    <p>Félicitations ! Aucune faille de sécurité détectée par Trivy.</p>
+                </div>
+
+                <div class="vuln-list" id="trivy-vuln-list">
+                    <!-- Dynamic vulnerabilities -->
+                </div>
+            </div>
+
+            <!-- TAB: DOCKLE COMPLIANCE -->
+            <div class="tab-pane" id="tab-dockle">
+                <div class="scan-summary-bar">
+                    <div class="severity-stat fatal">
+                        <span class="count" id="dockle-fatal-count">0</span>
+                        <span class="label">FATAL</span>
+                    </div>
+                    <div class="severity-stat warn">
+                        <span class="count" id="dockle-warn-count">0</span>
+                        <span class="label">WARN</span>
+                    </div>
+                    <div class="severity-stat info">
+                        <span class="count" id="dockle-info-count">0</span>
+                        <span class="label">INFO</span>
+                    </div>
+                </div>
+
+                <div class="loading-state hidden" id="dockle-loading">
+                    <div class="spinner"></div>
+                    <p>Récupération des règles de conformité Dockle...</p>
+                </div>
+
+                <div class="empty-state hidden" id="dockle-empty">
+                    <i class="fa-solid fa-circle-check text-success"></i>
+                    <p>Image 100% conforme aux meilleures pratiques Docker.</p>
+                </div>
+
+                <div class="compliance-list" id="dockle-compliance-list">
+                    <!-- Dynamic compliance alerts -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer Footer with Rollout CTA -->
+        <div class="drawer-footer">
+            <button class="btn btn-accent w-full" id="btn-trigger-update">
+                <i class="fa-solid fa-sync"></i> 
+                <span>Vérifier & Appliquer les Mises à Jour</span>
+            </button>
+            <div class="update-status-msg hidden" id="update-status-message"></div>
+        </div>
+    </aside>
+
+    <!-- Overlay settings pane -->
+    <div class="settings-modal glass hidden" id="settings-pane">
+        <div class="settings-header">
+            <h3>🛡️ Configuration SecOps SafeDock</h3>
+            <button class="btn-close-modal" id="btn-close-settings">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="settings-body">
+            <div class="settings-section">
+                <h4>Seuils SecOps Actifs</h4>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <span class="cfg-label">Sévérité CVE maximum autorisée</span>
+                        <span class="cfg-val" id="cfg-severity">HIGH</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="cfg-label">Autoriser le mode Privilégié</span>
+                        <span class="cfg-val text-red" id="cfg-allow-privileged">FALSE</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="cfg-label">Autoriser l'utilisateur Root</span>
+                        <span class="cfg-val text-yellow" id="cfg-allow-root">TRUE</span>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>Serveur d'Alerte SMTP</h4>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <span class="cfg-label">Serveur SMTP Hôte</span>
+                        <span class="cfg-val" id="cfg-smtp-host">-</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="cfg-label">Adresse de notification</span>
+                        <span class="cfg-val" id="cfg-smtp-to">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Entrypoint -->
+    <script src="app.js"></script>
+</body>
+</html>

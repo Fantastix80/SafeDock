@@ -68,6 +68,9 @@ RUN chmod +x /usr/local/bin/safedock
 # Définition des variables d'environnement de cache
 ENV TRIVY_CACHE_DIR="/home/safedock/.cache/trivy"
 
+# Exposition du port d'API REST & Dashboard Web
+EXPOSE 8080
+
 # Changement vers l'utilisateur non-root pour l'exécution
 USER safedock
 WORKDIR /home/safedock
