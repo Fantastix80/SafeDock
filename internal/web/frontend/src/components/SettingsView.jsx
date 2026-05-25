@@ -58,17 +58,17 @@ export default function SettingsView({
 
   useEffect(() => {
     if (config) {
-      setSeverity(config.cve_severity_threshold || 'HIGH');
-      setAllowRoot(config.allow_root_user || false);
-      setAllowPrivileged(config.allow_privileged_mode || false);
+      setSeverity(config.SecOps?.MaxSeverityAllowed || 'HIGH');
+      setAllowRoot(config.SecOps?.AllowRoot || false);
+      setAllowPrivileged(config.SecOps?.AllowPrivileged || false);
       
-      setSmtpHost(config.smtp_host || '');
-      setSmtpPort(config.smtp_port !== undefined ? String(config.smtp_port) : '');
-      setSmtpUser(config.smtp_username || '');
+      setSmtpHost(config.SMTP?.Host || '');
+      setSmtpPort(config.SMTP?.Port !== undefined && config.SMTP?.Port !== null ? String(config.SMTP.Port) : '');
+      setSmtpUser(config.SMTP?.User || '');
       setSmtpPass(''); // Keep blank for security
-      setSmtpFrom(config.smtp_from || '');
-      setSmtpTo(config.smtp_to || '');
-      setSmtpTlsSkip(config.smtp_skip_tls_verify || false);
+      setSmtpFrom(config.SMTP?.From || '');
+      setSmtpTo(config.SMTP?.To || '');
+      setSmtpTlsSkip(config.SMTP?.TLSSkipVerify || false);
     }
   }, [config]);
 
@@ -77,16 +77,16 @@ export default function SettingsView({
     setSaveStatus('Enregistrement...');
     
     const settingsData = {
-      cve_severity_threshold: severity,
-      allow_root_user: allowRoot,
-      allow_privileged_mode: allowPrivileged,
+      secops_max_severity_allowed: severity,
+      secops_allow_root: allowRoot,
+      secops_allow_privileged: allowPrivileged,
       smtp_host: smtpHost,
       smtp_port: smtpPort ? parseInt(smtpPort, 10) : 0,
-      smtp_username: smtpUser,
+      smtp_user: smtpUser,
       smtp_password: smtpPass,
       smtp_from: smtpFrom,
       smtp_to: smtpTo,
-      smtp_skip_tls_verify: smtpTlsSkip
+      smtp_tls_skip_verify: smtpTlsSkip
     };
 
     onSaveGlobalSettings(settingsData)
@@ -369,7 +369,7 @@ export default function SettingsView({
                           type="button" 
                           className="btn btn-accent" 
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: '6px' }}
-                          onClick={() => onDeleteRegistry(reg.server_address)}
+                          onClick={() => onDeleteRegistry(reg.id)}
                         >
                           <i className="fa-solid fa-trash"></i>
                         </button>

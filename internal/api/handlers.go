@@ -178,9 +178,9 @@ func (s *Server) HandleRegistries(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req struct {
-			Server   string `json:"server"`
-			Username string `json:"username"`
-			Password string `json:"password"`
+			ServerAddress string `json:"server_address"`
+			Username      string `json:"username"`
+			Password      string `json:"password"`
 		}
 		
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -188,12 +188,12 @@ func (s *Server) HandleRegistries(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		
-		if req.Server == "" || req.Username == "" {
+		if req.ServerAddress == "" || req.Username == "" {
 			http.Error(w, "Adresse serveur et Nom d'utilisateur obligatoires", http.StatusBadRequest)
 			return
 		}
 		
-		err := db.SaveRegistry(req.Server, req.Username, req.Password)
+		err := db.SaveRegistry(req.ServerAddress, req.Username, req.Password)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Erreur sauvegarde registre : %v", err), http.StatusInternalServerError)
 			return

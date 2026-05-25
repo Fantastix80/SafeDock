@@ -262,8 +262,8 @@ export default function App() {
       });
   };
 
-  const handleDeleteRegistry = (serverAddress) => {
-    const payload = { server_address: serverAddress };
+  const handleDeleteRegistry = (id) => {
+    const payload = { id: id };
     return fetch('/api/registries/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
