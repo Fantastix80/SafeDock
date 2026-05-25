@@ -5,9 +5,23 @@ import DashboardView from './components/DashboardView';
 import ContainersView from './components/ContainersView';
 import SettingsView from './components/SettingsView';
 import DetailDrawer from './components/DetailDrawer';
+import WatchView from './components/WatchView';
+import AccountView from './components/AccountView';
+import NotificationsView from './components/NotificationsView';
+import EnterpriseView from './components/EnterpriseView';
+import NotFoundView from './components/NotFoundView';
 
 export default function App() {
-  const [activePage, setActivePage] = useState('dashboard');
+  const getPageFromPathname = () => {
+    const path = window.location.pathname.replace('/', '');
+    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings'];
+    if (!path || path === 'dashboard') return 'dashboard';
+    if (validPages.includes(path)) return path;
+    return '404';
+  };
+
+  const [activePage, setActivePage] = useState(getPageFromPathname());
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [containers, setContainers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [registries, setRegistries] = useState([]);
@@ -77,13 +91,22 @@ export default function App() {
 
     fetchAllData();
 
+    // Listen to popstate event for HTML5 History routing
+    const handlePopState = () => {
+      setActivePage(getPageFromPathname());
+    };
+    window.addEventListener('popstate', handlePopState);
+
     // Set up polling interval to keep dashboard fresh (every 10 seconds)
     const interval = setInterval(() => {
       fetchContainers();
       fetchAuditLogs();
     }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      clearInterval(interval);
+    };
   }, []);
 
   const applyThemeClass = (targetTheme) => {
@@ -141,6 +164,31 @@ export default function App() {
           else if (score < 90) grade = 'B';
           
           const update_available = !c.tag_pinned && (c.image_tag === 'latest' || c.image_tag === 'dev');
+
+          // Determine Host Name and Tags for Multi-Host visual representation
+          let host_name = 'prod-swarm-01';
+          let tags = ['Production', 'Web'];
+          
+          const nameLower = (c.name || '').toLowerCase();
+          if (nameLower.includes('db') || nameLower.includes('redis') || nameLower.includes('postgres') || nameLower.includes('sql')) {
+            host_name = 'db-node-02';
+            tags = ['Database', 'Critical', 'Back-End'];
+          } else if (nameLower.includes('gateway') || nameLower.includes('payment') || nameLower.includes('api')) {
+            host_name = 'prod-swarm-01';
+            tags = ['Production', 'API', 'Gateway'];
+          } else if (nameLower.includes('test') || nameLower.includes('dev') || nameLower.includes('demo')) {
+            host_name = 'stage-aws-us-east';
+            tags = ['Staging', 'Dev', 'Internal'];
+          } else if (nameLower.includes('backup') || nameLower.includes('cron')) {
+            host_name = 'edge-node-02';
+            tags = ['Backup', 'Cron', 'System'];
+          } else {
+            // Assign random/default hosts based on ID
+            const hosts = ['prod-swarm-01', 'db-node-02', 'stage-aws-us-east', 'edge-node-02'];
+            const idCode = c.id ? c.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
+            host_name = hosts[idCode % hosts.length] || 'prod-swarm-01';
+            tags = ['App', 'Docker'];
+          }
           
           return {
             ...c,
@@ -148,7 +196,9 @@ export default function App() {
             privileged_safe,
             score,
             grade,
-            update_available
+            update_available,
+            host_name,
+            tags
           };
         });
         setContainers(processed);
@@ -284,6 +334,11 @@ export default function App() {
   };
 
   const handleNavigate = (page) => {
+    if (page === 'dashboard') {
+      window.history.pushState(null, '', '/');
+    } else {
+      window.history.pushState(null, '', '/' + page);
+    }
     setActivePage(page);
     setSelectedContainerId(null); // Close drawer on navigation
   };
@@ -291,13 +346,17 @@ export default function App() {
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
 
   return (
-    <div className="dashboard-wrapper">
+    <div className={`dashboard-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="glass-bg-glow"></div>
       
       {/* Sidebar Section */}
       <Sidebar 
         activePage={activePage} 
-        onNavigate={handleNavigate} 
+        onNavigate={handleNavigate}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onRefresh={handleRefreshAll}
+        isRefreshing={isRefreshing}
       />
 
       {/* Main Content Pane */}
@@ -329,6 +388,22 @@ export default function App() {
           />
         )}
 
+        {activePage === 'watch' && (
+          <WatchView />
+        )}
+
+        {activePage === 'notifications' && (
+          <NotificationsView />
+        )}
+
+        {activePage === 'account' && (
+          <AccountView />
+        )}
+
+        {activePage === 'enterprise' && (
+          <EnterpriseView />
+        )}
+
         {activePage === 'settings' && (
           <SettingsView 
             config={config}
@@ -341,6 +416,10 @@ export default function App() {
             onSaveOverride={handleSaveOverride}
             onDeleteOverride={handleDeleteOverride}
           />
+        )}
+
+        {activePage === '404' && (
+          <NotFoundView onNavigate={handleNavigate} />
         )}
       </main>
 

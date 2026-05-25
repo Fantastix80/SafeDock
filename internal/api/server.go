@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/safedock/safedock/internal/config"
 	"github.com/safedock/safedock/internal/web"
@@ -58,9 +59,32 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("impossible d'initialiser les fichiers statiques embarqués : %w", err)
 	}
 	
-	// Montage du serveur de fichiers statiques à la racine '/'
+	// Montage du serveur de fichiers statiques à la racine '/' avec fallback pour SPA
 	fileServer := http.FileServer(http.FS(staticSubFS))
-	mux.Handle("/", fileServer)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Ne pas toucher aux requêtes d'API
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Nettoyer le chemin pour vérifier l'existence dans l'embedded FS
+		filePath := strings.TrimPrefix(r.URL.Path, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		// Vérifier si le fichier existe
+		f, err := staticSubFS.Open(filePath)
+		if err != nil {
+			// Si le fichier n'existe pas, on redirige vers index.html pour laisser le routeur React gérer le chemin
+			r.URL.Path = "/"
+		} else {
+			f.Close()
+		}
+
+		fileServer.ServeHTTP(w, r)
+	})
 
 	// 3. Configuration et lancement du serveur HTTP
 	addr := fmt.Sprintf(":%d", s.port)

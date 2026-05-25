@@ -48,27 +48,63 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     }
   };
 
-  // Chart math
-  const trendData = [82, 85, 88, 84, 90, 92, score];
+  // Calculate aggregated CVE counts across all containers
+  const cveCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+  (containers || []).forEach(c => {
+    if (c.vulnerabilities) {
+      c.vulnerabilities.forEach(v => {
+        const sev = v.severity ? v.severity.toLowerCase() : 'low';
+        if (cveCounts[sev] !== undefined) {
+          cveCounts[sev]++;
+        }
+      });
+    }
+  });
+
   const chartWidth = 500;
   const chartHeight = 200;
-  const paddingLeft = 40;
+  const paddingLeft = 45;
   const paddingRight = 20;
-  const paddingTop = 30;
-  const paddingBottom = 30;
+  const paddingTop = 25;
+  const paddingBottom = 35;
 
-  const getX = (index) => {
-    return paddingLeft + (index * (chartWidth - paddingLeft - paddingRight) / 6);
+  const maxVal = Math.max(cveCounts.critical, cveCounts.high, cveCounts.medium, cveCounts.low, 5);
+  const baselineY = chartHeight - paddingBottom;
+  const drawingHeight = baselineY - paddingTop;
+
+  const getBarHeight = (val) => {
+    return (val / maxVal) * (drawingHeight - 15);
   };
 
-  const getY = (val) => {
-    return chartHeight - paddingBottom - ((val / 100) * (chartHeight - paddingTop - paddingBottom));
+  const getBarY = (val) => {
+    return baselineY - getBarHeight(val);
   };
 
-  // Construct SVG Path points
-  const points = trendData.map((val, idx) => `${getX(idx)},${getY(val)}`);
-  const linePath = `M ${points.join(' L ')}`;
-  const areaPath = `${linePath} L ${getX(6)},${chartHeight - paddingBottom} L ${getX(0)},${chartHeight - paddingBottom} Z`;
+  // Helper to draw clean paths for rounded top bars
+  const drawBarPath = (x, y, w, h, rx = 6) => {
+    if (h <= 0) return '';
+    const r = Math.min(rx, h);
+    return `
+      M ${x},${y + h}
+      L ${x},${y + r}
+      A ${r},${r} 0 0 1 ${x + r},${y}
+      L ${x + w - r},${y}
+      A ${r},${r} 0 0 1 ${x + w},${y + r}
+      L ${x + w},${y + h}
+      Z
+    `.replace(/\s+/g, ' ').trim();
+  };
+
+  const barWidth = 45;
+  const gap = 55;
+  const startX = paddingLeft + 45;
+
+  const severityData = [
+    { label: 'Critique', count: cveCounts.critical, color: '#EF4444', glow: 'rgba(239, 68, 68, 0.45)' },
+    { label: 'Haute', count: cveCounts.high, color: '#F97316', glow: 'rgba(249, 115, 22, 0.4)' },
+    { label: 'Moyenne', count: cveCounts.medium, color: '#FBBF24', glow: 'rgba(251, 191, 36, 0.4)' },
+    { label: 'Basse', count: cveCounts.low, color: '#4578F9', glow: 'rgba(69, 120, 249, 0.4)' }
+  ];
 
   return (
     <div id="view-dashboard" className="page-view">
@@ -110,109 +146,126 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
       {/* Visual Analytics Row: Chart + Circular Gauge */}
       <section className="dashboard-visuals">
-        {/* Left: Premium SVG Security Trend Area Chart */}
+        {/* Left: Custom SVG CVE Severity Bar Chart */}
         <div className="glass chart-card">
           <div className="chart-header">
             <div>
-              <h3>Tendance du score SecOps</h3>
-              <p>Suivi de la posture globale de sécurité sur les 7 derniers jours</p>
+              <h3>Gravité des Failles de Sécurité (CVE)</h3>
+              <p>Nombre total de vulnérabilités en cours détectées sur vos conteneurs</p>
             </div>
             <div className="chart-legend">
               <div className="legend-item">
                 <span className="legend-color" style={{ backgroundColor: 'var(--primary)' }}></span>
-                <span>Score SecOps (%)</span>
+                <span>Cumul global</span>
               </div>
             </div>
           </div>
 
           <div style={{ position: 'relative', width: '100%', height: '140px', marginTop: '0.5rem' }}>
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
-              <defs>
-                <linearGradient id="chartBlueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.00" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid Lines */}
-              {[25, 50, 75, 100].map((val) => (
-                <g key={val}>
-                  <line 
-                    x1={paddingLeft} 
-                    y1={getY(val)} 
-                    x2={chartWidth - paddingRight} 
-                    y2={getY(val)} 
-                    stroke="var(--border-color)" 
-                    strokeWidth="1" 
-                    strokeDasharray="4,4" 
-                  />
-                  <text 
-                    x={paddingLeft - 8} 
-                    y={getY(val) + 4} 
-                    fill="var(--text-secondary)" 
-                    fontSize="11" 
-                    fontWeight="600"
-                    textAnchor="end"
-                  >
-                    {val}%
-                  </text>
-                </g>
-              ))}
-
-              {/* Chart Area Fill */}
-              <path d={areaPath} fill="url(#chartBlueGrad)" />
-
-              {/* Glowing Stroke Line */}
-              <path 
-                d={linePath} 
-                fill="none" 
-                stroke="var(--primary)" 
-                strokeWidth="3.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                style={{ filter: 'drop-shadow(0px 4px 8px rgba(69, 120, 249, 0.45))' }}
+              
+              {/* Baseline Axis */}
+              <line 
+                x1={paddingLeft} 
+                y1={baselineY} 
+                x2={chartWidth - paddingRight} 
+                y2={baselineY} 
+                stroke="var(--border-color)" 
+                strokeWidth="1.5" 
               />
 
-              {/* Data Points / Pulsing circles */}
-              {trendData.map((val, idx) => (
-                <g key={idx}>
-                  <circle 
-                    cx={getX(idx)} 
-                    cy={getY(val)} 
-                    r="5" 
-                    fill="var(--bg-card)" 
-                    stroke="var(--primary)" 
-                    strokeWidth="2.5" 
-                  />
-                  {idx === 6 && (
-                    <circle 
-                      cx={getX(idx)} 
-                      cy={getY(val)} 
-                      r="9" 
-                      fill="none" 
-                      stroke="var(--primary)" 
-                      strokeWidth="1.5" 
-                      opacity="0.65"
-                      style={{ transformOrigin: `${getX(idx)}px ${getY(val)}px`, animation: '1.8s infinite pulse' }}
+              {/* Grid Lines */}
+              {[...Array(4)].map((_, i) => {
+                const step = Math.ceil(maxVal / 4);
+                const val = (i + 1) * step;
+                const gridY = baselineY - (val / maxVal) * (drawingHeight - 15);
+                return (
+                  <g key={val}>
+                    <line 
+                      x1={paddingLeft} 
+                      y1={gridY} 
+                      x2={chartWidth - paddingRight} 
+                      y2={gridY} 
+                      stroke="var(--border-color)" 
+                      strokeWidth="1" 
+                      strokeDasharray="4,4" 
                     />
-                  )}
-                </g>
-              ))}
+                    <text 
+                      x={paddingLeft - 8} 
+                      y={gridY + 4} 
+                      fill="var(--text-secondary)" 
+                      fontSize="10" 
+                      fontWeight="600"
+                      textAnchor="end"
+                    >
+                      {val}
+                    </text>
+                  </g>
+                );
+              })}
 
-              {/* X Axis Labels */}
-              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim (Actuel)'].map((label, idx) => (
-                <text 
-                  key={idx} 
-                  x={getX(idx)} 
-                  y={chartHeight - 8} 
-                  fill="var(--text-secondary)" 
-                  fontSize="11" 
-                  fontWeight="600"
-                  textAnchor="middle"
-                >
-                  {label}
-                </text>
-              ))}
+              {/* Render Severity Bars */}
+              {severityData.map((data, idx) => {
+                const x = startX + idx * (barWidth + gap);
+                const h = getBarHeight(data.count);
+                const y = baselineY - h;
+
+                return (
+                  <g key={data.label}>
+                    {/* Glowing background bar */}
+                    {h > 0 && (
+                      <path 
+                        d={drawBarPath(x, y, barWidth, h, 6)} 
+                        fill={data.color}
+                        opacity="0.1"
+                        style={{ filter: `drop-shadow(0 2px 10px ${data.glow})` }}
+                      />
+                    )}
+
+                    {/* Main Bar */}
+                    {h > 0 ? (
+                      <path 
+                        d={drawBarPath(x, y, barWidth, h, 6)} 
+                        fill={data.color}
+                      />
+                    ) : (
+                      // Draw a tiny baseline indicator when 0 CVEs
+                      <rect 
+                        x={x} 
+                        y={baselineY - 2} 
+                        width={barWidth} 
+                        height={2} 
+                        fill="var(--border-color)" 
+                        rx="1" 
+                      />
+                    )}
+
+                    {/* Count Text on top of Bar */}
+                    <text 
+                      x={x + barWidth / 2} 
+                      y={h > 0 ? y - 6 : baselineY - 8} 
+                      fill={h > 0 ? 'var(--text-primary)' : 'var(--text-muted)'} 
+                      fontSize="11" 
+                      fontWeight="700" 
+                      textAnchor="middle"
+                    >
+                      {data.count}
+                    </text>
+
+                    {/* X Axis Label */}
+                    <text 
+                      x={x + barWidth / 2} 
+                      y={chartHeight - 8} 
+                      fill="var(--text-secondary)" 
+                      fontSize="11" 
+                      fontWeight="600" 
+                      textAnchor="middle"
+                    >
+                      {data.label}
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
           </div>
         </div>
@@ -308,8 +361,11 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
                 >
                   <div className="card-top">
                     <div className="card-title-group">
-                      <h4>{c.name}</h4>
-                      <span className="card-image-name">{c.image}</span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <h4 style={{ margin: 0 }}>{c.name}</h4>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>({c.host_name})</span>
+                      </div>
+                      <span className="card-image-name">{c.image_name}:{c.image_tag}</span>
                     </div>
                     <div className={`card-badge-score ${scoreClass}`}>
                       {c.grade || 'F'}

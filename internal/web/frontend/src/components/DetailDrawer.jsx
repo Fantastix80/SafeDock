@@ -14,7 +14,7 @@ export default function DetailDrawer({
   // Reset tab on container change
   useEffect(() => {
     setActiveTab('tab-overview');
-  }, [container]);
+  }, [container ? container.id : null]);
 
   if (!container) return null;
 
@@ -57,7 +57,7 @@ export default function DetailDrawer({
         <div className="drawer-header">
           <div className="drawer-title-area">
             <h3 id="drawer-container-name">{container.name}</h3>
-            <span className="drawer-subtitle" id="drawer-container-image">{container.image}</span>
+            <span className="drawer-subtitle" id="drawer-container-image">{container.image_name}:{container.image_tag}</span>
           </div>
           <button 
             className="btn-close-drawer" 

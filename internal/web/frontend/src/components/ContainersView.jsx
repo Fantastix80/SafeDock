@@ -5,7 +5,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 1. Column Sorting Logic
   const handleSort = (field) => {
@@ -28,11 +28,23 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
       : <i className="fa-solid fa-chevron-down" style={{ marginLeft: '0.4rem', color: 'var(--primary)' }}></i>;
   };
 
-  // Filter list by search term
-  const filteredContainers = containers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.image.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter list by search term including multi-host hosts and tags
+  const filteredContainers = containers.filter(c => {
+    const term = searchTerm.toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    const imageName = (c.image_name || '').toLowerCase();
+    const imageTag = (c.image_tag || '').toLowerCase();
+    const hostName = (c.host_name || '').toLowerCase();
+    const tagsStr = (c.tags || []).join(' ').toLowerCase();
+
+    return (
+      name.includes(term) ||
+      imageName.includes(term) ||
+      imageTag.includes(term) ||
+      hostName.includes(term) ||
+      tagsStr.includes(term)
+    );
+  });
 
   // Sort list
   const sortedContainers = [...filteredContainers].sort((a, b) => {
@@ -102,8 +114,14 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                 <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
                   Nom du conteneur {renderSortIcon('name')}
                 </th>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('image')}>
-                  Image et version {renderSortIcon('image')}
+                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('host_name')}>
+                  Hôte {renderSortIcon('host_name')}
+                </th>
+                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('image_name')}>
+                  Image et version {renderSortIcon('image_name')}
+                </th>
+                <th style={{ padding: '0.75rem 1rem', userSelect: 'none' }}>
+                  Tags
                 </th>
                 <th style={{ padding: '0.75rem 1rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('tag_pinned')}>
                   Digest immuable {renderSortIcon('tag_pinned')}
@@ -123,13 +141,13 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
             <tbody id="containers-table-rows">
               {containers.length === 0 ? (
                 <tr style={{ color: 'var(--text-muted)' }}>
-                  <td colSpan="8" style={{ padding: '2rem', textAlign: 'center' }}>
+                  <td colSpan="10" style={{ padding: '2rem', textAlign: 'center' }}>
                     Chargement du tableau des conteneurs...
                   </td>
                 </tr>
               ) : currentItems.length === 0 ? (
                 <tr style={{ color: 'var(--text-muted)' }}>
-                  <td colSpan="8" style={{ padding: '2rem', textAlign: 'center' }}>
+                  <td colSpan="10" style={{ padding: '2rem', textAlign: 'center' }}>
                     Aucun conteneur ne correspond à votre recherche.
                   </td>
                 </tr>
@@ -152,7 +170,34 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                         </div>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{c.name}</td>
-                      <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{c.image}</td>
+                      <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+                          <i className="fa-solid fa-server" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}></i>
+                          <span>{c.host_name || 'prod-swarm-01'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                        {c.image_name}:{c.image_tag}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                          {(c.tags || []).map((t, tIdx) => (
+                            <span 
+                              key={tIdx} 
+                              className="badge" 
+                              style={{ 
+                                fontSize: '0.65rem', 
+                                padding: '0.15rem 0.35rem', 
+                                backgroundColor: t === 'Production' || t === 'Critical' ? 'rgba(239, 68, 68, 0.12)' : t === 'Database' || t === 'Back-End' ? 'rgba(69, 120, 249, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                                color: t === 'Production' || t === 'Critical' ? 'var(--danger)' : t === 'Database' || t === 'Back-End' ? 'var(--primary)' : 'var(--text-secondary)',
+                                border: '1px solid transparent'
+                              }}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                         <i className={`fa-solid ${c.tag_pinned ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger'}`} style={{ fontSize: '1.1rem' }}></i>
                       </td>
@@ -173,7 +218,6 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                       </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                          {/* Inspect (Eye) Button - Brand Primary Blue */}
                           <button 
                             className="btn btn-primary" 
                             style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '8px' }}
@@ -181,13 +225,12 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                               e.stopPropagation();
                               onSelectContainer(c.id);
                             }}
-                            title="Inspecter le conteneur (Détails)"
+                            title="Inspecter le conteneur"
                             type="button"
                           >
                             <i className="fa-solid fa-eye" style={{ fontSize: '0.85rem' }}></i>
                           </button>
                           
-                          {/* Settings (Cog) Button - Secondary Bordered */}
                           <button 
                             className="btn btn-secondary" 
                             style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '8px' }}
@@ -210,11 +253,40 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
           </table>
 
           {/* 3. Overhauled Pagination Component */}
-          {totalPages > 1 && (
-            <div className="pagination-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+          <div className="pagination-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                Affichage de <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{indexOfFirstItem + 1}</span> à <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{Math.min(indexOfLastItem, totalItems)}</span> sur <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalItems}</span> conteneurs
+                Affichage de <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalItems > 0 ? indexOfFirstItem + 1 : 0}</span> à <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{Math.min(indexOfLastItem, totalItems)}</span> sur <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalItems}</span> conteneurs
               </div>
+              
+              {/* Predefined values dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Éléments par page :</span>
+                <select 
+                  value={itemsPerPage} 
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="glass-input"
+                  style={{ 
+                    padding: '0.2rem 1.5rem 0.2rem 0.5rem', 
+                    borderRadius: '8px', 
+                    fontSize: '0.8rem', 
+                    border: '1px solid var(--border-color)', 
+                    cursor: 'pointer', 
+                    outline: 'none'
+                  }}
+                >
+                  <option value={5} style={{ background: 'var(--bg-card)' }}>5</option>
+                  <option value={10} style={{ background: 'var(--bg-card)' }}>10</option>
+                  <option value={25} style={{ background: 'var(--bg-card)' }}>25</option>
+                  <option value={50} style={{ background: 'var(--bg-card)' }}>50</option>
+                </select>
+              </div>
+            </div>
+            
+            {totalPages > 1 && (
               <div style={{ display: 'flex', gap: '0.35rem' }}>
                 <button 
                   className="btn btn-secondary"
@@ -246,8 +318,8 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                   Suivant <i className="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
     </div>

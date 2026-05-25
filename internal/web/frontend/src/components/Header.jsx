@@ -27,10 +27,35 @@ export default function Header({ activePage, theme, onToggleTheme, onRefresh, is
           title: "Statuts et métadonnées de sécurité",
           desc: "Liste complète de vos conteneurs actifs et évaluation SecOps"
         };
+      case 'watch':
+        return {
+          title: "Veille SecOps & Menaces",
+          desc: "Bulletins de vulnérabilités en temps réel et guides de durcissement Docker"
+        };
+      case 'notifications':
+        return {
+          title: "Centre de Notifications",
+          desc: "Alertes et événements de sécurité récents de vos infrastructures"
+        };
+      case 'account':
+        return {
+          title: "Mon Compte SecOps",
+          desc: "Gérez votre identité, vos préférences d'alertes et vos jetons d'accès"
+        };
+      case 'enterprise':
+        return {
+          title: "Paramètres SecOps d'Entreprise",
+          desc: "Gérez le MFA, l'authentification unique (SSO) et les permissions RBAC globales"
+        };
       case 'settings':
         return {
           title: "Configuration de sécurité",
           desc: "Ajustez les règles SecOps globales et configurez vos accès et surcharges"
+        };
+      case '404':
+        return {
+          title: "Accès Bloqué - 404 Not Found",
+          desc: "La ressource demandée n'existe pas ou a été déplacée"
         };
       default:
         return {
@@ -74,16 +99,7 @@ export default function Header({ activePage, theme, onToggleTheme, onRefresh, is
           </button>
         </div>
 
-        <button 
-          className={`btn btn-primary ${isRefreshing ? 'disabled' : ''}`} 
-          id="btn-global-refresh"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          type="button"
-        >
-          <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`}></i>
-          <span>Lancer un Audit Global</span>
-        </button>
+
 
         {/* Separator line */}
         <div className="header-separator"></div>
