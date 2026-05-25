@@ -3,30 +3,66 @@
    ========================================================================== */
 
 :root {
-    --bg-dark: #0a0c10;
-    --bg-card: rgba(18, 22, 33, 0.45);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.18);
+    --bg-dark: #131722;
+    --bg-sidebar: #0f121d;
+    --bg-card: #1c2030;
+    --border-color: #272d42;
+    --border-hover: #3d4663;
     
     --primary: #2563eb;
-    --primary-glow: rgba(37, 99, 235, 0.25);
+    --primary-glow: rgba(37, 99, 235, 0.18);
     --accent: #8b5cf6;
-    --accent-glow: rgba(139, 92, 246, 0.25);
+    --accent-glow: rgba(139, 92, 246, 0.18);
     
     --success: #10b981;
-    --success-glow: rgba(16, 185, 129, 0.2);
-    --warning: #f59e0b;
-    --warning-glow: rgba(245, 158, 11, 0.2);
+    --success-glow: rgba(16, 185, 129, 0.15);
+    --warning: #eab308;
+    --warning-glow: rgba(234, 179, 8, 0.15);
     --danger: #ef4444;
-    --danger-glow: rgba(239, 68, 68, 0.2);
-    --info: #06b6d4;
+    --danger-glow: rgba(239, 68, 68, 0.15);
+    --info: #38bdf8;
+    --info-glow: rgba(56, 189, 248, 0.15);
     
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    --sidebar-shadow: 6px 0 25px rgba(0, 0, 0, 0.1);
     
     --font-header: 'Outfit', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.light-theme {
+    --bg-dark: #f4f6f8;
+    --bg-sidebar: #ffffff;
+    --bg-card: #ffffff;
+    --border-color: #e2e8f0;
+    --border-hover: #cbd5e1;
+    
+    --primary: #2563eb;
+    --primary-glow: rgba(37, 99, 235, 0.08);
+    --accent: #7c3aed;
+    --accent-glow: rgba(124, 58, 237, 0.08);
+    
+    --success: #10b981;
+    --success-glow: rgba(16, 185, 129, 0.08);
+    --warning: #d97706;
+    --warning-glow: rgba(217, 119, 6, 0.08);
+    --danger: #dc2626;
+    --danger-glow: rgba(220, 38, 38, 0.08);
+    --info: #0284c7;
+    --info-glow: rgba(2, 132, 199, 0.08);
+    
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+    --sidebar-shadow: 4px 0 20px rgba(0, 0, 0, 0.02);
 }
 
 * {
@@ -42,6 +78,7 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ambient glowing circles in the background */
@@ -51,10 +88,15 @@ body {
     left: -10%;
     width: 60vw;
     height: 60vw;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 50%, transparent 100%);
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, rgba(37, 99, 235, 0.02) 50%, transparent 100%);
     z-index: -1;
     pointer-events: none;
     filter: blur(100px);
+    transition: var(--transition-smooth);
+}
+
+body.light-theme .glass-bg-glow {
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.03) 0%, rgba(37, 99, 235, 0.01) 50%, transparent 100%);
 }
 
 /* ==========================================================================
@@ -69,49 +111,65 @@ body {
 /* Sidebar navigation */
 .sidebar {
     width: 280px;
-    background-color: rgba(10, 12, 16, 0.7);
+    background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border-color);
-    backdrop-filter: blur(20px);
-    padding: 2rem 1.5rem;
+    box-shadow: var(--sidebar-shadow);
+    padding: 2.25rem 1.5rem;
     display: flex;
     flex-direction: column;
     position: sticky;
     top: 0;
     height: 100vh;
     z-index: 10;
+    transition: var(--transition-smooth);
 }
 
 .logo-area {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.85rem;
     margin-bottom: 3rem;
 }
 
 .logo-icon {
-    font-size: 1.75rem;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 8px var(--primary-glow));
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.safedock-logo-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 10px rgba(139, 92, 246, 0.25));
+    transition: var(--transition-smooth);
+}
+
+body.light-theme .safedock-logo-svg {
+    filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.15));
+}
+
+.logo-icon:hover .safedock-logo-svg {
+    transform: scale(1.05) rotate(2deg);
 }
 
 .logo-text h1 {
     font-family: var(--font-header);
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     font-weight: 800;
     letter-spacing: -0.02em;
-    background: linear-gradient(to right, #ffffff, #d1d5db);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
+    transition: var(--transition-smooth);
 }
 
 .logo-text span {
     font-size: 0.75rem;
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    transition: var(--transition-smooth);
 }
 
 .sidebar-nav {
@@ -268,46 +326,47 @@ body {
 }
 
 /* ==========================================================================
-   Cards / Glassmorphism
+   Cards / Bento Grid System
    ========================================================================== */
 
 .glass {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
-    backdrop-filter: blur(16px);
     border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--card-shadow);
+    transition: var(--transition-smooth);
 }
 
 .glass:hover {
     border-color: var(--border-hover);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--card-shadow), 0 10px 25px var(--primary-glow);
+    transform: translateY(-2px);
 }
 
-/* Stats Cards */
+/* Stats Cards Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: 1.5fr repeat(3, 1fr);
     gap: 1.5rem;
-    margin-bottom: 3rem;
+    margin-bottom: 3.5rem;
 }
 
 .stat-card {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding: 1.5rem;
+    padding: 1.75rem 1.5rem;
 }
 
 .stat-icon {
     width: 54px;
     height: 54px;
-    border-radius: 12px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.35rem;
+    transition: var(--transition-smooth);
 }
 
 .bg-blue {
@@ -315,15 +374,26 @@ body {
     color: #3b82f6;
     border: 1px solid rgba(37, 99, 235, 0.2);
 }
+body.light-theme .bg-blue {
+    background-color: rgba(37, 99, 235, 0.06);
+}
+
 .bg-red {
     background-color: rgba(239, 68, 68, 0.12);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
+body.light-theme .bg-red {
+    background-color: rgba(239, 68, 68, 0.06);
+}
+
 .bg-yellow {
     background-color: rgba(245, 158, 11, 0.12);
     color: #f59e0b;
     border: 1px solid rgba(245, 158, 11, 0.2);
+}
+body.light-theme .bg-yellow {
+    background-color: rgba(245, 158, 11, 0.06);
 }
 
 .stat-data {
@@ -333,14 +403,19 @@ body {
 
 .stat-value {
     font-family: var(--font-header);
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    transition: var(--transition-smooth);
 }
 
 .stat-label {
     font-size: 0.85rem;
     color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    transition: var(--transition-smooth);
 }
 
 /* Circular Score Card specific styles */
@@ -370,10 +445,9 @@ body {
     font-family: var(--font-header);
     font-size: 2.25rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #ffffff, #a1a1aa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
     position: absolute;
+    transition: var(--transition-smooth);
 }
 
 .score-ring {
@@ -385,7 +459,8 @@ body {
 .score-ring circle {
     fill: none;
     stroke-width: 6;
-    stroke: rgba(255, 255, 255, 0.05);
+    stroke: var(--border-color);
+    transition: var(--transition-smooth);
 }
 
 .score-ring circle:last-child {
@@ -394,20 +469,23 @@ body {
     stroke-linecap: round;
     stroke-dasharray: 276.46;
     stroke-dashoffset: 0;
-    transition: stroke-dashoffset 0.8s ease-in-out;
+    transition: stroke-dashoffset 0.8s ease-in-out, stroke 0.3s ease;
 }
 
 .score-info h3 {
     font-family: var(--font-header);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 700;
+    color: var(--text-primary);
+    transition: var(--transition-smooth);
 }
 
 .score-info p {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    margin: 0.15rem 0 0.5rem 0;
-    line-height: 1.3;
+    margin: 0.2rem 0 0.5rem 0;
+    line-height: 1.35;
+    transition: var(--transition-smooth);
 }
 
 /* Badges */
@@ -419,27 +497,28 @@ body {
     border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    transition: var(--transition-smooth);
 }
 
 .badge-success {
     background-color: var(--success-glow);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .badge-warning {
     background-color: var(--warning-glow);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--warning);
+    border: 1px solid rgba(234, 179, 8, 0.25);
 }
 
 .badge-danger {
     background-color: var(--danger-glow);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
-/* ==========================================================================
+/* ==========================================================================================
    Containers Section
    ========================================================================== */
 
@@ -700,11 +779,11 @@ body {
     right: -520px;
     width: 500px;
     height: 100vh;
-    background-color: rgba(13, 17, 23, 0.85);
+    background-color: var(--bg-sidebar);
     border-left: 1px solid var(--border-color);
-    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.25);
     z-index: 100;
-    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
     display: flex;
     flex-direction: column;
 }
@@ -1278,4 +1357,74 @@ body {
 
 .semantic-containers-table tr {
     cursor: pointer;
+}
+
+/* Commutateur de Thème Capsule (Sleek pill theme switcher) */
+.theme-switch-pill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    padding: 3px;
+    width: 76px;
+    height: 38px;
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-smooth);
+    margin-right: 0.5rem;
+}
+
+.theme-switch-pill:hover {
+    border-color: var(--border-hover);
+}
+
+.theme-switch-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, var(--accent), var(--primary));
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.light-theme .theme-switch-slider {
+    transform: translateX(38px);
+    background: linear-gradient(135deg, #f59e0b, #eab308);
+}
+
+.theme-switch-btn {
+    position: relative;
+    z-index: 2;
+    background: none;
+    border: none;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.theme-switch-btn:hover {
+    color: var(--text-secondary);
+}
+
+.theme-switch-btn.active {
+    color: #ffffff;
+}
+
+body.light-theme .theme-switch-btn[data-theme="light"] {
+    color: #ffffff;
+}
+
+body.light-theme .theme-switch-btn[data-theme="dark"] {
+    color: var(--text-muted);
 }

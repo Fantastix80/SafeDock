@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
 
     function init() {
+        initTheme();
         fetchConfig();
         fetchContainers();
         fetchAuditLogs();
@@ -134,10 +135,56 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(updateTime, 1000);
     }
 
+    function initTheme() {
+        const savedTheme = localStorage.getItem('safedock-theme') || 'dark';
+        applyTheme(savedTheme);
+    }
+
+    function applyTheme(theme) {
+        const body = document.body;
+        const pill = document.getElementById('theme-toggle-pill');
+        if (!pill) return;
+        
+        const btns = pill.querySelectorAll('.theme-switch-btn');
+        
+        if (theme === 'light') {
+            body.classList.add('light-theme');
+        } else {
+            body.classList.remove('light-theme');
+        }
+        
+        btns.forEach(btn => {
+            if (btn.getAttribute('data-theme') === theme) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        localStorage.setItem('safedock-theme', theme);
+    }
+
     // ==========================================================================
     // Event Listeners Setup
     // ==========================================================================
     function setupEventListeners() {
+        // Theme switch toggler click
+        const themeTogglePill = document.getElementById('theme-toggle-pill');
+        if (themeTogglePill) {
+            themeTogglePill.addEventListener('click', (e) => {
+                const targetBtn = e.target.closest('.theme-switch-btn');
+                if (targetBtn) {
+                    const theme = targetBtn.getAttribute('data-theme');
+                    applyTheme(theme);
+                } else {
+                    // Toggle theme if capsule background is clicked
+                    const currentTheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+                    const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    applyTheme(nextTheme);
+                }
+            });
+        }
+
         // Global refresh
         el.btnGlobalRefresh.addEventListener('click', () => {
             el.btnGlobalRefresh.classList.add('disabled');
