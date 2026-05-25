@@ -84,6 +84,18 @@ export default function Header({ activePage, theme, onToggleTheme, onRefresh, is
           <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`}></i>
           <span>Lancer un Audit Global</span>
         </button>
+
+        {/* Separator line */}
+        <div className="header-separator"></div>
+
+        {/* User Profile Card */}
+        <div className="user-profile">
+          <img src="/avatar.png" alt="Hell0W0rld" className="user-avatar" />
+          <div className="user-info">
+            <span className="user-name">Hell0W0rld</span>
+            <span className="user-role">SecOps Admin</span>
+          </div>
+        </div>
       </div>
     </header>
   );

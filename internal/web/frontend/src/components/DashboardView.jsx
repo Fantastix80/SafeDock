@@ -57,7 +57,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           <div className="score-container">
             <div className="score-circle">
               <span id="global-grade">{stats.globalGrade}</span>
-              <svg className="score-ring">
+              <svg className="score-ring" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="44"></circle>
                 <circle 
                   cx="50" 
