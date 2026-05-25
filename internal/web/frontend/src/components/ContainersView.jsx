@@ -236,9 +236,10 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                             style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '8px' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onNavigate('settings');
+                              onSelectContainer(c.id);
+                              onNavigate('container-settings');
                             }}
-                            title="Configurer les surcharges"
+                            title="Configurer les surcharges du conteneur"
                             type="button"
                           >
                             <i className="fa-solid fa-cog" style={{ fontSize: '0.85rem' }}></i>

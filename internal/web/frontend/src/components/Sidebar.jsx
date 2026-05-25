@@ -115,24 +115,6 @@ export default function Sidebar({
           <i className="fa-solid fa-bell"></i>
           <span>Notifications</span>
         </div>
-
-        <div 
-          className={`nav-item ${activePage === 'account' ? 'active' : ''}`} 
-          onClick={() => onNavigate('account')}
-          title="Mon Compte"
-        >
-          <i className="fa-solid fa-user-shield"></i>
-          <span>Mon Compte</span>
-        </div>
-
-        <div 
-          className={`nav-item ${activePage === 'enterprise' ? 'active' : ''}`} 
-          onClick={() => onNavigate('enterprise')}
-          title="Entreprise"
-        >
-          <i className="fa-solid fa-building-shield"></i>
-          <span>Entreprise</span>
-        </div>
       </nav>
 
       {/* Relocated Global Audit Action */}

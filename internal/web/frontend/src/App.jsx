@@ -10,11 +10,12 @@ import AccountView from './components/AccountView';
 import NotificationsView from './components/NotificationsView';
 import EnterpriseView from './components/EnterpriseView';
 import NotFoundView from './components/NotFoundView';
+import ContainerSettingsView from './components/ContainerSettingsView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings'];
+    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
@@ -340,7 +341,9 @@ export default function App() {
       window.history.pushState(null, '', '/' + page);
     }
     setActivePage(page);
-    setSelectedContainerId(null); // Close drawer on navigation
+    if (page !== 'container-settings') {
+      setSelectedContainerId(null); // Keep container ID if we go to container settings page!
+    }
   };
 
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
@@ -367,6 +370,7 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           onRefresh={handleRefreshAll}
           isRefreshing={isRefreshing}
+          onNavigate={handleNavigate}
         />
 
         {/* View Router */}
@@ -400,21 +404,24 @@ export default function App() {
           <AccountView />
         )}
 
-        {activePage === 'enterprise' && (
-          <EnterpriseView />
-        )}
-
         {activePage === 'settings' && (
           <SettingsView 
             config={config}
             registries={registries}
-            overrides={overrides}
-            containers={containers}
             onSaveGlobalSettings={handleSaveGlobalSettings}
             onAddRegistry={handleAddRegistry}
             onDeleteRegistry={handleDeleteRegistry}
+          />
+        )}
+
+        {activePage === 'container-settings' && (
+          <ContainerSettingsView 
+            containerId={selectedContainerId}
+            containers={containers}
+            overrides={overrides}
             onSaveOverride={handleSaveOverride}
             onDeleteOverride={handleDeleteOverride}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -426,7 +433,7 @@ export default function App() {
       {/* Side Details Drawer */}
       <DetailDrawer 
         container={selectedContainer}
-        isOpen={selectedContainerId !== null}
+        isOpen={selectedContainerId !== null && activePage !== 'container-settings'}
         onClose={() => setSelectedContainerId(null)}
         onTriggerRollout={handleTriggerRollout}
         isRolloutLoading={isRolloutLoading}
