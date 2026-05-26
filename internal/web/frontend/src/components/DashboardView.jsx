@@ -1,4 +1,11 @@
 import React, { useState } from 'react';
+import {
+  Boxes, TriangleAlert, CloudDownload, CheckCircle2, XCircle,
+  ArrowRight, RotateCcw, ListChecks, Clock
+} from 'lucide-react';
+import { cn, gradeColor, gradeBg, gradeLabel, gradeStroke } from '../lib/utils';
+
+const CIRCUMFERENCE = 276.46;
 
 export default function DashboardView({ containers, auditLogs, stats, onSelectContainer, onRefreshLogs, onNavigate }) {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -9,511 +16,370 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     return true;
   });
 
-  // Circular gauge config
-  const circumference = 276.46;
-  const score = stats.globalScore || 100;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const strokeOffset = CIRCUMFERENCE - (stats.globalScore / 100) * CIRCUMFERENCE;
+  const stroke = gradeStroke(stats.globalGrade);
 
-  let strokeColor = "var(--success)"; // A
-  let badgeClass = "badge badge-success";
-  let statusText = "Excellent";
-
-  if (stats.globalGrade === 'F') {
-    strokeColor = "var(--danger)";
-    badgeClass = "badge badge-danger";
-    statusText = "Critique";
-  } else if (stats.globalGrade === 'D') {
-    strokeColor = "#F97316";
-    badgeClass = "badge badge-orange";
-    statusText = "Faible";
-  } else if (stats.globalGrade === 'C') {
-    strokeColor = "var(--warning)";
-    badgeClass = "badge badge-warning";
-    statusText = "Moyen";
-  } else if (stats.globalGrade === 'B') {
-    strokeColor = "#4578F9";
-    badgeClass = "badge badge-info";
-    statusText = "Bon";
-  }
-
-  // Format date helper
-  const formatDate = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' });
-  };
-
-  const getLogStatusClass = (status) => {
-    switch (status) {
-      case 'SUCCESS':
-      case 'CLEAN':
-        return 'status-log-success';
-      case 'BLOCKED':
-        return 'status-log-blocked';
-      case 'FAILED':
-      default:
-        return 'status-log-failed';
-    }
-  };
-
-  // Calculate aggregated CVE counts across all containers
   const cveCounts = { critical: 0, high: 0, medium: 0, low: 0 };
-  (containers || []).forEach(c => {
-    cveCounts.critical += (c.cve_critical || 0);
-    cveCounts.high += (c.cve_high || 0);
-    cveCounts.medium += (c.cve_medium || 0);
-    cveCounts.low += (c.cve_low || 0);
+  containers.forEach(c => {
+    cveCounts.critical += c.cve_critical || 0;
+    cveCounts.high += c.cve_high || 0;
+    cveCounts.medium += c.cve_medium || 0;
+    cveCounts.low += c.cve_low || 0;
   });
 
-  const chartWidth = 500;
-  const chartHeight = 200;
-  const paddingLeft = 35;
-  const paddingRight = 15;
-  const paddingTop = 15;
-  const paddingBottom = 30;
-
-  const maxVal = Math.max(cveCounts.critical, cveCounts.high, cveCounts.medium, cveCounts.low, 5);
-  const baselineY = chartHeight - paddingBottom;
-  const drawingHeight = baselineY - paddingTop;
-
-  const getBarHeight = (val) => {
-    return (val / maxVal) * (drawingHeight - 15);
+  const formatDate = (iso) => {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
   };
 
-  const getBarY = (val) => {
-    return baselineY - getBarHeight(val);
+  const logStatusStyle = (status) => {
+    if (status === 'SUCCESS' || status === 'CLEAN') return 'text-emerald-400';
+    if (status === 'BLOCKED') return 'text-red-400';
+    return 'text-amber-400';
   };
-
-  // Helper to draw clean paths for rounded top bars
-  const drawBarPath = (x, y, w, h, rx = 6) => {
-    if (h <= 0) return '';
-    const r = Math.min(rx, h);
-    return `
-      M ${x},${y + h}
-      L ${x},${y + r}
-      A ${r},${r} 0 0 1 ${x + r},${y}
-      L ${x + w - r},${y}
-      A ${r},${r} 0 0 1 ${x + w},${y + r}
-      L ${x + w},${y + h}
-      Z
-    `.replace(/\s+/g, ' ').trim();
+  const logStatusLabel = (status) => {
+    if (status === 'SUCCESS' || status === 'CLEAN') return 'SUCCÈS';
+    if (status === 'BLOCKED') return 'BLOQUÉ';
+    return 'ÉCHEC';
   };
-
-  const barWidth = 55;
-  const gap = 55;
-  const startX = paddingLeft + 30;
-
-  const severityData = [
-    { label: 'Critique', count: cveCounts.critical, color: '#EF4444', glow: 'rgba(239, 68, 68, 0.45)' },
-    { label: 'Haute', count: cveCounts.high, color: '#F97316', glow: 'rgba(249, 115, 22, 0.4)' },
-    { label: 'Moyenne', count: cveCounts.medium, color: '#FBBF24', glow: 'rgba(251, 191, 36, 0.4)' },
-    { label: 'Basse', count: cveCounts.low, color: '#4578F9', glow: 'rgba(69, 120, 249, 0.4)' }
-  ];
 
   return (
-    <div id="view-dashboard" className="page-view">
-      {/* Overhauled 3-Card Summary Stats Row */}
-      <section className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        {/* Audited Containers Count */}
-        <div className="stat-card glass">
-          <div className="stat-icon bg-blue">
-            <i className="fa-solid fa-box"></i>
-          </div>
-          <div className="stat-data">
-            <span className="stat-value" id="stat-containers-count">{stats.total}</span>
-            <span className="stat-label">Conteneurs Audités</span>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* KPI Row */}
+      <div className="grid grid-cols-3 gap-4">
+        <KpiCard
+          icon={<Boxes className="w-5 h-5" />}
+          iconClass="text-blue-400 bg-blue-400/10"
+          value={stats.total}
+          label="Conteneurs audités"
+        />
+        <KpiCard
+          icon={<TriangleAlert className="w-5 h-5" />}
+          iconClass="text-red-400 bg-red-400/10"
+          value={stats.warnings}
+          label="Alertes critiques"
+        />
+        <KpiCard
+          icon={<CloudDownload className="w-5 h-5" />}
+          iconClass="text-amber-400 bg-amber-400/10"
+          value={stats.updatesAvailable}
+          label="Mises à jour disponibles"
+        />
+      </div>
 
-        {/* Alerts Count */}
-        <div className="stat-card glass">
-          <div className="stat-icon bg-red">
-            <i className="fa-solid fa-triangle-exclamation"></i>
-          </div>
-          <div className="stat-data">
-            <span className="stat-value" id="stat-alerts-count">{stats.warnings}</span>
-            <span className="stat-label">Alertes Critiques</span>
-          </div>
-        </div>
-
-        {/* Pending Updates Count */}
-        <div className="stat-card glass">
-          <div className="stat-icon bg-yellow">
-            <i className="fa-solid fa-cloud-arrow-down"></i>
-          </div>
-          <div className="stat-data">
-            <span className="stat-value" id="stat-updates-count">{stats.updatesAvailable}</span>
-            <span className="stat-label">Mises à Jour Dispo</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Visual Analytics Row: Circular Gauge + Chart + Quick Actions (3 Columns) */}
-      <section className="dashboard-visuals" style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.6fr 0.8fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        
-        {/* Left: Circular SecOps Gauge Circle Card (0.8fr) */}
-        <div className="stat-card glass score-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '1.5rem', borderRadius: '16px', minHeight: '260px' }}>
-          <div className="score-container" style={{ width: '120px', height: '120px', marginBottom: '0.8rem' }}>
-            <div className="score-circle">
-              <svg className="score-ring" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="44"></circle>
-                <circle 
-                  cx="50" 
-                  cy="50" 
-                  r="44" 
-                  id="score-ring-progress"
-                  style={{ strokeDashoffset, stroke: strokeColor }}
-                ></circle>
-                <text 
-                  x="50" 
-                  y="50" 
-                  textAnchor="middle" 
-                  dominantBaseline="central" 
-                  className="score-grade-text"
-                  style={{ fontSize: '38px' }}
-                >
-                  {stats.globalGrade}
-                </text>
-              </svg>
-            </div>
-          </div>
-          <div className="score-info" style={{ width: '100%' }}>
-            <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: 800 }}>Score Global</h3>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Posture globale du parc</p>
-            <span className={badgeClass} id="global-status-badge" style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 'bold' }}>{statusText}</span>
-          </div>
-        </div>
-
-        {/* Middle: Custom SVG CVE Severity Bar Chart (1.6fr) */}
-        <div className="glass chart-card" style={{ height: '100%', minHeight: '260px' }}>
-          <div className="chart-header">
-            <div>
-              <h3>Gravité des Failles de Sécurité (CVE)</h3>
-              <p>Nombre total de vulnérabilités en cours détectées sur vos conteneurs</p>
-            </div>
-            <div className="chart-legend">
-              <div className="legend-item">
-                <span className="legend-color" style={{ backgroundColor: 'var(--primary)' }}></span>
-                <span>Cumul global</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ position: 'relative', width: '100%', height: '180px', marginTop: '0.25rem' }}>
-            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
-              
-              {/* Baseline Axis */}
-              <line 
-                x1={paddingLeft} 
-                y1={baselineY} 
-                x2={chartWidth - paddingRight} 
-                y2={baselineY} 
-                stroke="var(--border-color)" 
-                strokeWidth="1.5" 
-              />
-
-              {/* Grid Lines */}
-              {[...Array(4)].map((_, i) => {
-                const step = Math.ceil(maxVal / 4);
-                const val = (i + 1) * step;
-                const gridY = baselineY - (val / maxVal) * (drawingHeight - 15);
-                return (
-                  <g key={val}>
-                    <line 
-                      x1={paddingLeft} 
-                      y1={gridY} 
-                      x2={chartWidth - paddingRight} 
-                      y2={gridY} 
-                      stroke="var(--border-color)" 
-                      strokeWidth="1" 
-                      strokeDasharray="4,4" 
-                    />
-                    <text 
-                      x={paddingLeft - 8} 
-                      y={gridY + 4} 
-                      fill="var(--text-secondary)" 
-                      fontSize="10" 
-                      fontWeight="600"
-                      textAnchor="end"
-                    >
-                      {val}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Render Severity Bars */}
-              {severityData.map((data, idx) => {
-                const x = startX + idx * (barWidth + gap);
-                const h = getBarHeight(data.count);
-                const y = baselineY - h;
-
-                return (
-                  <g key={data.label}>
-                    {/* Glowing background bar */}
-                    {h > 0 && (
-                      <path 
-                        d={drawBarPath(x, y, barWidth, h, 6)} 
-                        fill={data.color}
-                        opacity="0.1"
-                        style={{ filter: `drop-shadow(0 2px 10px ${data.glow})` }}
-                      />
-                    )}
-
-                    {/* Main Bar */}
-                    {h > 0 ? (
-                      <path 
-                        d={drawBarPath(x, y, barWidth, h, 6)} 
-                        fill={data.color}
-                      />
-                    ) : (
-                      // Draw a tiny baseline indicator when 0 CVEs
-                      <rect 
-                        x={x} 
-                        y={baselineY - 2} 
-                        width={barWidth} 
-                        height={2} 
-                        fill="var(--border-color)" 
-                        rx="1" 
-                      />
-                    )}
-
-                    {/* Count Text on top of Bar */}
-                    <text 
-                      x={x + barWidth / 2} 
-                      y={h > 0 ? y - 6 : baselineY - 8} 
-                      fill={h > 0 ? 'var(--text-primary)' : 'var(--text-muted)'} 
-                      fontSize="11" 
-                      fontWeight="700" 
-                      textAnchor="middle"
-                    >
-                      {data.count}
-                    </text>
-
-                    {/* X Axis Label */}
-                    <text 
-                      x={x + barWidth / 2} 
-                      y={chartHeight - 8} 
-                      fill="var(--text-secondary)" 
-                      fontSize="11" 
-                      fontWeight="600" 
-                      textAnchor="middle"
-                    >
-                      {data.label}
-                    </text>
-                  </g>
-                );
-              })}
+      {/* Analytics Row */}
+      <div className="grid gap-4" style={{ gridTemplateColumns: '260px 1fr 260px' }}>
+        {/* Score Gauge */}
+        <div className="card p-5 flex flex-col items-center justify-center gap-3 text-center">
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Score Global</p>
+          <div className="relative w-32 h-32">
+            <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="44" />
+              <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
             </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={cn('text-3xl font-extrabold', gradeColor(stats.globalScore))}>
+                {stats.globalGrade}
+              </span>
+              <span className="text-[11px] text-zinc-500 mt-0.5">{stats.globalScore}/100</span>
+            </div>
+          </div>
+          <div>
+            <p className={cn('text-sm font-bold', gradeColor(stats.globalScore))}>
+              {gradeLabel(stats.globalGrade)}
+            </p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Posture globale du parc</p>
           </div>
         </div>
 
-        {/* Right: Quick Actions Card (0.8fr) */}
-        <div className="stat-card glass" style={{ padding: '1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
-          <div style={{ width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--warning)', fontSize: '1rem' }}></i>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>Actions Recommandées</h3>
+        {/* CVE Chart */}
+        <div className="card p-5">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-zinc-100">Gravité des Failles (CVE)</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
+          </div>
+          <CveChart counts={cveCounts} />
+        </div>
+
+        {/* Recommended Actions */}
+        <div className="card p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
+              <TriangleAlert className="w-4 h-4 text-amber-400" />
+              <p className="text-sm font-semibold text-zinc-100">Actions recommandées</p>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
-                <span className="badge badge-danger" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>CRITICAL</span>
-                <div>
-                  <strong style={{ color: 'var(--text-primary)' }}>target-vuln :</strong>
-                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Faille critique sans patch disponible.</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
-                <span className="badge badge-warning" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>SECURITY</span>
-                <div>
-                  <strong style={{ color: 'var(--text-primary)' }}>docker-proxy :</strong>
-                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Tag latest non-épinglé (Spoofing).</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', lineHeight: '1.3' }}>
-                <span className="badge badge-success" style={{ padding: '0.15rem 0.35rem', height: 'fit-content', fontWeight: 'bold', fontSize: '0.6rem' }}>UPDATE</span>
-                <div>
-                  <strong style={{ color: 'var(--text-primary)' }}>safedock-app :</strong>
-                  <span style={{ color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>Mise à jour en attente.</span>
-                </div>
-              </div>
+            <div className="space-y-3">
+              <ActionItem badge="CRITICAL" badgeClass="bg-red-500/20 text-red-400" name="target-vuln" desc="Faille critique sans patch." />
+              <ActionItem badge="SECURITY" badgeClass="bg-amber-500/20 text-amber-400" name="docker-proxy" desc="Tag latest non-épinglé." />
+              <ActionItem badge="UPDATE" badgeClass="bg-emerald-500/20 text-emerald-400" name="safedock-app" desc="Mise à jour en attente." />
             </div>
           </div>
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={() => onNavigate('actions')}
-            style={{ width: '100%', padding: '0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', borderRadius: '8px', marginTop: '1rem' }}
+          <button
             type="button"
+            onClick={() => onNavigate('actions')}
+            className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-colors"
           >
-            <span>Gérer les actions ({stats.warnings + stats.updatesAvailable})</span>
-            <i className="fa-solid fa-arrow-right"></i>
+            Gérer les actions ({stats.warnings + stats.updatesAvailable})
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
-      </section>
+      </div>
 
-      {/* Containers Grid Section */}
-      <section className="section-container">
-        <div className="section-header">
-          <h3>
-            <i className="fa-solid fa-list-check"></i> 
+      {/* Container Cards */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+            <ListChecks className="w-4 h-4 text-zinc-400" />
             Statuts des conteneurs en cours d'audit
-          </h3>
-          <div className="filters">
-            <button 
-              className={`filter-btn ${activeFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveFilter('all')}
-              type="button"
-            >
-              Tous
-            </button>
-            <button 
-              className={`filter-btn ${activeFilter === 'secure' ? 'active' : ''}`}
-              onClick={() => setActiveFilter('secure')}
-              type="button"
-            >
-              Sains
-            </button>
-            <button 
-              className={`filter-btn ${activeFilter === 'warning' ? 'active' : ''}`}
-              onClick={() => setActiveFilter('warning')}
-              type="button"
-            >
-              Alertes
-            </button>
+          </div>
+          <div className="flex gap-1.5">
+            {['all', 'secure', 'warning'].map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setActiveFilter(f)}
+                className={cn(
+                  'px-2.5 py-1 text-xs rounded-md font-medium transition-colors',
+                  activeFilter === f
+                    ? 'bg-brand-DEFAULT/15 text-brand-DEFAULT'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]'
+                )}
+              >
+                {f === 'all' ? 'Tous' : f === 'secure' ? 'Sains' : 'Alertes'}
+              </button>
+            ))}
           </div>
         </div>
 
         {containers.length === 0 ? (
-          <div className="loading-state" id="containers-loading">
-            <div className="spinner"></div>
-            <p>Audit SecOps en cours de génération...</p>
+          <div className="card py-16 flex flex-col items-center gap-3 text-zinc-500">
+            <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-blue-500 animate-spin" />
+            <p className="text-sm">Audit SecOps en cours...</p>
           </div>
         ) : filteredContainers.length === 0 ? (
-          <div className="empty-state" id="containers-empty">
-            <i className="fa-solid fa-folder-open"></i>
-            <p>Aucun conteneur ne correspond au filtre actif.</p>
+          <div className="card py-16 flex flex-col items-center gap-2 text-zinc-500">
+            <Boxes className="w-8 h-8 text-zinc-700" />
+            <p className="text-sm">Aucun conteneur ne correspond au filtre.</p>
           </div>
         ) : (
-          <div className="containers-grid" id="containers-list">
-            {filteredContainers.map(c => {
-              const grade = c.grade ? c.grade.toLowerCase() : 'f';
-              let scoreClass = 'score-a';
-              if (c.score < 40) scoreClass = 'score-f';
-              else if (c.score < 60) scoreClass = 'score-d';
-              else if (c.score < 75) scoreClass = 'score-c';
-              else if (c.score < 90) scoreClass = 'score-b';
-
-              return (
-                <div 
-                  key={c.id} 
-                  className={`container-card glass grade-${grade}`}
-                  onClick={() => onSelectContainer(c.id)}
-                >
-                  <div className="card-top">
-                    <div className="card-title-group">
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <h4 style={{ margin: 0 }}>{c.name}</h4>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>({c.host_name})</span>
-                      </div>
-                      <span className="card-image-name">{c.image_name}:{c.image_tag}</span>
-                    </div>
-                    <div className={`card-badge-score ${scoreClass}`}>
-                      {c.grade || 'F'}
-                    </div>
-                  </div>
-
-                  <div className="card-indicators">
-                    <span className={`indicator-pill ${c.tag_pinned ? 'pass' : 'fail'}`}>
-                      <i className={`fa-solid ${c.tag_pinned ? 'fa-circle-check' : 'fa-circle-xmark'}`}></i> Pinning
-                    </span>
-                    <span className={`indicator-pill ${c.non_root ? 'pass' : 'fail'}`}>
-                      <i className={`fa-solid ${c.non_root ? 'fa-circle-check' : 'fa-circle-xmark'}`}></i> Non-Root
-                    </span>
-                    <span className={`indicator-pill ${c.privileged_safe ? 'pass' : 'fail'}`}>
-                      <i className={`fa-solid ${c.privileged_safe ? 'fa-circle-check' : 'fa-circle-xmark'}`}></i> Privilèges
-                    </span>
-                  </div>
-
-                  <div className="card-bottom">
-                    <span>Score : {c.score}/100</span>
-                    {c.update_available ? (
-                      <span className="update-tag update-avail">
-                        <i className="fa-solid fa-cloud-arrow-down"></i> Mises à jour dispos
-                      </span>
-                    ) : (
-                      <span className="update-tag">
-                        <i className="fa-solid fa-check-double"></i> À jour
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filteredContainers.map(c => (
+              <ContainerCard key={c.id} c={c} onClick={() => onSelectContainer(c.id)} />
+            ))}
           </div>
         )}
       </section>
 
-      {/* Audit Logs Table Section */}
-      <section className="section-container" style={{ marginTop: '3.5rem' }}>
-        <div className="section-header">
-          <h3>
-            <i className="fa-solid fa-clock-rotate-left"></i> 
+      {/* Audit Logs */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+            <Clock className="w-4 h-4 text-zinc-400" />
             Historique d'audit & activités SecOps
-          </h3>
-          <button 
-            className="filter-btn" 
-            id="btn-refresh-logs" 
-            style={{ fontSize: '0.75rem' }}
-            onClick={onRefreshLogs}
+          </div>
+          <button
             type="button"
+            onClick={onRefreshLogs}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] rounded-lg transition-colors"
           >
-            <i className="fa-solid fa-sync"></i> Recharger
+            <RotateCcw className="w-3.5 h-3.5" /> Recharger
           </button>
         </div>
 
-        <div className="glass" style={{ padding: '1rem', overflowX: 'auto' }}>
-          <table className="audit-logs-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, height: '35px' }}>
-                <th style={{ padding: '0.5rem 1rem' }}>Date</th>
-                <th style={{ padding: '0.5rem 1rem' }}>Conteneur</th>
-                <th style={{ padding: '0.5rem 1rem' }}>Image / digest ciblé</th>
-                <th style={{ padding: '0.5rem 1rem' }}>Statut</th>
-                <th style={{ padding: '0.5rem 1rem' }}>Détails / motif</th>
-                <th style={{ padding: '0.5rem 1rem', textAlign: 'center' }}>CVEs (C/H/M)</th>
-              </tr>
-            </thead>
-            <tbody id="audit-logs-rows">
-              {auditLogs.length === 0 ? (
-                <tr style={{ color: 'var(--text-muted)' }}>
-                  <td colSpan="6" style={{ padding: '1.5rem', textAlign: 'center' }}>
-                    Aucun journal d'activité disponible.
-                  </td>
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  {['Date', 'Conteneur', 'Image / digest', 'Statut', 'Détails', 'CVEs (C/H/M)'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ) : (
-                auditLogs.map(log => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                    <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{log.container_name}</td>
-                    <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{log.image_ref || '-'}</td>
-                    <td style={{ padding: '0.85rem 1rem' }} className={getLogStatusClass(log.status)}>
-                      {log.status === 'SUCCESS' || log.status === 'CLEAN' ? 'SUCCÈS' : log.status === 'BLOCKED' ? 'BLOQUÉ' : 'ÉCHEC'}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{log.message}</td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 'bold' }}>
-                      {log.status === 'SUCCESS' || log.status === 'CLEAN' ? '-' : `${log.cve_critical || 0}/${log.cve_high || 0}/${log.cve_medium || 0}`}
+              </thead>
+              <tbody>
+                {auditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-10 text-center text-zinc-600">
+                      Aucun journal d'activité disponible.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  auditLogs.map(log => (
+                    <tr key={log.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{formatDate(log.timestamp)}</td>
+                      <td className="px-4 py-3 font-medium text-zinc-200">{log.container_name}</td>
+                      <td className="px-4 py-3 font-mono text-zinc-500">{log.image_ref || '-'}</td>
+                      <td className={cn('px-4 py-3 font-semibold', logStatusStyle(log.status))}>
+                        {logStatusLabel(log.status)}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 max-w-[200px] truncate">{log.message}</td>
+                      <td className="px-4 py-3 text-center font-mono text-zinc-400">
+                        {(log.status === 'SUCCESS' || log.status === 'CLEAN')
+                          ? <span className="text-zinc-700">—</span>
+                          : `${log.cve_critical || 0}/${log.cve_high || 0}/${log.cve_medium || 0}`
+                        }
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </div>
+  );
+}
+
+function KpiCard({ icon, iconClass, value, label }) {
+  return (
+    <div className="card px-5 py-4 flex items-center gap-4">
+      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', iconClass)}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-zinc-100 leading-none">{value}</p>
+        <p className="text-xs text-zinc-500 mt-1">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function ActionItem({ badge, badgeClass, name, desc }) {
+  return (
+    <div className="flex gap-2.5 text-xs leading-relaxed">
+      <span className={cn('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold h-fit', badgeClass)}>
+        {badge}
+      </span>
+      <div>
+        <span className="font-semibold text-zinc-200">{name} : </span>
+        <span className="text-zinc-500">{desc}</span>
+      </div>
+    </div>
+  );
+}
+
+function CveChart({ counts }) {
+  const bars = [
+    { label: 'Critique', value: counts.critical, color: '#ef4444', glow: 'rgba(239,68,68,0.3)' },
+    { label: 'Haute',    value: counts.high,     color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
+    { label: 'Moyenne',  value: counts.medium,   color: '#fbbf24', glow: 'rgba(251,191,36,0.3)' },
+    { label: 'Basse',    value: counts.low,       color: '#4F8EF7', glow: 'rgba(79,142,247,0.3)' },
+  ];
+  const maxVal = Math.max(...bars.map(b => b.value), 5);
+  const chartH = 140;
+  const barW = 52;
+  const gap = 50;
+  const paddingLeft = 32;
+  const paddingBottom = 24;
+  const paddingTop = 16;
+  const chartW = paddingLeft + bars.length * (barW + gap);
+  const drawH = chartH - paddingBottom - paddingTop;
+  const baseline = chartH - paddingBottom;
+
+  return (
+    <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height="100%" style={{ maxHeight: '140px' }}>
+      {/* Grid */}
+      {[1,2,3].map(i => {
+        const y = baseline - (i / 3) * drawH;
+        return (
+          <g key={i}>
+            <line x1={paddingLeft} y1={y} x2={chartW - 8} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+            <text x={paddingLeft - 4} y={y + 3} fill="rgba(255,255,255,0.25)" fontSize="8" textAnchor="end">
+              {Math.round((i / 3) * maxVal)}
+            </text>
+          </g>
+        );
+      })}
+      {/* Baseline */}
+      <line x1={paddingLeft} y1={baseline} x2={chartW - 8} y2={baseline} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+
+      {/* Bars */}
+      {bars.map((bar, idx) => {
+        const x = paddingLeft + 8 + idx * (barW + gap);
+        const h = Math.max((bar.value / maxVal) * drawH, bar.value > 0 ? 4 : 0);
+        const y = baseline - h;
+        return (
+          <g key={bar.label}>
+            {h > 0 && (
+              <rect x={x} y={y} width={barW} height={h} rx="5" fill={bar.color}
+                style={{ filter: `drop-shadow(0 2px 8px ${bar.glow})` }}
+              />
+            )}
+            {h === 0 && (
+              <rect x={x} y={baseline - 2} width={barW} height={2} rx="1" fill="rgba(255,255,255,0.06)" />
+            )}
+            <text x={x + barW / 2} y={h > 0 ? y - 5 : baseline - 7} fill={h > 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)'}
+              fontSize="10" fontWeight="700" textAnchor="middle">
+              {bar.value}
+            </text>
+            <text x={x + barW / 2} y={chartH - 6} fill="rgba(255,255,255,0.35)"
+              fontSize="9" textAnchor="middle">
+              {bar.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ContainerCard({ c, onClick }) {
+  const scoreCol = gradeColor(c.score);
+  const scoreBg = gradeBg(c.score);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="card p-4 text-left hover:border-white/[0.12] hover:bg-[#1a2235] transition-all group cursor-pointer"
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-zinc-100 truncate group-hover:text-white">{c.name}</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">{c.image_name}:{c.image_tag}</p>
+          <p className="text-[10px] text-zinc-600 mt-0.5">{c.host_name}</p>
+        </div>
+        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center text-sm font-extrabold shrink-0', scoreCol, scoreBg)}>
+          {c.grade}
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        <Pill pass={c.tag_pinned}>Pinning</Pill>
+        <Pill pass={c.non_root}>Non-Root</Pill>
+        <Pill pass={c.privileged_safe}>Privilèges</Pill>
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] text-zinc-500">
+        <span>Score : <span className={cn('font-semibold', scoreCol)}>{c.score}/100</span></span>
+        {c.update_available ? (
+          <span className="flex items-center gap-1 text-amber-400">
+            <CloudDownload className="w-3 h-3" /> Màj dispo
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-emerald-400">
+            <CheckCircle2 className="w-3 h-3" /> À jour
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function Pill({ pass, children }) {
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium',
+      pass ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
+    )}>
+      {pass ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+      {children}
+    </span>
   );
 }

@@ -1,330 +1,271 @@
 import React, { useState } from 'react';
+import {
+  Boxes, Search, ArrowUpDown, ChevronUp, ChevronDown,
+  Server, Eye, Settings2, CheckCircle2, XCircle, ShieldCheck, TriangleAlert
+} from 'lucide-react';
+import { cn, gradeColor, gradeBg } from '../lib/utils';
 
 export default function ContainersView({ containers, onSelectContainer, onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
-  // 1. Column Sorting Logic
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDir('asc');
     }
-    setCurrentPage(1); // Reset to page 1 on sort change
+    setPage(1);
   };
 
-  // Helper to render sort icons
-  const renderSortIcon = (field) => {
-    if (sortField !== field) {
-      return <i className="fa-solid fa-sort" style={{ marginLeft: '0.4rem', opacity: 0.35 }}></i>;
-    }
-    return sortDirection === 'asc' 
-      ? <i className="fa-solid fa-chevron-up" style={{ marginLeft: '0.4rem', color: 'var(--primary)' }}></i>
-      : <i className="fa-solid fa-chevron-down" style={{ marginLeft: '0.4rem', color: 'var(--primary)' }}></i>;
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDir === 'asc'
+      ? <ChevronUp className="w-3 h-3 ml-1 text-blue-400" />
+      : <ChevronDown className="w-3 h-3 ml-1 text-blue-400" />;
   };
 
-  // Filter list by search term including multi-host hosts and tags
-  const filteredContainers = containers.filter(c => {
-    const term = searchTerm.toLowerCase();
-    const name = (c.name || '').toLowerCase();
-    const imageName = (c.image_name || '').toLowerCase();
-    const imageTag = (c.image_tag || '').toLowerCase();
-    const hostName = (c.host_name || '').toLowerCase();
-    const tagsStr = (c.tags || []).join(' ').toLowerCase();
-
+  const filtered = containers.filter(c => {
+    const t = searchTerm.toLowerCase();
     return (
-      name.includes(term) ||
-      imageName.includes(term) ||
-      imageTag.includes(term) ||
-      hostName.includes(term) ||
-      tagsStr.includes(term)
+      (c.name || '').toLowerCase().includes(t) ||
+      (c.image_name || '').toLowerCase().includes(t) ||
+      (c.image_tag || '').toLowerCase().includes(t) ||
+      (c.host_name || '').toLowerCase().includes(t) ||
+      (c.tags || []).join(' ').toLowerCase().includes(t)
     );
   });
 
-  // Sort list
-  const sortedContainers = [...filteredContainers].sort((a, b) => {
-    let aVal = a[sortField];
-    let bVal = b[sortField];
-
-    // Boolean mapping
-    if (typeof aVal === 'boolean') {
-      aVal = aVal ? 1 : 0;
-      bVal = bVal ? 1 : 0;
-    }
-    
-    // Numeric handling
-    if (typeof aVal === 'number') {
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-
-    // String handling
-    aVal = (aVal || '').toString().toLowerCase();
-    bVal = (bVal || '').toString().toLowerCase();
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+  const sorted = [...filtered].sort((a, b) => {
+    let av = a[sortField], bv = b[sortField];
+    if (typeof av === 'boolean') { av = av ? 1 : 0; bv = bv ? 1 : 0; }
+    if (typeof av === 'number') return sortDir === 'asc' ? av - bv : bv - av;
+    av = (av || '').toString().toLowerCase();
+    bv = (bv || '').toString().toLowerCase();
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
     return 0;
   });
 
-  // 2. Pagination Calculations
-  const totalItems = sortedContainers.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-  const activePageNum = currentPage > totalPages ? totalPages : currentPage;
-  const indexOfLastItem = activePageNum * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedContainers.slice(indexOfFirstItem, indexOfLastItem);
+  const total = sorted.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+  const safePage = Math.min(page, totalPages);
+  const slice = sorted.slice((safePage - 1) * perPage, safePage * perPage);
+
+  const thClass = "px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wide select-none";
+  const thSortClass = cn(thClass, "cursor-pointer hover:text-zinc-300 transition-colors");
+
+  const tagColor = (tag) => {
+    if (['Production', 'Critical'].includes(tag)) return 'bg-red-500/10 text-red-400';
+    if (['Database', 'Back-End', 'API'].includes(tag)) return 'bg-blue-500/10 text-blue-400';
+    if (['Staging', 'Dev'].includes(tag)) return 'bg-amber-500/10 text-amber-400';
+    return 'bg-white/[0.04] text-zinc-400';
+  };
 
   return (
-    <div id="view-containers" className="page-view">
-      <section className="section-container">
-        <div className="section-header">
-          <h3>
-            <i className="fa-solid fa-cubes"></i> 
-            Statuts et métadonnées de sécurité
-          </h3>
-          
-          {/* Overhauled Search Box without the weird borders */}
-          <div className="search-box-container">
-            <i className="fa-solid fa-magnifying-glass search-icon"></i>
-            <input 
-              type="text" 
-              id="containers-table-search" 
-              placeholder="Rechercher un conteneur..." 
-              className="glass-input search-input" 
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1); // Reset to page 1 on search
-              }}
-            />
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+          <Boxes className="w-4 h-4 text-zinc-400" />
+          Inventaire des conteneurs
         </div>
-        
-        <div className="glass" style={{ padding: '1.5rem', overflowX: 'auto', marginTop: '1.5rem', borderRadius: '12px' }}>
-          <table className="semantic-containers-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+            className="w-56 pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[#151d2e] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, height: '40px' }}>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('score')}>
-                  Statut SecOps {renderSortIcon('score')}
+              <tr className="border-b border-white/[0.06]">
+                <th className={thSortClass} onClick={() => handleSort('score')}>
+                  <span className="flex items-center">Score <SortIcon field="score" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
-                  Nom du conteneur {renderSortIcon('name')}
+                <th className={thSortClass} onClick={() => handleSort('name')}>
+                  <span className="flex items-center">Conteneur <SortIcon field="name" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('host_name')}>
-                  Hôte {renderSortIcon('host_name')}
+                <th className={thSortClass} onClick={() => handleSort('host_name')}>
+                  <span className="flex items-center">Hôte <SortIcon field="host_name" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('image_name')}>
-                  Image et version {renderSortIcon('image_name')}
+                <th className={thSortClass} onClick={() => handleSort('image_name')}>
+                  <span className="flex items-center">Image <SortIcon field="image_name" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', userSelect: 'none' }}>
-                  Tags
+                <th className={thClass}>Tags</th>
+                <th className={cn(thSortClass, 'text-center')} onClick={() => handleSort('tag_pinned')}>
+                  <span className="flex items-center justify-center">Digest <SortIcon field="tag_pinned" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('tag_pinned')}>
-                  Digest immuable {renderSortIcon('tag_pinned')}
+                <th className={cn(thSortClass, 'text-center')} onClick={() => handleSort('non_root')}>
+                  <span className="flex items-center justify-center">Root <SortIcon field="non_root" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('non_root')}>
-                  Utilisateur non-root {renderSortIcon('non_root')}
+                <th className={cn(thSortClass, 'text-center')} onClick={() => handleSort('privileged_safe')}>
+                  <span className="flex items-center justify-center">Privilèges <SortIcon field="privileged_safe" /></span>
                 </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('privileged_safe')}>
-                  Privilèges {renderSortIcon('privileged_safe')}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('secret_leaks')}>
-                  Secrets {renderSortIcon('secret_leaks')}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+                <th className={cn(thClass, 'text-center')}>Secrets</th>
+                <th className={cn(thClass, 'text-right')}>Actions</th>
               </tr>
             </thead>
-            <tbody id="containers-table-rows">
+            <tbody>
               {containers.length === 0 ? (
-                <tr style={{ color: 'var(--text-muted)' }}>
-                  <td colSpan="10" style={{ padding: '2rem', textAlign: 'center' }}>
-                    Chargement du tableau des conteneurs...
+                <tr>
+                  <td colSpan="10" className="px-4 py-12 text-center text-zinc-600">
+                    Chargement des conteneurs...
                   </td>
                 </tr>
-              ) : currentItems.length === 0 ? (
-                <tr style={{ color: 'var(--text-muted)' }}>
-                  <td colSpan="10" style={{ padding: '2rem', textAlign: 'center' }}>
-                    Aucun conteneur ne correspond à votre recherche.
+              ) : slice.length === 0 ? (
+                <tr>
+                  <td colSpan="10" className="px-4 py-12 text-center text-zinc-600">
+                    Aucun résultat pour cette recherche.
                   </td>
                 </tr>
               ) : (
-                currentItems.map(c => {
-                  const grade = c.grade ? c.grade.toLowerCase() : 'f';
-                  let scoreClass = 'score-a';
-                  if (c.score < 40) scoreClass = 'score-f';
-                  else if (c.score < 60) scoreClass = 'score-d';
-                  else if (c.score < 75) scoreClass = 'score-c';
-                  else if (c.score < 90) scoreClass = 'score-b';
-
-                  return (
-                    <tr 
-                      key={c.id} 
-                      style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', cursor: 'pointer' }}
-                      onClick={() => onSelectContainer(c.id)}
-                    >
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <div className={`card-badge-score ${scoreClass}`} style={{ width: '32px', height: '32px', fontSize: '1rem' }}>
-                          {c.grade || 'F'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{c.name}</td>
-                      <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
-                          <i className="fa-solid fa-server" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}></i>
-                          <span>{c.host_name || 'prod-swarm-01'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                        {c.image_name}:{c.image_tag}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                          {(c.tags || []).map((t, tIdx) => (
-                            <span 
-                              key={tIdx} 
-                              className="badge" 
-                              style={{ 
-                                fontSize: '0.65rem', 
-                                padding: '0.15rem 0.35rem', 
-                                backgroundColor: t === 'Production' || t === 'Critical' ? 'rgba(239, 68, 68, 0.12)' : t === 'Database' || t === 'Back-End' ? 'rgba(69, 120, 249, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                                color: t === 'Production' || t === 'Critical' ? 'var(--danger)' : t === 'Database' || t === 'Back-End' ? 'var(--primary)' : 'var(--text-secondary)',
-                                border: '1px solid transparent'
-                              }}
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                        <i className={`fa-solid ${c.tag_pinned ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger'}`} style={{ fontSize: '1.1rem' }}></i>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                        <i className={`fa-solid ${c.non_root ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger'}`} style={{ fontSize: '1.1rem' }}></i>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                        <i className={`fa-solid ${c.privileged_safe ? 'fa-shield-halved text-success' : 'fa-triangle-exclamation text-warning'}`} style={{ fontSize: '1.1rem' }}></i>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                        {c.secret_leaks && c.secret_leaks.length > 0 ? (
-                          <span className="badge badge-danger" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
-                            {c.secret_leaks.length} FUITE(S)
+                slice.map(c => (
+                  <tr
+                    key={c.id}
+                    onClick={() => onSelectContainer(c.id)}
+                    className="border-b border-white/[0.03] hover:bg-white/[0.03] cursor-pointer transition-colors group"
+                  >
+                    <td className="px-4 py-3">
+                      <div className={cn(
+                        'w-8 h-8 rounded-lg flex items-center justify-center text-sm font-extrabold',
+                        gradeColor(c.score), gradeBg(c.score)
+                      )}>
+                        {c.grade}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-zinc-100 group-hover:text-white">{c.name}</td>
+                    <td className="px-4 py-3 text-zinc-500">
+                      <span className="flex items-center gap-1.5">
+                        <Server className="w-3 h-3 text-zinc-700" />
+                        {c.host_name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-zinc-400">{c.image_name}:{c.image_tag}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {(c.tags || []).map((t, i) => (
+                          <span key={i} className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', tagColor(t))}>
+                            {t}
                           </span>
-                        ) : (
-                          <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '1.1rem' }}></i>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                          <button 
-                            className="btn btn-primary" 
-                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectContainer(c.id);
-                            }}
-                            title="Inspecter le conteneur"
-                            type="button"
-                          >
-                            <i className="fa-solid fa-eye" style={{ fontSize: '0.85rem' }}></i>
-                          </button>
-                          
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectContainer(c.id);
-                              onNavigate('container-settings');
-                            }}
-                            title="Configurer les surcharges du conteneur"
-                            type="button"
-                          >
-                            <i className="fa-solid fa-cog" style={{ fontSize: '0.85rem' }}></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <BoolIcon ok={c.tag_pinned} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <BoolIcon ok={c.non_root} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {c.privileged_safe
+                        ? <ShieldCheck className="w-4 h-4 text-emerald-400 mx-auto" />
+                        : <TriangleAlert className="w-4 h-4 text-amber-400 mx-auto" />
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {c.secret_leaks && c.secret_leaks.length > 0
+                        ? <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400">
+                            {c.secret_leaks.length} FUITE{c.secret_leaks.length > 1 ? 'S' : ''}
+                          </span>
+                        : <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectContainer(c.id)}
+                          title="Inspecter"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { onSelectContainer(c.id); onNavigate('container-settings'); }}
+                          title="Configurer"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] transition-colors"
+                        >
+                          <Settings2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
-
-          {/* 3. Overhauled Pagination Component */}
-          <div className="pagination-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                Affichage de <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalItems > 0 ? indexOfFirstItem + 1 : 0}</span> à <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{Math.min(indexOfLastItem, totalItems)}</span> sur <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalItems}</span> conteneurs
-              </div>
-              
-              {/* Predefined values dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span>Éléments par page :</span>
-                <select 
-                  value={itemsPerPage} 
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="glass-input"
-                  style={{ 
-                    padding: '0.2rem 1.5rem 0.2rem 0.5rem', 
-                    borderRadius: '8px', 
-                    fontSize: '0.8rem', 
-                    border: '1px solid var(--border-color)', 
-                    cursor: 'pointer', 
-                    outline: 'none'
-                  }}
-                >
-                  <option value={5} style={{ background: 'var(--bg-card)' }}>5</option>
-                  <option value={10} style={{ background: 'var(--bg-card)' }}>10</option>
-                  <option value={25} style={{ background: 'var(--bg-card)' }}>25</option>
-                  <option value={50} style={{ background: 'var(--bg-card)' }}>50</option>
-                </select>
-              </div>
-            </div>
-            
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', gap: '0.35rem' }}>
-                <button 
-                  className="btn btn-secondary"
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={activePageNum === 1}
-                  type="button"
-                >
-                  <i className="fa-solid fa-chevron-left"></i> Précédent
-                </button>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    className={`btn ${activePageNum === i + 1 ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px', minWidth: '30px' }}
-                    onClick={() => setCurrentPage(i + 1)}
-                    type="button"
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button 
-                  className="btn btn-secondary"
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={activePageNum === totalPages}
-                  type="button"
-                >
-                  Suivant <i className="fa-solid fa-chevron-right"></i>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
-      </section>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06] gap-4 flex-wrap">
+          <div className="flex items-center gap-3 text-xs text-zinc-500">
+            <span>
+              {total > 0 ? (safePage - 1) * perPage + 1 : 0}–{Math.min(safePage * perPage, total)} sur {total}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span>Par page :</span>
+              <select
+                value={perPage}
+                onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
+                className="bg-[#151d2e] border border-white/[0.08] text-zinc-300 rounded px-2 py-0.5 text-xs focus:outline-none"
+              >
+                {[5, 10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex gap-1">
+              <PageBtn onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={safePage === 1}>
+                <ChevronUp className="w-3 h-3 -rotate-90" /> Préc.
+              </PageBtn>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <PageBtn key={i} onClick={() => setPage(i + 1)} active={safePage === i + 1}>
+                  {i + 1}
+                </PageBtn>
+              ))}
+              <PageBtn onClick={() => setPage(p => Math.min(p + 1, totalPages))} disabled={safePage === totalPages}>
+                Suiv. <ChevronDown className="w-3 h-3 -rotate-90" />
+              </PageBtn>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function BoolIcon({ ok }) {
+  return ok
+    ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
+    : <XCircle className="w-4 h-4 text-red-400 mx-auto" />;
+}
+
+function PageBtn({ onClick, disabled, active, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex items-center gap-0.5 px-2.5 py-1 text-xs rounded-lg transition-colors',
+        active ? 'bg-blue-500/15 text-blue-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]',
+        'disabled:opacity-30 disabled:cursor-not-allowed'
+      )}
+    >
+      {children}
+    </button>
   );
 }

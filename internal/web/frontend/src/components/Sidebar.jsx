@@ -1,181 +1,148 @@
 import React from 'react';
+import {
+  LayoutDashboard, Boxes, ShieldCheck, Server, Newspaper,
+  Bell, Lock, Settings, ChevronsLeft, ChevronsRight, RefreshCw
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 
-export default function Sidebar({
-  activePage,
-  onNavigate,
-  isCollapsed,
-  onToggleCollapse,
-  onRefresh,
-  isRefreshing
-}) {
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'containers', label: 'Conteneurs', icon: Boxes },
+  { id: 'actions', label: 'Actions', icon: ShieldCheck },
+  { id: 'agents', label: 'Agents', icon: Server },
+  { id: 'watch', label: 'Veille SecOps', icon: Newspaper },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'permissions', label: 'Permissions', icon: Lock },
+];
+
+export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing }) {
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-
-      {/* Logo + collapse toggle */}
-      <div className="logo-area">
-        <div className="logo-icon">
-          <svg className="safedock-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs>
-              <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--primary)" />
-                <stop offset="100%" stopColor="var(--info)" />
-              </linearGradient>
-              <linearGradient id="containerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--info)" />
-                <stop offset="100%" stopColor="var(--primary)" />
-              </linearGradient>
-            </defs>
-            {/* Outer shield */}
-            <path d="M50,8 L85,22 L85,55 C85,75 50,88 50,88 C50,88 15,75 15,55 L15,22 Z" fill="none" stroke="url(#shieldGrad)" strokeWidth="6" strokeLinejoin="round" />
-            {/* Inner glow */}
-            <path d="M50,16 L77,27 L77,53 C77,69 50,79 50,79 C50,79 23,69 23,53 L23,27 Z" fill="none" stroke="url(#shieldGrad)" strokeWidth="1.5" opacity="0.4" />
-            {/* Padlock arc */}
-            <path d="M41,36 L41,27 C41,21 59,21 59,27 L59,36" fill="none" stroke="url(#containerGrad)" strokeWidth="4.5" strokeLinecap="round" />
-            {/* Cube — top face */}
-            <path d="M50,34 L70,42 L50,50 L30,42 Z" fill="url(#containerGrad)" opacity="0.9" />
-            {/* Cube — left face */}
-            <path d="M30,42 L50,50 L50,70 L30,62 Z" fill="var(--primary)" opacity="0.8" />
-            {/* Cube — right face */}
-            <path d="M50,50 L70,42 L70,62 L50,70 Z" fill="var(--primary)" />
-            {/* Cube dividers */}
-            <path d="M40,46 L40,66" stroke="#ffffff" strokeWidth="1.5" opacity="0.25" />
-            <path d="M60,46 L60,66" stroke="#ffffff" strokeWidth="1.5" opacity="0.25" />
-          </svg>
-        </div>
+    <aside
+      className={cn(
+        'flex flex-col h-screen shrink-0 border-r border-white/[0.06] transition-all duration-200',
+        'bg-[#0d1120]',
+        isCollapsed ? 'w-[64px]' : 'w-[220px]'
+      )}
+    >
+      {/* Logo */}
+      <div className={cn(
+        'flex items-center h-14 border-b border-white/[0.06] relative',
+        isCollapsed ? 'justify-center px-0' : 'px-4 gap-2.5'
+      )}>
+        <SafeDockLogo />
         {!isCollapsed && (
-          <div className="logo-text">
-            <h1>SafeDock</h1>
-          </div>
+          <span className="text-sm font-bold tracking-wide text-zinc-100">SafeDock</span>
         )}
         <button
-          className="sidebar-collapse-btn"
           onClick={onToggleCollapse}
-          title={isCollapsed ? 'Déplier le menu' : 'Replier le menu'}
+          title={isCollapsed ? 'Déplier' : 'Replier'}
           type="button"
-          aria-label={isCollapsed ? 'Déplier le menu' : 'Replier le menu'}
+          className={cn(
+            'absolute -right-3 top-1/2 -translate-y-1/2 z-10',
+            'w-6 h-6 rounded-full flex items-center justify-center',
+            'bg-[#1a2235] border border-white/[0.1] text-zinc-400',
+            'hover:text-zinc-100 hover:border-white/20 transition-colors'
+          )}
         >
-          <i className={`fa-solid ${isCollapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
+          {isCollapsed
+            ? <ChevronsRight className="w-3 h-3" />
+            : <ChevronsLeft className="w-3 h-3" />
+          }
         </button>
       </div>
 
-      {/* Primary navigation */}
-      <nav className="sidebar-nav" aria-label="Navigation principale">
-        <button
-          className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
-          onClick={() => onNavigate('dashboard')}
-          title="Dashboard"
-          aria-current={activePage === 'dashboard' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-chart-line" aria-hidden="true"></i>
-          <span>Dashboard</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'containers' ? 'active' : ''}`}
-          onClick={() => onNavigate('containers')}
-          title="Conteneurs"
-          aria-current={activePage === 'containers' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-cubes" aria-hidden="true"></i>
-          <span>Conteneurs</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'actions' ? 'active' : ''}`}
-          onClick={() => onNavigate('actions')}
-          title="Actions SecOps"
-          aria-current={activePage === 'actions' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-shield-halved" aria-hidden="true"></i>
-          <span>Actions</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'agents' ? 'active' : ''}`}
-          onClick={() => onNavigate('agents')}
-          title="Agents SecOps"
-          aria-current={activePage === 'agents' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-server" aria-hidden="true"></i>
-          <span>Agents</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'watch' ? 'active' : ''}`}
-          onClick={() => onNavigate('watch')}
-          title="Veille SecOps"
-          aria-current={activePage === 'watch' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-newspaper" aria-hidden="true"></i>
-          <span>Veille SecOps</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'notifications' ? 'active' : ''}`}
-          onClick={() => onNavigate('notifications')}
-          title="Notifications"
-          aria-current={activePage === 'notifications' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-bell" aria-hidden="true"></i>
-          <span>Notifications</span>
-        </button>
-
-        <button
-          className={`nav-item ${activePage === 'permissions' ? 'active' : ''}`}
-          onClick={() => onNavigate('permissions')}
-          title="Permissions"
-          aria-current={activePage === 'permissions' ? 'page' : undefined}
-          type="button"
-        >
-          <i className="fa-solid fa-user-lock" aria-hidden="true"></i>
-          <span>Permissions</span>
-        </button>
+      {/* Nav */}
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navigation">
+        {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+          const active = activePage === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onNavigate(id)}
+              aria-current={active ? 'page' : undefined}
+              title={isCollapsed ? label : undefined}
+              className={cn(
+                'w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-150',
+                active
+                  ? 'bg-brand-muted text-brand-DEFAULT'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]',
+                isCollapsed && 'justify-center'
+              )}
+            >
+              <Icon className={cn('shrink-0', active ? 'w-[18px] h-[18px]' : 'w-[18px] h-[18px]')} />
+              {!isCollapsed && <span className="truncate">{label}</span>}
+              {active && !isCollapsed && (
+                <span className="ml-auto w-1 h-4 rounded-full bg-brand-DEFAULT" />
+              )}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Global audit action */}
-      <div className="sidebar-audit-action">
+      {/* Bottom section */}
+      <div className="px-2 pb-3 space-y-1 border-t border-white/[0.06] pt-3">
+        {/* Audit button */}
         <button
-          className={`btn btn-primary w-full ${isRefreshing ? 'disabled' : ''}`}
+          type="button"
           onClick={onRefresh}
           disabled={isRefreshing}
-          title="Lancer un Audit Global"
-          type="button"
+          title={isCollapsed ? 'Audit Global' : undefined}
+          className={cn(
+            'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition-all',
+            'bg-brand-DEFAULT/10 text-brand-DEFAULT hover:bg-brand-DEFAULT/20 border border-brand-DEFAULT/20',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            isCollapsed && 'justify-center'
+          )}
         >
-          <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`} aria-hidden="true"></i>
+          <RefreshCw className={cn('w-[16px] h-[16px] shrink-0', isRefreshing && 'animate-spin')} />
           {!isCollapsed && <span>Audit Global</span>}
         </button>
+
+        {/* Settings */}
+        <button
+          type="button"
+          onClick={() => onNavigate('settings')}
+          aria-current={activePage === 'settings' ? 'page' : undefined}
+          title={isCollapsed ? 'Paramètres' : undefined}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all',
+            activePage === 'settings'
+              ? 'bg-brand-muted text-brand-DEFAULT'
+              : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]',
+            isCollapsed && 'justify-center'
+          )}
+        >
+          <Settings className="w-[18px] h-[18px] shrink-0" />
+          {!isCollapsed && <span>Paramètres</span>}
+        </button>
+
+        {!isCollapsed && (
+          <p className="text-[10px] text-zinc-600 px-2.5 pt-1">SafeDock v1.0.0</p>
+        )}
       </div>
-
-      {/* Settings link */}
-      <button
-        className={`nav-item ${activePage === 'settings' ? 'active' : ''}`}
-        onClick={() => onNavigate('settings')}
-        title="Paramètres"
-        aria-current={activePage === 'settings' ? 'page' : undefined}
-        type="button"
-        style={{ marginBottom: '0.375rem' }}
-      >
-        <i className="fa-solid fa-sliders" aria-hidden="true"></i>
-        <span>Paramètres</span>
-      </button>
-
-      {/* Version label */}
-      {!isCollapsed && (
-        <div className="version" style={{ padding: '0 0.75rem 0.25rem' }}>
-          SafeDock v1.0.0
-        </div>
-      )}
-      {isCollapsed && (
-        <div className="version" style={{ textAlign: 'center', padding: '0 0 0.25rem' }}>
-          v1
-        </div>
-      )}
     </aside>
+  );
+}
+
+function SafeDockLogo() {
+  return (
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M20 3L33 9V21C33 29 20 35 20 35C20 35 7 29 7 21V9Z"
+        stroke="url(#lg1)" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M20 14L27 17L20 20L13 17Z" fill="url(#lg2)" opacity="0.9" />
+      <path d="M13 17L20 20V28L13 25Z" fill="#4F8EF7" opacity="0.7" />
+      <path d="M20 20L27 17V25L20 28Z" fill="#4F8EF7" />
+      <defs>
+        <linearGradient id="lg1" x1="7" y1="3" x2="33" y2="35" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#4F8EF7" />
+          <stop offset="1" stopColor="#38bdf8" />
+        </linearGradient>
+        <linearGradient id="lg2" x1="13" y1="14" x2="27" y2="20" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#38bdf8" />
+          <stop offset="1" stopColor="#4F8EF7" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }

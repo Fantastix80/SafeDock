@@ -1,223 +1,150 @@
 import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Settings2, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { cn, gradeColor, gradeBg } from '../lib/utils';
 
-export default function ContainerSettingsView({ 
-  containerId,
-  containers, 
-  overrides, 
-  onSaveOverride, 
-  onDeleteOverride, 
-  onNavigate 
-}) {
+export default function ContainerSettingsView({ containerId, containers, overrides, onSaveOverride, onDeleteOverride, onNavigate }) {
   const container = containers.find(c => c.id === containerId);
-
-  if (!container) {
-    return (
-      <div className="page-view" style={{ padding: '2rem', textAlign: 'center' }}>
-        <div className="glass" style={{ padding: '2rem', borderRadius: '12px' }}>
-          <h4>Conteneur non trouvé</h4>
-          <p>Le conteneur demandé n'existe pas ou n'est plus actif.</p>
-          <button className="btn btn-secondary" onClick={() => onNavigate('containers')}>
-            Retour aux conteneurs
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Inputs
   const [ovrSeverity, setOvrSeverity] = useState('');
   const [ovrAllowRoot, setOvrAllowRoot] = useState('');
   const [ovrAllowPrivilege, setOvrAllowPrivilege] = useState('');
-  const [saveStatus, setSaveStatus] = useState('');
+  const [status, setStatus] = useState('');
 
-  // Load current overrides if they exist
   useEffect(() => {
+    if (!container) return;
     const ovr = overrides[container.name];
     if (ovr) {
       setOvrSeverity(ovr.cve_severity_threshold || '');
       setOvrAllowRoot(ovr.allow_root_user === null ? '' : String(ovr.allow_root_user));
       setOvrAllowPrivilege(ovr.allow_privileged_mode === null ? '' : String(ovr.allow_privileged_mode));
     } else {
-      setOvrSeverity('');
-      setOvrAllowRoot('');
-      setOvrAllowPrivilege('');
+      setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege('');
     }
   }, [overrides, container]);
 
-  const handleSave = () => {
-    setSaveStatus('Enregistrement...');
-    const allowRootVal = ovrAllowRoot === '' ? null : ovrAllowRoot === 'true';
-    const allowPrivilegeVal = ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true';
-
-    onSaveOverride(container.name, ovrSeverity, allowRootVal, allowPrivilegeVal)
-      .then(() => {
-        setSaveStatus('✅ Paramètres sauvegardés !');
-        setTimeout(() => setSaveStatus(''), 4000);
-      })
-      .catch(() => {
-        setSaveStatus('❌ Erreur d\'enregistrement.');
-        setTimeout(() => setSaveStatus(''), 4000);
-      });
-  };
-
-  const handleDelete = () => {
-    if (!overrides[container.name]) return;
-    setSaveStatus('Suppression...');
-    onDeleteOverride(container.name)
-      .then(() => {
-        setOvrSeverity('');
-        setOvrAllowRoot('');
-        setOvrAllowPrivilege('');
-        setSaveStatus('🗑️ Surcharge supprimée (Héritage actif) !');
-        setTimeout(() => setSaveStatus(''), 4000);
-      })
-      .catch(() => {
-        setSaveStatus('❌ Erreur de suppression.');
-        setTimeout(() => setSaveStatus(''), 4000);
-      });
-  };
+  if (!container) {
+    return (
+      <div className="flex flex-col items-center gap-3 pt-24 text-zinc-500">
+        <TriangleAlert className="w-8 h-8 text-zinc-700" />
+        <p className="text-sm">Conteneur non trouvé.</p>
+        <button type="button" onClick={() => onNavigate('containers')} className="text-xs text-blue-400 hover:underline">
+          Retour aux conteneurs
+        </button>
+      </div>
+    );
+  }
 
   const hasOverride = !!overrides[container.name];
 
+  const handleSave = () => {
+    setStatus('Enregistrement...');
+    const allowRootVal = ovrAllowRoot === '' ? null : ovrAllowRoot === 'true';
+    const allowPrivilegeVal = ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true';
+    onSaveOverride(container.name, ovrSeverity, allowRootVal, allowPrivilegeVal)
+      .then(() => { setStatus('Paramètres sauvegardés.'); setTimeout(() => setStatus(''), 4000); })
+      .catch(() => { setStatus('Erreur d\'enregistrement.'); setTimeout(() => setStatus(''), 4000); });
+  };
+
+  const handleDelete = () => {
+    if (!hasOverride) return;
+    setStatus('Suppression...');
+    onDeleteOverride(container.name)
+      .then(() => {
+        setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege('');
+        setStatus('Surcharge supprimée.'); setTimeout(() => setStatus(''), 4000);
+      })
+      .catch(() => { setStatus('Erreur.'); setTimeout(() => setStatus(''), 4000); });
+  };
+
+  const selectClass = "w-full px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 focus:outline-none focus:border-blue-500/50 cursor-pointer transition-colors";
+
   return (
-    <div id="view-container-settings" className="page-view">
-      <section className="section-container">
-        
-        {/* Header with back button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '0.5rem 0.85rem', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-            onClick={() => onNavigate('containers')}
-            type="button"
-          >
-            <i className="fa-solid fa-arrow-left"></i>
-            <span>Retour</span>
-          </button>
-          <div>
-            <h3 style={{ margin: 0 }}>Configuration spécifique du conteneur</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nom de la machine : <strong>{container.host_name}</strong></span>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onNavigate('containers')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Retour
+        </button>
+        <div>
+          <p className="text-sm font-semibold text-zinc-100">Configuration spécifique du conteneur</p>
+          <p className="text-[11px] text-zinc-500">Hôte : {container.host_name}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4" style={{ gridTemplateColumns: '220px 1fr' }}>
+        {/* Left: info card */}
+        <div className="card p-4 h-fit">
+          <div className={cn('w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-extrabold mx-auto mb-3', gradeColor(container.score), gradeBg(container.score))}>
+            {container.grade}
+          </div>
+          <h3 className="text-sm font-bold text-zinc-100 text-center mb-0.5">{container.name}</h3>
+          <p className="text-[10px] font-mono text-zinc-500 text-center mb-3 break-all">{container.image_name}:{container.image_tag}</p>
+          <div className="space-y-2 border-t border-white/[0.06] pt-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Règle :</span>
+              <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold', hasOverride ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')}>
+                {hasOverride ? 'Surcharge active' : 'Héritage global'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Score :</span>
+              <span className={cn('font-bold', gradeColor(container.score))}>{container.score}/100 ({container.grade})</span>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
-          
-          {/* Left panel: Info status card */}
-          <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px', height: 'fit-content' }}>
-            <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800 }}>{container.name}</h4>
-            <div style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--text-secondary)', marginBottom: '1.5rem', wordBreak: 'break-all' }}>
-              {container.image_name}:{container.image_tag}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-              <div>
-                <span style={{ color: 'var(--text-secondary)' }}>Statut de règle :</span>
-                {hasOverride ? (
-                  <span className="badge badge-warning" style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', marginLeft: '0.5rem', fontWeight: 'bold' }}>Surcharge active</span>
-                ) : (
-                  <span className="badge badge-success" style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', marginLeft: '0.5rem', fontWeight: 'bold' }}>Héritage global</span>
-                )}
-              </div>
-              
-              <div>
-                <span style={{ color: 'var(--text-secondary)' }}>Score SecOps actuel :</span>
-                <strong style={{ color: 'var(--primary)', marginLeft: '0.5rem' }}>{container.score}/100 ({container.grade})</strong>
-              </div>
-            </div>
+        {/* Right: overrides form */}
+        <div className="card p-5">
+          <div className="flex items-center gap-2 pb-3 mb-4 border-b border-white/[0.06]">
+            <Settings2 className="w-4 h-4 text-blue-400" />
+            <h3 className="text-sm font-semibold text-zinc-100">Règles de Surcharge</h3>
           </div>
 
-          {/* Right panel: Overrides configuration form */}
-          <div className="glass" style={{ padding: '2rem', borderRadius: '12px' }}>
-            <h4 style={{ margin: '0 0 1.5rem 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Règles de Surcharge</h4>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              
-              {/* Severity threshold */}
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Tolérance de sévérité des failles CVE pour ce conteneur
-                </label>
-                <select 
-                  value={ovrSeverity} 
-                  onChange={(e) => setOvrSeverity(e.target.value)} 
-                  className="glass-input" 
-                  style={{ fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <option value="">Hériter des règles globales (HIGH)</option>
-                  <option value="CRITICAL">CRITICAL (Bloque toutes les failles critiques)</option>
-                  <option value="HIGH">HIGH (Bloque critiques et hautes)</option>
-                  <option value="MEDIUM">MEDIUM (Bloque critiques, hautes et moyennes)</option>
-                  <option value="LOW">LOW (Bloque toutes les failles sauf info)</option>
-                  <option value="NONE">NONE (Bloque toutes les failles, même mineures)</option>
-                </select>
-              </div>
+          <div className="space-y-3">
+            <SelectField label="Tolérance de sévérité CVE" value={ovrSeverity} onChange={setOvrSeverity} className={selectClass}>
+              <option value="">Hériter des règles globales</option>
+              <option value="CRITICAL">CRITICAL — critique seulement</option>
+              <option value="HIGH">HIGH — critique et haute</option>
+              <option value="MEDIUM">MEDIUM — critique, haute et moyenne</option>
+              <option value="LOW">LOW — toutes</option>
+              <option value="NONE">NONE — toutes, même mineures</option>
+            </SelectField>
 
-              {/* Allow Root */}
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Autoriser l'utilisateur root dans ce conteneur
-                </label>
-                <select 
-                  value={ovrAllowRoot} 
-                  onChange={(e) => setOvrAllowRoot(e.target.value)} 
-                  className="glass-input" 
-                  style={{ cursor: 'pointer' }}
-                >
-                  <option value="">Hériter des règles globales</option>
-                  <option value="true">Autorisé (SafeDock n'interdira pas le déploiement)</option>
-                  <option value="false">Interdit (Bloque si root détecté)</option>
-                </select>
-              </div>
+            <SelectField label="Autoriser l'utilisateur root" value={ovrAllowRoot} onChange={setOvrAllowRoot} className={selectClass}>
+              <option value="">Hériter des règles globales</option>
+              <option value="true">Autorisé</option>
+              <option value="false">Interdit (bloque si root détecté)</option>
+            </SelectField>
 
-              {/* Allow Privileged */}
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Autoriser le mode privilégié dans ce conteneur
-                </label>
-                <select 
-                  value={ovrAllowPrivilege} 
-                  onChange={(e) => setOvrAllowPrivilege(e.target.value)} 
-                  className="glass-input" 
-                  style={{ cursor: 'pointer' }}
-                >
-                  <option value="">Hériter des règles globales</option>
-                  <option value="true">Autorisé (SafeDock n'interdira pas le déploiement)</option>
-                  <option value="false">Interdit (Bloque si privilégié détecté)</option>
-                </select>
-              </div>
+            <SelectField label="Autoriser le mode privilégié" value={ovrAllowPrivilege} onChange={setOvrAllowPrivilege} className={selectClass}>
+              <option value="">Hériter des règles globales</option>
+              <option value="true">Autorisé</option>
+              <option value="false">Interdit (bloque si privilégié détecté)</option>
+            </SelectField>
 
-              {/* Action buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '1rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{saveStatus}</span>
-                
-                {hasOverride && (
-                  <button 
-                    type="button" 
-                    className="btn btn-accent" 
-                    onClick={handleDelete}
-                    style={{ padding: '0.6rem 1.25rem', borderRadius: '8px' }}
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                    <span style={{ marginLeft: '0.4rem' }}>Supprimer la surcharge</span>
-                  </button>
-                )}
-                
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
-                  onClick={handleSave}
-                  style={{ padding: '0.6rem 1.5rem', borderRadius: '8px' }}
-                >
-                  <i className="fa-solid fa-save"></i>
-                  <span style={{ marginLeft: '0.4rem' }}>Enregistrer</span>
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.06]">
+              {status && <p className="text-xs text-emerald-400">{status}</p>}
+              {hasOverride && (
+                <button type="button" onClick={handleDelete} className="px-3 py-1.5 text-xs font-semibold rounded-lg text-red-400 hover:bg-red-400/10 transition-colors border border-red-400/20">
+                  Supprimer la surcharge
                 </button>
-              </div>
-
+              )}
+              <button type="button" onClick={handleSave} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors">
+                Enregistrer
+              </button>
             </div>
           </div>
-
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, className, children }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[10px] font-semibold text-zinc-500">{label}</label>
+      <select value={value} onChange={e => onChange(e.target.value)} className={className}>
+        {children}
+      </select>
     </div>
   );
 }

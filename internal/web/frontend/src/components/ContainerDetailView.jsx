@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import {
+  ArrowLeft, Bug, ListChecks, RefreshCw, RotateCw, Settings2,
+  CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown
+} from 'lucide-react';
+import { cn, gradeColor, gradeBg } from '../lib/utils';
 
-export default function ContainerDetailView({ 
-  containerId, 
-  containers, 
-  overrides, 
-  onSaveOverride, 
-  onDeleteOverride, 
-  onTriggerRollout, 
-  isRolloutLoading, 
-  rolloutStatusMsg, 
-  onNavigate,
-  containerTags = {},
-  onUpdateTags
+const SEV_WEIGHT = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, UNKNOWN: 0 };
+
+const SEV_BADGE = {
+  CRITICAL: 'bg-red-500/15 text-red-400',
+  HIGH:     'bg-orange-500/15 text-orange-400',
+  MEDIUM:   'bg-amber-500/15 text-amber-400',
+  LOW:      'bg-blue-500/15 text-blue-400',
+};
+
+export default function ContainerDetailView({
+  containerId, containers, overrides,
+  onSaveOverride, onDeleteOverride,
+  onTriggerRollout, isRolloutLoading, rolloutStatusMsg,
+  onNavigate, containerTags = {}, onUpdateTags
 }) {
   const container = containers.find(c => c.id === containerId);
-  const [activeTab, setActiveTab] = useState('trivy');
+  const [tab, setTab] = useState('trivy');
 
-  // Trivy state
   const [trivyReport, setTrivyReport] = useState(null);
   const [trivyLoading, setTrivyLoading] = useState(false);
   const [trivyError, setTrivyError] = useState('');
@@ -25,741 +31,472 @@ export default function ContainerDetailView({
   const [cveSortField, setCveSortField] = useState('severity');
   const [cveSortOrder, setCveSortOrder] = useState('desc');
 
-  // Dockle state
   const [dockleReport, setDockleReport] = useState(null);
   const [dockleLoading, setDockleLoading] = useState(false);
   const [dockleError, setDockleError] = useState('');
 
-  // Paramètres du conteneur inputs
   const [ovrSeverity, setOvrSeverity] = useState('');
   const [ovrAllowRoot, setOvrAllowRoot] = useState('');
   const [ovrAllowPrivilege, setOvrAllowPrivilege] = useState('');
   const [ovrScanner, setOvrScanner] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
 
-  // Tag editor input
   const [newTagInput, setNewTagInput] = useState('');
 
-  // Fetch Trivy / Grype / Hybrid Scan
   const fetchTrivy = () => {
     if (!containerId) return;
-    setTrivyLoading(true);
-    setTrivyError('');
-    
-    // Detect custom scanner parameter
-    const currentScanner = ovrScanner || "";
-    const url = `/api/containers/${containerId}/trivy?scanner=${currentScanner}`;
-
-    fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error("Erreur de scan de vulnérabilités");
-        return res.json();
-      })
+    setTrivyLoading(true); setTrivyError('');
+    fetch(`/api/containers/${containerId}/trivy?scanner=${ovrScanner}`)
+      .then(res => { if (!res.ok) throw new Error('Erreur de scan'); return res.json(); })
       .then(data => setTrivyReport(data))
       .catch(err => setTrivyError(err.message))
       .finally(() => setTrivyLoading(false));
   };
 
-  // Fetch Dockle Scan
   const fetchDockle = () => {
     if (!containerId) return;
-    setDockleLoading(true);
-    setDockleError('');
+    setDockleLoading(true); setDockleError('');
     fetch(`/api/containers/${containerId}/dockle`)
-      .then(res => {
-        if (!res.ok) throw new Error("Erreur de scan de conformité Dockle");
-        return res.json();
-      })
+      .then(res => { if (!res.ok) throw new Error('Erreur Dockle'); return res.json(); })
       .then(data => setDockleReport(data))
       .catch(err => setDockleError(err.message))
       .finally(() => setDockleLoading(false));
   };
 
-  // Trigger loading reports on mount / container change
   useEffect(() => {
-    if (container) {
-      fetchTrivy();
-      fetchDockle();
-    }
+    if (container) { fetchTrivy(); fetchDockle(); }
   }, [containerId]);
 
-  // Load current overrides
   useEffect(() => {
-    if (container) {
-      const ovr = overrides[container.name];
-      if (ovr) {
-        setOvrSeverity(ovr.secops_max_severity_allowed || '');
-        setOvrAllowRoot(ovr.secops_allow_root === null ? '' : String(ovr.secops_allow_root));
-        setOvrAllowPrivilege(ovr.secops_allow_privileged === null ? '' : String(ovr.secops_allow_privileged));
-        setOvrScanner(ovr.secops_scanner || '');
-      } else {
-        setOvrSeverity('');
-        setOvrAllowRoot('');
-        setOvrAllowPrivilege('');
-        setOvrScanner('');
-      }
+    if (!container) return;
+    const ovr = overrides[container.name];
+    if (ovr) {
+      setOvrSeverity(ovr.secops_max_severity_allowed || '');
+      setOvrAllowRoot(ovr.secops_allow_root === null ? '' : String(ovr.secops_allow_root));
+      setOvrAllowPrivilege(ovr.secops_allow_privileged === null ? '' : String(ovr.secops_allow_privileged));
+      setOvrScanner(ovr.secops_scanner || '');
+    } else {
+      setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege(''); setOvrScanner('');
     }
   }, [overrides, container]);
 
   if (!container) {
     return (
-      <div className="page-view" style={{ padding: '2rem', textAlign: 'center' }}>
-        <div className="glass" style={{ padding: '2rem', borderRadius: '12px' }}>
-          <h4>Conteneur non sélectionné ou inactif</h4>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>Veuillez retourner sur la liste des conteneurs actifs.</p>
-          <button className="btn btn-secondary" onClick={() => onNavigate('containers')}>
-            Retour aux conteneurs
-          </button>
-        </div>
+      <div className="flex flex-col items-center gap-3 pt-24 text-zinc-500">
+        <p className="text-sm">Conteneur non sélectionné.</p>
+        <button type="button" onClick={() => onNavigate('containers')} className="text-xs text-blue-400 hover:underline">
+          Retour aux conteneurs
+        </button>
       </div>
     );
   }
 
-  const handleSaveOverrideLocal = () => {
-    setSaveStatus('Enregistrement...');
-    const allowRootVal = ovrAllowRoot === '' ? null : ovrAllowRoot === 'true';
-    const allowPrivilegeVal = ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true';
-
-    onSaveOverride(container.name, ovrSeverity, allowRootVal, allowPrivilegeVal, ovrScanner)
-      .then(() => {
-        setSaveStatus('✅ Paramètres sauvegardés !');
-        setTimeout(() => setSaveStatus(''), 4000);
-        fetchTrivy(); // Trigger scan update if scanner option was changed
-      })
-      .catch(() => {
-        setSaveStatus('❌ Erreur d\'enregistrement.');
-        setTimeout(() => setSaveStatus(''), 4000);
-      });
-  };
-
-  const handleDeleteOverrideLocal = () => {
-    setSaveStatus('Suppression...');
-    onDeleteOverride(container.name)
-      .then(() => {
-        setOvrSeverity('');
-        setOvrAllowRoot('');
-        setOvrAllowPrivilege('');
-        setOvrScanner('');
-        setSaveStatus('🗑️ Surcharge supprimée (Héritage actif) !');
-        setTimeout(() => setSaveStatus(''), 4000);
-        fetchTrivy();
-      })
-      .catch(() => {
-        setSaveStatus('❌ Erreur de suppression.');
-        setTimeout(() => setSaveStatus(''), 4000);
-      });
-  };
-
-  // Tag Management handlers
   const activeTags = containerTags[container.name] || container.tags || [];
-  
+  const hasOverride = !!overrides[container.name];
+
   const handleAddTag = (e) => {
     e.preventDefault();
-    if (!newTagInput.trim()) return;
-    const cleanTag = newTagInput.trim();
-    if (!activeTags.includes(cleanTag)) {
-      onUpdateTags(container.name, [...activeTags, cleanTag]);
-    }
+    const t = newTagInput.trim();
+    if (t && !activeTags.includes(t)) onUpdateTags(container.name, [...activeTags, t]);
     setNewTagInput('');
   };
 
-  const handleRemoveTag = (tagToRemove) => {
-    const updated = activeTags.filter(t => t !== tagToRemove);
-    onUpdateTags(container.name, updated);
+  const handleSortCVE = (field) => {
+    if (cveSortField === field) setCveSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setCveSortField(field); setCveSortOrder('desc'); }
   };
 
-  // CVE Table Filtering & Sorting
-  const sevWeight = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
-
-  const getFilteredCVEs = () => {
-    let list = (trivyReport && trivyReport.vulnerabilities) || [];
-    
-    // Search filter
+  const filteredCVEs = (() => {
+    let list = (trivyReport?.vulnerabilities) || [];
     if (cveSearch) {
-      const term = cveSearch.toLowerCase();
-      list = list.filter(v => 
-        (v.cve_id || '').toLowerCase().includes(term) ||
-        (v.package_name || '').toLowerCase().includes(term) ||
-        (v.description || '').toLowerCase().includes(term)
+      const t = cveSearch.toLowerCase();
+      list = list.filter(v =>
+        (v.cve_id || '').toLowerCase().includes(t) ||
+        (v.package_name || '').toLowerCase().includes(t) ||
+        (v.description || '').toLowerCase().includes(t)
       );
     }
-
-    // Severity filter
-    if (cveFilter !== 'ALL') {
-      list = list.filter(v => v.severity === cveFilter);
-    }
-
-    // Sorting
+    if (cveFilter !== 'ALL') list = list.filter(v => v.severity === cveFilter);
     return [...list].sort((a, b) => {
-      let aVal = a[cveSortField] || '';
-      let bVal = b[cveSortField] || '';
-
       if (cveSortField === 'severity') {
-        const aW = sevWeight[a.severity] || 0;
-        const bW = sevWeight[b.severity] || 0;
-        return cveSortOrder === 'asc' ? aW - bW : bW - aW;
+        const diff = (SEV_WEIGHT[a.severity] || 0) - (SEV_WEIGHT[b.severity] || 0);
+        return cveSortOrder === 'asc' ? diff : -diff;
       }
-
-      aVal = aVal.toString().toLowerCase();
-      bVal = bVal.toString().toLowerCase();
-      if (aVal < bVal) return cveSortOrder === 'asc' ? -1 : 1;
-      if (aVal > bVal) return cveSortOrder === 'asc' ? 1 : -1;
+      const av = (a[cveSortField] || '').toString().toLowerCase();
+      const bv = (b[cveSortField] || '').toString().toLowerCase();
+      if (av < bv) return cveSortOrder === 'asc' ? -1 : 1;
+      if (av > bv) return cveSortOrder === 'asc' ? 1 : -1;
       return 0;
     });
+  })();
+
+  const handleSaveOverride = () => {
+    setSaveStatus('Enregistrement...');
+    onSaveOverride(container.name, ovrSeverity, ovrAllowRoot === '' ? null : ovrAllowRoot === 'true', ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true', ovrScanner)
+      .then(() => { setSaveStatus('Paramètres sauvegardés.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy(); })
+      .catch(() => { setSaveStatus('Erreur.'); setTimeout(() => setSaveStatus(''), 4000); });
   };
 
-  const handleSortCVE = (field) => {
-    if (cveSortField === field) {
-      setCveSortOrder(cveSortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setCveSortField(field);
-      setCveSortOrder('desc');
-    }
+  const handleDeleteOverride = () => {
+    setSaveStatus('Suppression...');
+    onDeleteOverride(container.name)
+      .then(() => {
+        setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege(''); setOvrScanner('');
+        setSaveStatus('Surcharge supprimée.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy();
+      })
+      .catch(() => { setSaveStatus('Erreur.'); setTimeout(() => setSaveStatus(''), 4000); });
   };
 
-  const filteredCVEs = getFilteredCVEs();
+  const inputClass = "px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors";
+  const selectClass = cn(inputClass, "w-full cursor-pointer");
 
-  const hasOverride = !!overrides[container.name];
-  let scoreClass = 'score-a';
-  if (container.score < 40) scoreClass = 'score-f';
-  else if (container.score < 60) scoreClass = 'score-d';
-  else if (container.score < 75) scoreClass = 'score-c';
-  else if (container.score < 90) scoreClass = 'score-b';
+  const TABS = [
+    { id: 'trivy',     label: 'Failles CVE',         icon: Bug },
+    { id: 'dockle',    label: 'Conformité Dockle',   icon: ListChecks },
+    { id: 'lifecycle', label: 'Déploiement',         icon: RotateCw },
+    { id: 'overrides', label: 'Paramètres',          icon: Settings2 },
+  ];
+
+  const RuleRow = ({ label, pass, pts, tip }) => (
+    <div className="pb-3 mb-3 border-b border-white/[0.03] last:border-0 last:pb-0 last:mb-0">
+      <div className={cn('flex justify-between text-xs font-semibold mb-0.5', pass ? 'text-emerald-400' : 'text-red-400')}>
+        <span>{label}</span>
+        <span>{pass ? `+${pts} pts` : `-${pts} pts`}</span>
+      </div>
+      <p className="text-[10px] text-zinc-600 leading-relaxed">{tip}</p>
+    </div>
+  );
 
   return (
-    <div id="view-container-detail" className="page-view">
-      <section className="section-container">
-        
-        {/* Header with back button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '0.5rem 0.85rem', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-            onClick={() => onNavigate('containers')}
-            type="button"
-          >
-            <i className="fa-solid fa-arrow-left"></i>
-            <span>Retour</span>
-          </button>
-          <div>
-            <h3 style={{ margin: 0 }}>Cockpit de Sécurité Individuelle</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nom de la machine : <strong>{container.host_name}</strong></span>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onNavigate('containers')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Retour
+        </button>
+        <div>
+          <p className="text-sm font-semibold text-zinc-100">Cockpit de Sécurité</p>
+          <p className="text-[11px] text-zinc-500">Hôte : {container.host_name}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4" style={{ gridTemplateColumns: '220px 1fr' }}>
+        {/* Left panel */}
+        <div className="space-y-3">
+          {/* Score card */}
+          <div className="card p-4 text-center">
+            <div className={cn('w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-extrabold mx-auto mb-2', gradeColor(container.score), gradeBg(container.score))}>
+              {container.grade}
+            </div>
+            <h3 className="text-sm font-bold text-zinc-100 mb-0.5">{container.name}</h3>
+            <p className="text-[10px] font-mono text-zinc-500 break-all mb-2">{container.image_name}:{container.image_tag}</p>
+            <div className="flex flex-wrap gap-1 justify-center mb-3">
+              {activeTags.map((t, i) => (
+                <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/[0.05] text-zinc-400">{t}</span>
+              ))}
+            </div>
+            <div className="space-y-2 border-t border-white/[0.06] pt-3 text-xs">
+              {[
+                ['Digest', container.tag_pinned],
+                ['Non-Root', container.non_root],
+                ['Privilèges', container.privileged_safe],
+                ['Secrets', !container.secret_leaks || container.secret_leaks.length === 0],
+              ].map(([label, ok]) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-zinc-500">{label} :</span>
+                  <span className={cn('flex items-center gap-1 font-semibold text-[10px]', ok ? 'text-emerald-400' : 'text-red-400')}>
+                    {ok ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                    {ok ? 'Conforme' : 'Défaut'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Score breakdown */}
+          <div className="card p-3">
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-2">Détail du Score : {container.score}/100</p>
+            <RuleRow
+              label="Tag Pinned (SHA256)" pass={container.tag_pinned} pts={25}
+              tip={container.tag_pinned ? 'Image verrouillée par hash cryptographique.' : '⚠ Utilisez le digest @sha256:...'}
+            />
+            <RuleRow
+              label="Utilisateur Non-Root" pass={container.non_root} pts={25}
+              tip={container.non_root ? 'Privilèges UID réduits.' : '⚠ Ajoutez USER 1000 dans le Dockerfile.'}
+            />
+            <RuleRow
+              label="Mode Privilégié Restreint" pass={container.privileged_safe} pts={30}
+              tip={container.privileged_safe ? 'Pas d\'accès au noyau hôte.' : '⚠ Lancez sans --privileged.'}
+            />
+            <RuleRow
+              label="Absence de secrets fuités" pass={!container.secret_leaks || container.secret_leaks.length === 0} pts={20}
+              tip={(!container.secret_leaks || container.secret_leaks.length === 0) ? 'Aucun secret détecté.' : `⚠ ${container.secret_leaks.length} secret(s). Utilisez Docker Secrets.`}
+            />
           </div>
         </div>
 
-        {/* Cockpit Split Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
-          
-          {/* Left Panel: Container Summary & Score Explanations */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            {/* Main Score and Status Card */}
-            <div className="glass" style={{ padding: '1.75rem 1.5rem', borderRadius: '12px', textAlign: 'center', height: 'fit-content' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                <div className={`card-badge-score ${scoreClass}`} style={{ width: '80px', height: '80px', fontSize: '2.5rem', borderRadius: '16px' }}>
-                  {container.grade || 'F'}
-                </div>
-              </div>
-
-              <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>{container.name}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all', display: 'block', margin: '0.25rem 0 1rem 0' }}>
-                {container.image_name}:{container.image_tag}
-              </span>
-
-              {/* Tags Display */}
-              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1rem' }}>
-                {activeTags.map((t, idx) => (
-                  <span key={idx} className="badge badge-success" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', backgroundColor: 'rgba(255, 255, 255, 0.04)', color: 'var(--text-secondary)' }}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '1rem', paddingTop: '1rem', textAlign: 'left' }}>
-                <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.6rem' }}>Évaluation des Règles</span>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Digest Immuable :</span>
-                    <span className={`badge ${container.tag_pinned ? 'badge-success' : 'badge-danger'}`} style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
-                      {container.tag_pinned ? 'Conforme' : 'Défaut'}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Non-Root User :</span>
-                    <span className={`badge ${container.non_root ? 'badge-success' : 'badge-danger'}`} style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
-                      {container.non_root ? 'Conforme' : 'Défaut'}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Mode Privilégié :</span>
-                    <span className={`badge ${container.privileged_safe ? 'badge-success' : 'badge-warning'}`} style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
-                      {container.privileged_safe ? 'Sécurisé' : 'Vulnérable'}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Secrets fuités :</span>
-                    {container.secret_leaks && container.secret_leaks.length > 0 ? (
-                      <span className="badge badge-danger" style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
-                        {container.secret_leaks.length} fuite(s)
-                      </span>
-                    ) : (
-                      <span className="badge badge-success" style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>0 fuites</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Score points breakdown & improvement recommendations */}
-            <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px' }}>
-              <h5 style={{ color: 'var(--text-primary)', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <i className="fa-solid fa-list-check text-primary"></i>
-                Détails du Score SecOps : {container.score}/100
-              </h5>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.75rem' }}>
-                
-                {/* 1. Tag Pinned */}
-                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', paddingBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: container.tag_pinned ? 'var(--success)' : 'var(--danger)' }}>
-                    <span>Tag Pinned (SHA256)</span>
-                    <span>{container.tag_pinned ? "+25 pts" : "-25 pts"}</span>
-                  </div>
-                  <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '0.2rem', fontSize: '0.7rem' }}>
-                    {container.tag_pinned 
-                      ? "L'image est verrouillée par son hash cryptographique immuable." 
-                      : "⚠️ Risque de mutable poisoning. Conseil : Utilisez l'image avec son digest @sha256:..."}
-                  </span>
-                </div>
-
-                {/* 2. Non-Root */}
-                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', paddingBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: container.non_root ? 'var(--success)' : 'var(--danger)' }}>
-                    <span>Utilisateur Non-Root</span>
-                    <span>{container.non_root ? "+25 pts" : "-25 pts"}</span>
-                  </div>
-                  <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '0.2rem', fontSize: '0.7rem' }}>
-                    {container.non_root 
-                      ? "Le conteneur tourne avec des privilèges UID réduits et sécurisés." 
-                      : "⚠️ Démarrage en ROOT détecté ! Conseil : Ajoutez l'instruction 'USER 1000' dans le Dockerfile."}
-                  </span>
-                </div>
-
-                {/* 3. Privileged */}
-                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', paddingBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: container.privileged_safe ? 'var(--success)' : 'var(--warning)' }}>
-                    <span>Mode Privilégié Restreint</span>
-                    <span>{container.privileged_safe ? "+30 pts" : "-30 pts"}</span>
-                  </div>
-                  <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '0.2rem', fontSize: '0.7rem' }}>
-                    {container.privileged_safe 
-                      ? "Le conteneur n'a pas accès aux capacités du noyau de l'hôte." 
-                      : "⚠️ Mode privilégié actif ! Risque majeur d'échappement. Conseil : Lancez sans '--privileged'."}
-                  </span>
-                </div>
-
-                {/* 4. Sensitive Mounts / Leaks */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: (!container.secret_leaks || container.secret_leaks.length === 0) ? 'var(--success)' : 'var(--danger)' }}>
-                    <span>Absence de secrets fuités</span>
-                    <span>{(!container.secret_leaks || container.secret_leaks.length === 0) ? "+20 pts" : `-${Math.min(20, container.secret_leaks.length * 10)} pts`}</span>
-                  </div>
-                  <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '0.2rem', fontSize: '0.7rem' }}>
-                    {(!container.secret_leaks || container.secret_leaks.length === 0)
-                      ? "Aucune clé privée, mot de passe ou jeton n'a été détecté dans les variables d'env." 
-                      : `⚠️ ${container.secret_leaks.length} secret(s) en clair détecté(s). Conseil : Injectez-les via Docker Secrets ou Vault.`}
-                  </span>
-                </div>
-
-              </div>
-            </div>
-
+        {/* Right panel: Tabs */}
+        <div className="card p-4">
+          {/* Tab selector */}
+          <div className="flex gap-1 border-b border-white/[0.06] pb-3 mb-4">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  tab === id ? 'bg-brand-DEFAULT/15 text-brand-DEFAULT' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
           </div>
 
-          {/* Right Panel: Cockpit Tabs */}
-          <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-            
-            {/* Segments/Tabs selector */}
-            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-              <button 
-                className={`tab-btn ${activeTab === 'trivy' ? 'active' : ''}`}
-                onClick={() => setActiveTab('trivy')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.85rem', borderRadius: '6px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                type="button"
-              >
-                <i className="fa-solid fa-bug"></i> Sécurité (Failles CVE)
-              </button>
-              
-              <button 
-                className={`tab-btn ${activeTab === 'dockle' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dockle')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.85rem', borderRadius: '6px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                type="button"
-              >
-                <i className="fa-solid fa-list-check"></i> Conformité (Dockle)
-              </button>
-              
-              <button 
-                className={`tab-btn ${activeTab === 'lifecycle' ? 'active' : ''}`}
-                onClick={() => setActiveTab('lifecycle')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.85rem', borderRadius: '6px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                type="button"
-              >
-                <i className="fa-solid fa-arrows-spin"></i> Opérations de déploiement
-              </button>
-              
-              <button 
-                className={`tab-btn ${activeTab === 'overrides' ? 'active' : ''}`}
-                onClick={() => setActiveTab('overrides')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.85rem', borderRadius: '6px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                type="button"
-              >
-                <i className="fa-solid fa-sliders"></i> Paramètres du conteneur
-              </button>
-            </div>
-
-            {/* Tab content renders */}
+          {/* TAB: CVEs */}
+          {tab === 'trivy' && (
             <div>
-              
-              {/* TAB: TRIVY CVEs (Overhauled Searchable/Sortable Table) */}
-              {activeTab === 'trivy' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
-                    <h4 style={{ margin: 0 }}>Analyse des Failles CVE (Trivy / Grype)</h4>
-                    
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      {trivyReport && trivyReport.vulnerabilities && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>
-                          Moteur utilisé : <strong style={{ color: 'var(--primary)' }}>{trivyReport.vulnerabilities[0]?.scanner || ovrScanner || "Trivy"}</strong>
-                        </span>
-                      )}
-                      
-                      <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '6px' }} onClick={fetchTrivy} disabled={trivyLoading}>
-                        <i className={`fa-solid fa-arrows-rotate ${trivyLoading ? 'fa-spin' : ''}`}></i>
-                        <span style={{ marginLeft: '0.4rem' }}>Scanner</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Filter Toolbar */}
-                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="Rechercher par CVE, paquet, description..." 
-                      className="glass-input" 
-                      style={{ flexGrow: 1, fontSize: '0.8rem', padding: '0.4rem 0.75rem' }} 
-                      value={cveSearch} 
-                      onChange={e => setCveSearch(e.target.value)} 
-                    />
-                    
-                    <select 
-                      value={cveFilter} 
-                      onChange={e => setCveFilter(e.target.value)} 
-                      className="glass-input" 
-                      style={{ fontSize: '0.8rem', width: '150px', cursor: 'pointer' }}
-                    >
-                      <option value="ALL">Toutes gravités</option>
-                      <option value="CRITICAL">CRITICAL</option>
-                      <option value="HIGH">HIGH</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="LOW">LOW</option>
-                    </select>
-                  </div>
-
-                  {trivyLoading ? (
-                    <div style={{ padding: '3rem', textAlign: 'center' }}>
-                      <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Scan de vulnérabilités en cours...</p>
-                    </div>
-                  ) : trivyError ? (
-                    <div style={{ color: 'var(--danger)', padding: '1rem', border: '1px dashed var(--danger)', borderRadius: '8px', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-circle-exclamation"></i> Échec du scan : {trivyError}
-                    </div>
-                  ) : filteredCVEs.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'rgba(16, 185, 129, 0.02)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                      <i className="fa-solid fa-circle-check" style={{ fontSize: '2.5rem', color: 'var(--success)', marginBottom: '0.85rem' }}></i>
-                      <h4 style={{ color: 'var(--success)', margin: '0 0 0.25rem 0' }}>Aucune faille détectée</h4>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Aucune vulnérabilité ne correspond aux critères de recherche !</p>
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, height: '35px', userSelect: 'none' }}>
-                            <th style={{ padding: '0.5rem', cursor: 'pointer' }} onClick={() => handleSortCVE('cve_id')}>CVE ID {cveSortField === 'cve_id' ? (cveSortOrder === 'asc' ? '▲' : '▼') : ''}</th>
-                            <th style={{ padding: '0.5rem', cursor: 'pointer' }} onClick={() => handleSortCVE('severity')}>Sévérité {cveSortField === 'severity' ? (cveSortOrder === 'asc' ? '▲' : '▼') : ''}</th>
-                            <th style={{ padding: '0.5rem', cursor: 'pointer' }} onClick={() => handleSortCVE('package_name')}>Paquet {cveSortField === 'package_name' ? (cveSortOrder === 'asc' ? '▲' : '▼') : ''}</th>
-                            <th style={{ padding: '0.5rem' }}>Installed / Fix</th>
-                            <th style={{ padding: '0.5rem', width: '45%' }}>Description</th>
-                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Détecteur</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredCVEs.map((v, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', verticalAlign: 'top' }}>
-                              <td style={{ padding: '0.65rem 0.5rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                                {v.url ? (
-                                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{v.cve_id || v.vulnerability_id || 'CVE-ID'}</a>
-                                ) : (
-                                  v.cve_id || v.vulnerability_id || 'CVE-ID'
-                                )}
-                              </td>
-                              <td style={{ padding: '0.65rem 0.5rem' }}>
-                                <span className={`badge ${v.severity === 'CRITICAL' || v.severity === 'HIGH' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
-                                  {v.severity}
-                                </span>
-                              </td>
-                              <td style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>{v.package_name || v.pkg_name}</td>
-                              <td style={{ padding: '0.65rem 0.5rem', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                {v.installed_version} {v.fixed_version && <span style={{ color: 'var(--success)', display: 'block', marginTop: '0.15rem' }}>➔ {v.fixed_version}</span>}
-                              </td>
-                              <td style={{ padding: '0.65rem 0.5rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
-                                {v.description || v.title || 'Aucune description.'}
-                              </td>
-                              <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                                {v.scanner || "Trivy"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+              <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                <p className="text-xs font-semibold text-zinc-100">Analyse des Failles CVE (Trivy / Grype)</p>
+                <div className="flex items-center gap-2">
+                  {trivyReport?.vulnerabilities?.[0]?.scanner && (
+                    <span className="text-[10px] text-zinc-500">Moteur : <span className="text-blue-400 font-semibold">{trivyReport.vulnerabilities[0].scanner}</span></span>
                   )}
+                  <button type="button" onClick={fetchTrivy} disabled={trivyLoading} className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg bg-white/[0.04] text-zinc-400 hover:text-zinc-200 transition-colors">
+                    <RefreshCw className={cn('w-3 h-3', trivyLoading && 'animate-spin')} /> Scanner
+                  </button>
                 </div>
-              )}
-
-              {/* TAB: DOCKLE COMPLIANCE (Corrected list parsing) */}
-              {activeTab === 'dockle' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                    <h4 style={{ margin: 0 }}>Rapport de conformité d'image (Dockle Linter)</h4>
-                    <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '6px' }} onClick={fetchDockle} disabled={dockleLoading}>
-                      <i className={`fa-solid fa-arrows-rotate ${dockleLoading ? 'fa-spin' : ''}`}></i>
-                      <span style={{ marginLeft: '0.4rem' }}>Scanner</span>
-                    </button>
-                  </div>
-
-                  {dockleLoading ? (
-                    <div style={{ padding: '3rem', textAlign: 'center' }}>
-                      <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Audit de conformité Dockle en cours...</p>
-                    </div>
-                  ) : dockleError ? (
-                    <div style={{ color: 'var(--danger)', padding: '1rem', border: '1px dashed var(--danger)', borderRadius: '8px', fontSize: '0.85rem' }}>
-                      <i className="fa-solid fa-circle-exclamation"></i> Échec Dockle : {dockleError}
-                    </div>
-                  ) : !dockleReport || !dockleReport.details || dockleReport.details.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'rgba(16, 185, 129, 0.02)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                      <i className="fa-solid fa-circle-check" style={{ fontSize: '2.5rem', color: 'var(--success)', marginBottom: '0.85rem' }}></i>
-                      <h4 style={{ color: 'var(--success)', margin: '0 0 0.25rem 0' }}>Conformité parfaite</h4>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>Aucun problème de structure, d'utilisateur root ou de secrets n'a été détecté dans les couches de l'image !</p>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto' }}>
-                      {dockleReport.details.map((a, i) => (
-                        <div key={i} className="glass" style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>Code : <code>{a.code || 'DKL_RULE'}</code></strong>
-                            <span className="badge" style={{ backgroundColor: a.level === 'FATAL' || a.level === 'WARN' ? 'rgba(249, 115, 22, 0.12)' : 'rgba(255, 255, 255, 0.03)', color: a.level === 'FATAL' || a.level === 'WARN' ? '#F97316' : 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold' }}>
-                              {a.level}
+              </div>
+              <div className="flex gap-2 mb-3 flex-wrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
+                  <input className={cn(inputClass, 'pl-7 w-full')} placeholder="CVE, paquet, description..." value={cveSearch} onChange={e => setCveSearch(e.target.value)} />
+                </div>
+                <select value={cveFilter} onChange={e => setCveFilter(e.target.value)} className={cn(inputClass, 'cursor-pointer w-36')}>
+                  <option value="ALL">Toutes gravités</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="LOW">LOW</option>
+                </select>
+              </div>
+              {trivyLoading ? (
+                <div className="py-12 flex flex-col items-center gap-3 text-zinc-500">
+                  <div className="w-6 h-6 rounded-full border-2 border-zinc-700 border-t-blue-500 animate-spin" />
+                  <p className="text-xs">Scan en cours...</p>
+                </div>
+              ) : trivyError ? (
+                <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 text-xs text-red-400">{trivyError}</div>
+              ) : filteredCVEs.length === 0 ? (
+                <div className="py-12 flex flex-col items-center gap-2 text-zinc-500">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  <p className="text-sm font-semibold text-emerald-400">Aucune faille détectée</p>
+                  <p className="text-xs">Aucune vulnérabilité ne correspond aux critères.</p>
+                </div>
+              ) : (
+                <div className="overflow-auto max-h-96">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-[#151d2e]">
+                      <tr className="border-b border-white/[0.06]">
+                        {[['cve_id','CVE ID'], ['severity','Sévérité'], ['package_name','Paquet']].map(([f, lbl]) => (
+                          <th key={f} className="px-3 py-2.5 text-left text-[10px] font-semibold text-zinc-500 uppercase tracking-wide cursor-pointer hover:text-zinc-300 transition-colors" onClick={() => handleSortCVE(f)}>
+                            <span className="flex items-center gap-1">
+                              {lbl}
+                              {cveSortField === f ? (cveSortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-400" /> : <ChevronDown className="w-3 h-3 text-blue-400" />) : null}
                             </span>
-                          </div>
-                          <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: '0.35rem' }}>{a.title}</div>
-                          {a.alerts && a.alerts.length > 0 && (
-                            <ul style={{ margin: '0.35rem 0 0 0', paddingLeft: '1.25rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.75rem' }}>
-                              {a.alerts.map((al, alIdx) => (
-                                <li key={alIdx}><code>{al}</code></li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
+                          </th>
+                        ))}
+                        <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Version</th>
+                        <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCVEs.map((v, i) => (
+                        <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] align-top">
+                          <td className="px-3 py-2.5 font-mono font-bold">
+                            {v.url
+                              ? <a href={v.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{v.cve_id || v.vulnerability_id}</a>
+                              : <span className="text-zinc-300">{v.cve_id || v.vulnerability_id}</span>
+                            }
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold', SEV_BADGE[v.severity] || 'bg-zinc-500/10 text-zinc-400')}>
+                              {v.severity}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 font-semibold text-zinc-200">{v.package_name || v.pkg_name}</td>
+                          <td className="px-3 py-2.5 font-mono text-zinc-500 text-[10px]">
+                            {v.installed_version}
+                            {v.fixed_version && <span className="block text-emerald-400">→ {v.fixed_version}</span>}
+                          </td>
+                          <td className="px-3 py-2.5 text-zinc-500 max-w-xs">{v.description || v.title || '—'}</td>
+                        </tr>
                       ))}
-                    </div>
-                  )}
+                    </tbody>
+                  </table>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* TAB: LIFECYCLE ACTIONS (Renamed, clarified, and beautifully styled) */}
-              {activeTab === 'lifecycle' && (
-                <div>
-                  <h4 style={{ marginBottom: '0.5rem' }}>Opérations de déploiement et cycle de vie</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.4' }}>
-                    Le pivotement de cycle de vie de SafeDock vous permet de remplacer et de recréer de manière transactionnelle un conteneur déployé par sa dernière version de sécurité saine. Cette opération s'effectue sans coupure de service visible (Zero-Downtime rollout).
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Déclencher le pivot de cycle de vie (Rollout)</strong>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Rechercher une mise à jour, valider les règles SecOps et recréer le conteneur.</span>
-                      </div>
-                      
-                      <button 
-                        className={`btn btn-primary ${isRolloutLoading ? 'disabled' : ''}`}
-                        onClick={() => onTriggerRollout(container.id, container.name)}
-                        disabled={isRolloutLoading}
-                        style={{ padding: '0.6rem 1.25rem', borderRadius: '8px' }}
-                        type="button"
-                      >
-                        {isRolloutLoading ? (
-                          <i className="fa-solid fa-circle-notch fa-spin"></i>
-                        ) : (
-                          <i className="fa-solid fa-rotate"></i>
-                        )}
-                        <span style={{ marginLeft: '0.4rem' }}>Lancer le Pivot</span>
-                      </button>
-                    </div>
-
-                    {rolloutStatusMsg && rolloutStatusMsg.text && (
-                      <div className={`glass`} style={{ padding: '1rem', borderRadius: '10px', border: `1px solid ${rolloutStatusMsg.type === 'error' ? 'var(--danger)' : 'var(--success)'}`, backgroundColor: rolloutStatusMsg.type === 'error' ? 'rgba(239, 68, 68, 0.03)' : 'rgba(16, 185, 129, 0.03)' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: rolloutStatusMsg.type === 'error' ? 'var(--danger)' : 'var(--success)' }}>
-                          {rolloutStatusMsg.text}
+          {/* TAB: Dockle */}
+          {tab === 'dockle' && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-zinc-100">Conformité de l'image (Dockle)</p>
+                <button type="button" onClick={fetchDockle} disabled={dockleLoading} className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg bg-white/[0.04] text-zinc-400 hover:text-zinc-200 transition-colors">
+                  <RefreshCw className={cn('w-3 h-3', dockleLoading && 'animate-spin')} /> Scanner
+                </button>
+              </div>
+              {dockleLoading ? (
+                <div className="py-12 flex flex-col items-center gap-3 text-zinc-500">
+                  <div className="w-6 h-6 rounded-full border-2 border-zinc-700 border-t-blue-500 animate-spin" />
+                  <p className="text-xs">Audit en cours...</p>
+                </div>
+              ) : dockleError ? (
+                <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 text-xs text-red-400">{dockleError}</div>
+              ) : !dockleReport?.details?.length ? (
+                <div className="py-12 flex flex-col items-center gap-2 text-zinc-500">
+                  <ShieldCheck className="w-8 h-8 text-emerald-500" />
+                  <p className="text-sm font-semibold text-emerald-400">Conformité parfaite</p>
+                  <p className="text-xs">Aucun problème de structure ou de sécurité détecté.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {dockleReport.details.map((a, i) => (
+                    <div key={i} className="p-3 rounded-lg bg-[#0d1120] border border-white/[0.05]">
+                      <div className="flex items-baseline justify-between mb-1">
+                        <code className="text-[11px] text-zinc-300">{a.code || 'DKL_RULE'}</code>
+                        <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold', (a.level === 'FATAL' || a.level === 'WARN') ? 'bg-orange-500/15 text-orange-400' : 'bg-white/[0.04] text-zinc-500')}>
+                          {a.level}
                         </span>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB: CONTAINER PARAMETERS (Renamed & with Tag Manager / Scanner Options) */}
-              {activeTab === 'overrides' && (
-                <div>
-                  <h4 style={{ marginBottom: '0.5rem' }}>Paramètres du conteneur</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Définissez des seuils de tolérance spécifiques et configurez les scanners CVE de ce conteneur.</p>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    
-                    {/* Tag Manager Bento section */}
-                    <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
-                        <i className="fa-solid fa-tags text-primary" style={{ marginRight: '0.35rem' }}></i>
-                        Gestion des Tags
-                      </label>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Rattachez ce conteneur à des tags organisationnels ou applicatifs.</p>
-                      
-                      {/* Active tag list */}
-                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                        {activeTags.length === 0 ? (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Aucun tag associé.</span>
-                        ) : (
-                          activeTags.map((t, idx) => (
-                            <span 
-                              key={idx} 
-                              className="badge" 
-                              style={{ 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                gap: '0.35rem', 
-                                padding: '0.2rem 0.5rem', 
-                                backgroundColor: 'rgba(69, 120, 249, 0.1)', 
-                                color: 'var(--primary)', 
-                                border: '1px solid rgba(69, 120, 249, 0.2)',
-                                fontWeight: 'bold',
-                                fontSize: '0.7rem'
-                              }}
-                            >
-                              {t}
-                              <i 
-                                className="fa-solid fa-xmark" 
-                                style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--danger)' }} 
-                                onClick={() => handleRemoveTag(t)}
-                                title="Supprimer le tag"
-                              ></i>
-                            </span>
-                          ))
-                        )}
-                      </div>
-
-                      {/* Tag Form */}
-                      <form onSubmit={handleAddTag} style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input 
-                          type="text" 
-                          placeholder="Nouveau tag (ex: Staging, Front-End)..." 
-                          className="glass-input" 
-                          style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', flexGrow: 1 }}
-                          value={newTagInput}
-                          onChange={e => setNewTagInput(e.target.value)}
-                        />
-                        <button type="submit" className="btn btn-secondary" style={{ padding: '0.35rem 0.85rem', fontSize: '0.75rem', borderRadius: '6px' }}>
-                          Ajouter
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Scanner Select override options */}
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Moteur d'analyse de vulnérabilités spécifique</label>
-                      <select value={ovrScanner} onChange={e => setOvrScanner(e.target.value)} className="glass-input" style={{ cursor: 'pointer', fontWeight: 600 }}>
-                        <option value="">Hériter des paramètres globaux</option>
-                        <option value="trivy">Trivy (Aqua Security)</option>
-                        <option value="grype">Grype (Anchore Engine)</option>
-                        <option value="hybrid">Double Scan Hybride (Trivy + Grype)</option>
-                      </select>
-                    </div>
-                    
-                    {/* Severity select */}
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tolérance de sévérité des failles CVE pour ce conteneur</label>
-                      <select value={ovrSeverity} onChange={e => setOvrSeverity(e.target.value)} className="glass-input" style={{ cursor: 'pointer', fontWeight: 600 }}>
-                        <option value="">Hériter des règles globales</option>
-                        <option value="CRITICAL">CRITICAL (Bloque toutes les failles critiques)</option>
-                        <option value="HIGH">HIGH (Bloque critiques et hautes)</option>
-                        <option value="MEDIUM">MEDIUM (Bloque critiques, hautes et moyennes)</option>
-                        <option value="LOW">LOW (Bloque toutes les failles sauf info)</option>
-                        <option value="NONE">NONE (Bloque toutes les failles, même mineures)</option>
-                      </select>
-                    </div>
-
-                    {/* Allow root */}
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Autoriser l'utilisateur root dans ce conteneur</label>
-                      <select value={ovrAllowRoot} onChange={e => setOvrAllowRoot(e.target.value)} className="glass-input" style={{ cursor: 'pointer' }}>
-                        <option value="">Hériter des règles globales</option>
-                        <option value="true">Autorisé (SafeDock n'interdira pas le déploiement)</option>
-                        <option value="false">Interdit (Bloque si root détecté)</option>
-                      </select>
-                    </div>
-
-                    {/* Allow privileged */}
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Autoriser le mode privilégié dans ce conteneur</label>
-                      <select value={ovrAllowPrivilege} onChange={e => setOvrAllowPrivilege(e.target.value)} className="glass-input" style={{ cursor: 'pointer' }}>
-                        <option value="">Hériter des règles globales</option>
-                        <option value="true">Autorisé (SafeDock n'interdira pas le déploiement)</option>
-                        <option value="false">Interdit (Bloque si privilégié détecté)</option>
-                      </select>
-                    </div>
-
-                    {/* Actions save overrides buttons */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{saveStatus}</span>
-                      
-                      {hasOverride && (
-                        <button type="button" className="btn btn-accent" onClick={handleDeleteOverrideLocal} style={{ padding: '0.5rem 1rem', borderRadius: '8px' }}>
-                          <i className="fa-solid fa-trash"></i>
-                          <span style={{ marginLeft: '0.4rem' }}>Supprimer la surcharge</span>
-                        </button>
+                      <p className="text-xs font-semibold text-zinc-200 mb-1">{a.title}</p>
+                      {a.alerts?.length > 0 && (
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {a.alerts.map((al, j) => <li key={j} className="text-[10px] text-zinc-500 font-mono">{al}</li>)}
+                        </ul>
                       )}
-
-                      <button type="button" className="btn btn-primary" onClick={handleSaveOverrideLocal} style={{ padding: '0.5rem 1.25rem', borderRadius: '8px' }}>
-                        <i className="fa-solid fa-save"></i>
-                        <span style={{ marginLeft: '0.4rem' }}>Enregistrer les paramètres</span>
-                      </button>
                     </div>
-
-                  </div>
+                  ))}
                 </div>
               )}
-
             </div>
-          </div>
+          )}
 
+          {/* TAB: Lifecycle */}
+          {tab === 'lifecycle' && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-100 mb-1">Opérations de déploiement</p>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Le pivotement de cycle de vie remplace le conteneur par sa dernière version saine validée. Opération transactionnelle sans coupure visible.
+              </p>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#0d1120] border border-white/[0.06]">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-100">Déclencher le pivot (Rollout)</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Recherche, validation SecOps et recréation du conteneur.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onTriggerRollout(container.id, container.name)}
+                  disabled={isRolloutLoading}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors disabled:opacity-50"
+                >
+                  <RotateCw className={cn('w-3.5 h-3.5', isRolloutLoading && 'animate-spin')} />
+                  {isRolloutLoading ? 'En cours...' : 'Lancer le Pivot'}
+                </button>
+              </div>
+              {rolloutStatusMsg?.text && (
+                <div className={cn('p-3 rounded-lg text-xs font-semibold border', rolloutStatusMsg.type === 'error' ? 'border-red-500/30 bg-red-500/5 text-red-400' : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400')}>
+                  {rolloutStatusMsg.text}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: Overrides */}
+          {tab === 'overrides' && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-100 mb-1">Paramètres du conteneur</p>
+              <p className="text-xs text-zinc-500 leading-relaxed">Seuils de tolérance et configuration du scanner pour ce conteneur.</p>
+
+              {/* Tag Manager */}
+              <div className="p-3 rounded-lg bg-[#0d1120] border border-white/[0.06] space-y-2">
+                <p className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-blue-400" /> Gestion des Tags
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeTags.length === 0
+                    ? <p className="text-[10px] text-zinc-600 italic">Aucun tag associé.</p>
+                    : activeTags.map((t, i) => (
+                      <span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-semibold">
+                        {t}
+                        <button type="button" onClick={() => onUpdateTags(container.name, activeTags.filter(x => x !== t))}>
+                          <X className="w-2.5 h-2.5 hover:text-red-400" />
+                        </button>
+                      </span>
+                    ))
+                  }
+                </div>
+                <form onSubmit={handleAddTag} className="flex gap-2">
+                  <input className={cn(inputClass, 'flex-1')} placeholder="Nouveau tag..." value={newTagInput} onChange={e => setNewTagInput(e.target.value)} />
+                  <button type="submit" className="px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.05] text-zinc-300 hover:bg-white/[0.09] transition-colors">Ajouter</button>
+                </form>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Moteur d'analyse CVE</label>
+                <select value={ovrScanner} onChange={e => setOvrScanner(e.target.value)} className={selectClass}>
+                  <option value="">Hériter des paramètres globaux</option>
+                  <option value="trivy">Trivy (Aqua Security)</option>
+                  <option value="grype">Grype (Anchore Engine)</option>
+                  <option value="hybrid">Double Scan Hybride (Trivy + Grype)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Tolérance de sévérité CVE</label>
+                <select value={ovrSeverity} onChange={e => setOvrSeverity(e.target.value)} className={selectClass}>
+                  <option value="">Hériter des règles globales</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="LOW">LOW</option>
+                  <option value="NONE">NONE</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Autoriser l'utilisateur root</label>
+                <select value={ovrAllowRoot} onChange={e => setOvrAllowRoot(e.target.value)} className={selectClass}>
+                  <option value="">Hériter des règles globales</option>
+                  <option value="true">Autorisé</option>
+                  <option value="false">Interdit</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Autoriser le mode privilégié</label>
+                <select value={ovrAllowPrivilege} onChange={e => setOvrAllowPrivilege(e.target.value)} className={selectClass}>
+                  <option value="">Hériter des règles globales</option>
+                  <option value="true">Autorisé</option>
+                  <option value="false">Interdit</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                {saveStatus && <p className="text-xs text-emerald-400 mr-auto">{saveStatus}</p>}
+                {hasOverride && (
+                  <button type="button" onClick={handleDeleteOverride} className="px-3 py-1.5 text-xs font-semibold rounded-lg text-red-400 hover:bg-red-400/10 border border-red-400/20 transition-colors">
+                    Supprimer
+                  </button>
+                )}
+                <button type="button" onClick={handleSaveOverride} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors">
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
     </div>
   );
 }

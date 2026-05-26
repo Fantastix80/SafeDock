@@ -1,288 +1,230 @@
 import React, { useState } from 'react';
+import { Lock, UserPlus, Filter, Info, Trash2 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function PermissionsView({ simulatedUsers, setSimulatedUsers, activeUserProfile, setActiveUserProfile }) {
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState('Lecteur');
+  const [newName, setNewName] = useState('');
+  const [newRole, setNewRole] = useState('Lecteur');
   const [scopeType, setScopeType] = useState('all');
   const [scopeVal, setScopeVal] = useState('');
-  const [saveStatus, setSaveStatus] = useState('');
+  const [status, setStatus] = useState('');
 
-  const handleCreateUser = (e) => {
+  const handleCreate = (e) => {
     e.preventDefault();
-    if (!newUserName) return;
-
-    let finalScopeValue = null;
-    let finalDesc = "Accès complet";
-
-    if (scopeType === 'tags') {
-      finalScopeValue = scopeVal.split(',').map(s => s.trim()).filter(Boolean);
-      finalDesc = `Limité aux tags : ${finalScopeValue.join(', ')}`;
-    } else if (scopeType === 'hosts') {
-      finalScopeValue = [scopeVal.trim()];
-      finalDesc = `Limité à l'hôte : ${scopeVal.trim()}`;
-    }
-
-    const newUser = {
-      id: Date.now(),
-      name: newUserName,
-      role: newUserRole,
-      scopeType,
-      scopeValue: finalScopeValue,
-      desc: finalDesc
-    };
-
-    const updatedUsers = [...simulatedUsers, newUser];
-    setSimulatedUsers(updatedUsers);
-    localStorage.setItem('safedock-simulated-users', JSON.stringify(updatedUsers));
-
-    setNewUserName('');
-    setScopeVal('');
-    setScopeType('all');
-    setSaveStatus('✅ Nouvel utilisateur créé !');
-    setTimeout(() => setSaveStatus(''), 4000);
+    if (!newName) return;
+    let scopeValue = null, desc = 'Accès complet';
+    if (scopeType === 'tags') { scopeValue = scopeVal.split(',').map(s => s.trim()).filter(Boolean); desc = `Tags : ${scopeValue.join(', ')}`; }
+    else if (scopeType === 'hosts') { scopeValue = [scopeVal.trim()]; desc = `Hôte : ${scopeVal.trim()}`; }
+    const user = { id: Date.now(), name: newName, role: newRole, scopeType, scopeValue, desc };
+    const updated = [...simulatedUsers, user];
+    setSimulatedUsers(updated);
+    localStorage.setItem('safedock-simulated-users', JSON.stringify(updated));
+    setNewName(''); setScopeVal(''); setScopeType('all');
+    setStatus('Utilisateur créé.'); setTimeout(() => setStatus(''), 4000);
   };
 
-  const handleDeleteUser = (id) => {
-    // Ne pas supprimer l'admin principal actif
+  const handleDelete = (id) => {
     if (id === 1) return;
-    
-    const updatedUsers = simulatedUsers.filter(u => u.id !== id);
-    setSimulatedUsers(updatedUsers);
-    localStorage.setItem('safedock-simulated-users', JSON.stringify(updatedUsers));
-
-    if (activeUserProfile.id === id) {
-      // Revenir à l'admin par défaut
-      const defaultAdmin = simulatedUsers.find(u => u.id === 1);
-      setActiveUserProfile(defaultAdmin);
-    }
+    const updated = simulatedUsers.filter(u => u.id !== id);
+    setSimulatedUsers(updated);
+    localStorage.setItem('safedock-simulated-users', JSON.stringify(updated));
+    if (activeUserProfile.id === id) setActiveUserProfile(simulatedUsers.find(u => u.id === 1));
   };
 
-  const handleSimulate = (user) => {
-    setActiveUserProfile(user);
+  const roleStyle = (role) => {
+    if (role === 'Admin') return 'bg-red-500/10 text-red-400';
+    if (role === 'Auditeur') return 'bg-amber-500/10 text-amber-400';
+    return 'bg-emerald-500/10 text-emerald-400';
   };
+
+  const inputClass = "w-full px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors";
 
   return (
-    <div id="view-permissions" className="page-view">
-      <section className="section-container">
-        
-        {/* Title & Glowing Status Header */}
-        <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3>
-              <i className="fa-solid fa-user-lock text-primary" style={{ marginRight: '0.5rem' }}></i>
-              Matrice des Permissions & Scopes
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              Définissez la visibilité et les droits d'administration SecOps des utilisateurs de votre organisation.
-            </p>
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100 mb-0.5">
+            <Lock className="w-4 h-4 text-zinc-400" />
+            Matrice des Permissions & Scopes
           </div>
-          
-          {/* Active Simulation Status Card */}
-          <div className="glass" style={{ padding: '0.5rem 1rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.65rem', border: '1px solid var(--primary)', backgroundColor: 'rgba(69, 120, 249, 0.05)' }}>
-            <span className="pulse-dot" style={{ backgroundColor: 'var(--primary)', boxShadow: '0 0 8px var(--primary)' }}></span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-              Session active : <strong style={{ color: 'var(--primary)' }}>{activeUserProfile.name}</strong> ({activeUserProfile.role})
-            </span>
-          </div>
+          <p className="text-xs text-zinc-500">Visibilité et droits d'administration SecOps des utilisateurs.</p>
         </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-500/25 bg-blue-500/5 text-xs font-medium text-blue-300 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_#4F8EF7]" />
+          Session active : <strong>{activeUserProfile.name}</strong> ({activeUserProfile.role})
+        </div>
+      </div>
 
-        {/* Dynamic Alert for Non-Admin view */}
-        {activeUserProfile.id !== 1 && (
-          <div className="glass" style={{ padding: '1rem', borderRadius: '12px', border: '1px dashed var(--warning)', backgroundColor: 'rgba(245, 158, 11, 0.03)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <i className="fa-solid fa-circle-exclamation" style={{ color: 'var(--warning)', fontSize: '1.2rem' }}></i>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-              <strong>Mode Simulation SecOps Actif :</strong> L'intégralité des données de l'application (dashboard, barres CVE, conteneurs, alertes) est actuellement filtrée selon le scope défini pour <strong>{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => handleSimulate(simulatedUsers.find(u => u.id === 1))}
-                style={{ marginLeft: '1rem', padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: '6px' }}
-                type="button"
-              >
-                Rétablir l'accès Admin complet
-              </button>
-            </div>
+      {/* Simulation banner */}
+      {activeUserProfile.id !== 1 && (
+        <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-500/25 bg-amber-500/5">
+          <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs text-zinc-400 leading-relaxed">
+            <strong className="text-amber-400">Mode Simulation actif</strong> — Les données sont filtrées selon le scope de <strong>{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setActiveUserProfile(simulatedUsers.find(u => u.id === 1))}
+            className="shrink-0 px-2.5 py-1 text-xs font-semibold rounded bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] transition-colors"
+          >
+            Rétablir Admin
+          </button>
+        </div>
+      )}
 
-        {/* Layout Split */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-          
-          {/* Left Panel: Users Matrix Table */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                Utilisateurs et Restrictions SecOps
-              </h4>
-              
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, height: '35px' }}>
-                      <th style={{ padding: '0.5rem' }}>Utilisateur</th>
-                      <th style={{ padding: '0.5rem' }}>Rôle SecOps</th>
-                      <th style={{ padding: '0.5rem' }}>Restriction de Scope</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'center' }}>Simulation</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {simulatedUsers.map(u => (
-                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                        <td style={{ padding: '0.85rem 0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: u.id === 1 ? 'var(--primary)' : 'var(--bg-card)', border: `1px solid ${activeUserProfile.id === u.id ? 'var(--primary)' : 'var(--border-color)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
+        {/* Left: table + explanations */}
+        <div className="space-y-4">
+          <div className="card">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
+              <Lock className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-semibold text-zinc-100">Utilisateurs et Restrictions SecOps</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/[0.04]">
+                    {['Utilisateur', 'Rôle', 'Scope', 'Simulation', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-zinc-600 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {simulatedUsers.map(u => (
+                    <tr key={u.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+                            activeUserProfile.id === u.id ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30' : 'bg-white/[0.06] text-zinc-400'
+                          )}>
                             {u.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <span style={{ display: 'block', color: 'var(--text-primary)' }}>{u.name}</span>
-                            {activeUserProfile.id === u.id && <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold' }}>Session Active</span>}
+                            <p className="font-semibold text-zinc-200">{u.name}</p>
+                            {activeUserProfile.id === u.id && <p className="text-[9px] text-blue-400 font-bold">Session Active</p>}
                           </div>
-                        </td>
-                        <td style={{ padding: '0.85rem 0.5rem' }}>
-                          <span className={`badge ${u.role === 'Admin' ? 'badge-danger' : u.role === 'Auditeur' ? 'badge-warning' : 'badge-success'}`} style={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.85rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                          <i className="fa-solid fa-filter" style={{ marginRight: '0.35rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}></i>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold', roleStyle(u.role))}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500">
+                        <span className="flex items-center gap-1">
+                          <Filter className="w-3 h-3 text-zinc-700" />
                           {u.desc}
-                        </td>
-                        <td style={{ padding: '0.85rem 0.5rem', textAlign: 'center' }}>
-                          <button 
-                            className={`btn ${activeUserProfile.id === u.id ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => handleSimulate(u)}
-                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.7rem', borderRadius: '6px' }}
-                            type="button"
-                          >
-                            {activeUserProfile.id === u.id ? 'Connecté' : 'Se connecter'}
-                          </button>
-                        </td>
-                        <td style={{ padding: '0.85rem 0.5rem', textAlign: 'right' }}>
-                          {u.id !== 1 ? (
-                            <button 
-                              onClick={() => handleDeleteUser(u.id)}
-                              style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.85rem' }}
-                              title="Supprimer l'utilisateur"
-                              type="button"
-                            >
-                              <i className="fa-solid fa-trash-can"></i>
-                            </button>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>Système</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setActiveUserProfile(u)}
+                          className={cn(
+                            'px-2.5 py-1 rounded text-[10px] font-semibold transition-colors',
+                            activeUserProfile.id === u.id
+                              ? 'bg-blue-500/15 text-blue-400'
+                              : 'bg-white/[0.04] text-zinc-400 hover:text-zinc-200'
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        >
+                          {activeUserProfile.id === u.id ? 'Connecté' : 'Se connecter'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.id !== 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(u.id)}
+                            className="w-6 h-6 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-mono text-zinc-700">Système</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {/* Explanations Bento Card */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              <div>
-                <h5 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <i className="fa-solid fa-circle-info text-primary"></i> Rôles SecOps Globaux
-                </h5>
-                <ul style={{ paddingLeft: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  <li><strong>Admin</strong> : Droits complets d'audit, configuration SMTP/Seuils globale et management de pivots.</li>
-                  <li><strong>Auditeur</strong> : Droit d'inspecter, de rafraîchir à chaud et de rescanner Trivy/Dockle.</li>
-                  <li><strong>Lecteur</strong> : Accès aux rapports SecOps et alertes en lecture seule sans droits de modification.</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h5 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <i className="fa-solid fa-filter text-primary"></i> Scoping de Ressources
-                </h5>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                  Restreignez l'accès d'un utilisateur en lui assignant un **scope strict**. L'utilisateur ne verra **uniquement** que les machines ou tags autorisés. Toutes les statistiques globales, cumuls de CVE et logs d'audit sont automatiquement calculés et restreints dans son scope d'accès.
-                </p>
-              </div>
-            </div>
-
           </div>
 
-          {/* Right Panel: Create User Form */}
-          <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px', height: 'fit-content' }}>
-            <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <i className="fa-solid fa-user-plus text-primary"></i>
-              Créer un profil
-            </h4>
-            
-            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nom complet</label>
-                <input 
-                  type="text" 
-                  placeholder="ex: David SecOps" 
-                  className="glass-input" 
-                  value={newUserName} 
-                  onChange={e => setNewUserName(e.target.value)} 
-                  required 
+          <div className="card p-4 grid grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200 mb-2">
+                <Info className="w-3.5 h-3.5 text-blue-400" /> Rôles SecOps
+              </div>
+              <ul className="text-[11px] text-zinc-500 space-y-1.5 list-disc list-inside leading-relaxed">
+                <li><strong className="text-zinc-300">Admin</strong> : Audit, config SMTP, seuils et pivots</li>
+                <li><strong className="text-zinc-300">Auditeur</strong> : Inspecter, rescanner, rafraîchir</li>
+                <li><strong className="text-zinc-300">Lecteur</strong> : Lecture seule des rapports SecOps</li>
+              </ul>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200 mb-2">
+                <Filter className="w-3.5 h-3.5 text-blue-400" /> Scoping de Ressources
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-relaxed">
+                Restreignez la visibilité par tags ou par hôtes. Toutes les statistiques, CVEs et logs sont automatiquement calculés dans le scope assigné.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Create form */}
+        <div className="card p-4 h-fit">
+          <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
+            <UserPlus className="w-4 h-4 text-blue-400" />
+            <h3 className="text-xs font-semibold text-zinc-100">Créer un profil</h3>
+          </div>
+          <form onSubmit={handleCreate} className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-zinc-500">Nom complet</label>
+              <input className={inputClass} placeholder="ex: David SecOps" value={newName} onChange={e => setNewName(e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-zinc-500">Rôle global</label>
+              <select value={newRole} onChange={e => setNewRole(e.target.value)} className={cn(inputClass, 'cursor-pointer')}>
+                <option value="Admin">Admin — Tous les privilèges</option>
+                <option value="Auditeur">Auditeur — Scan, lecture, refresh</option>
+                <option value="Lecteur">Lecteur — Lecture seule</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-zinc-500">Type de scoping</label>
+              <select value={scopeType} onChange={e => setScopeType(e.target.value)} className={cn(inputClass, 'cursor-pointer')}>
+                <option value="all">Tout le parc</option>
+                <option value="tags">Restreint par Tags</option>
+                <option value="hosts">Restreint par Hôte</option>
+              </select>
+            </div>
+            {scopeType !== 'all' && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">
+                  {scopeType === 'tags' ? 'Tags autorisés (virgules)' : 'Nom exact de la machine'}
+                </label>
+                <input
+                  className={inputClass}
+                  placeholder={scopeType === 'tags' ? 'Production, Web' : 'db-node-02'}
+                  value={scopeVal}
+                  onChange={e => setScopeVal(e.target.value)}
+                  required
                 />
               </div>
-
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Rôle global</label>
-                <select 
-                  value={newUserRole} 
-                  onChange={e => setNewUserRole(e.target.value)} 
-                  className="glass-input"
-                  style={{ cursor: 'pointer', fontWeight: 600 }}
-                >
-                  <option value="Admin">Admin (Tous les privilèges)</option>
-                  <option value="Auditeur">Auditeur (Scan, lecture, refresh)</option>
-                  <option value="Lecteur">Lecteur (Lecture seule)</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Type de scoping</label>
-                <select 
-                  value={scopeType} 
-                  onChange={e => setScopeType(e.target.value)} 
-                  className="glass-input"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <option value="all">Tout le parc (Aucune restriction)</option>
-                  <option value="tags">Restreint par Tags (Filtrage tags)</option>
-                  <option value="hosts">Restreint par Machine Hôte (Filtrage hôtes)</option>
-                </select>
-              </div>
-
-              {scopeType !== 'all' && (
-                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', animation: 'fadeIn 0.2s ease-in' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    {scopeType === 'tags' ? "Tags autorisés (séparés par virgules)" : "Nom exact de la machine hôte"}
-                  </label>
-                  <input 
-                    type="text" 
-                    placeholder={scopeType === 'tags' ? "ex: Production, Web" : "ex: db-node-02"} 
-                    className="glass-input" 
-                    value={scopeVal} 
-                    onChange={e => setScopeVal(e.target.value)} 
-                    required 
-                  />
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                    {scopeType === 'tags' 
-                      ? "L'utilisateur verra les conteneurs possédant au moins un de ces tags." 
-                      : "L'utilisateur verra uniquement les conteneurs tournant sur cette machine."}
-                  </span>
-                </div>
-              )}
-
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, textAlign: 'center', display: 'block', minHeight: '1.2rem' }}>{saveStatus}</span>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-user-plus"></i>
-                <span>Créer l'utilisateur</span>
-              </button>
-            </form>
-          </div>
-
+            )}
+            {status && <p className="text-xs text-emerald-400 text-center">{status}</p>}
+            <button
+              type="submit"
+              className="w-full py-2 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" /> Créer l'utilisateur
+            </button>
+          </form>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

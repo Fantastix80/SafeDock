@@ -1,283 +1,197 @@
 import React, { useState } from 'react';
+import { UserSquare, Lock, Bell, ShieldCheck } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function AccountView() {
   const [user, setUser] = useState({
-    username: 'Hell0W0rld',
-    email: 'secops-admin@safedock.local',
-    fullName: 'Jean SecOps',
-    role: 'Administrateur Principal',
-    organization: 'SafeDock Corp'
+    username: 'Hell0W0rld', email: 'secops-admin@safedock.local',
+    fullName: 'Jean SecOps', role: 'Administrateur Principal', organization: 'SafeDock Corp'
   });
-
-  const [notificationSettings, setNotificationSettings] = useState({
-    cveAlerts: true,
-    statusChanges: true,
-    deployments: false,
-    secretLeaks: true,
-    enableThreshold: true,
-    minSeverity: 'CRITICAL'
+  const [notif, setNotif] = useState({
+    cveAlerts: true, statusChanges: true, deployments: false,
+    secretLeaks: true, enableThreshold: true, minSeverity: 'CRITICAL'
   });
+  const [mfa, setMfa] = useState(false);
+  const [status, setStatus] = useState('');
 
-  const [mfaEnabled, setMfaEnabled] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('');
-
-  const handleSaveSettings = (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
-    setSaveStatus('Enregistrement...');
+    setStatus('Enregistrement...');
     setTimeout(() => {
-      setSaveStatus('✅ Vos préférences de compte ont été mises à jour !');
-      setTimeout(() => setSaveStatus(''), 4000);
+      setStatus('Préférences mises à jour.');
+      setTimeout(() => setStatus(''), 4000);
     }, 800);
   };
 
   return (
-    <div id="view-account" className="page-view">
-      <section className="section-container">
-        
-        {/* Header Title */}
-        <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-          <h3>
-            <i className="fa-solid fa-user-shield text-primary" style={{ marginRight: '0.5rem' }}></i>
-            Mon Compte & Préférences SecOps
-          </h3>
+    <div className="grid gap-4" style={{ gridTemplateColumns: '240px 1fr' }}>
+      {/* Profile card */}
+      <div className="card p-5 h-fit text-center">
+        <div className="relative w-20 h-20 mx-auto mb-4">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-2xl font-bold text-white border-2 border-blue-400/30">
+            J
+          </div>
+          <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#151d2e] shadow-[0_0_6px_#34d399]" />
         </div>
 
-        {/* Outer Layout Split */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
-          
-          {/* Left panel: Custom Profile Card */}
-          <div className="glass" style={{ padding: '2rem 1.5rem', borderRadius: '12px', textAlign: 'center', height: 'fit-content' }}>
-            <div style={{ position: 'relative', width: '110px', height: '110px', margin: '0 auto 1.5rem auto' }}>
-              <img 
-                src="/avatar.png" 
-                alt={user.fullName} 
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)', padding: '3px' }} 
-              />
-              <span className="pulse-dot" style={{ position: 'absolute', bottom: '5px', right: '5px', width: '14px', height: '14px', border: '2px solid var(--bg-card)', backgroundColor: 'var(--success)' }}></span>
-            </div>
-            
-            <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>{user.fullName}</h4>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>@{user.username}</span>
-            
-            <div className="badge badge-success" style={{ display: 'inline-block', marginTop: '1rem', padding: '0.25rem 0.75rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
-              <i className="fa-solid fa-shield-halved" style={{ marginRight: '0.4rem' }}></i> {user.role}
-            </div>
+        <h3 className="text-sm font-bold text-zinc-100">{user.fullName}</h3>
+        <p className="text-[11px] text-zinc-500 font-mono mt-0.5">@{user.username}</p>
 
-            <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '2rem', paddingTop: '1.5rem', textAlign: 'left' }}>
-              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '0.5rem' }}>Détails d'appartenance</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-                <div><span style={{ color: 'var(--text-secondary)' }}>Organisation :</span> <strong style={{ color: 'var(--text-primary)' }}>{user.organization}</strong></div>
-                <div><span style={{ color: 'var(--text-secondary)' }}>Session IP :</span> <code style={{ fontSize: '0.75rem' }}>192.168.1.100</code></div>
-                <div><span style={{ color: 'var(--text-secondary)' }}>Status SSO :</span> <span className="badge" style={{ backgroundColor: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>Désactivé</span></div>
-              </div>
+        <span className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400">
+          <ShieldCheck className="w-3 h-3" /> {user.role}
+        </span>
+
+        <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
+          <p className="text-[10px] text-zinc-600 uppercase font-bold tracking-wide mb-2">Appartenance</p>
+          <Row label="Organisation" value={user.organization} />
+          <Row label="Session IP" value={<code className="text-[10px] text-zinc-400">192.168.1.100</code>} />
+          <Row label="Status SSO" value={<span className="text-[10px] text-zinc-600">Désactivé</span>} />
+        </div>
+      </div>
+
+      {/* Forms */}
+      <form onSubmit={handleSave} className="space-y-4">
+        {/* Account info */}
+        <SCard icon={<UserSquare className="w-4 h-4 text-blue-400" />} title="Informations du compte">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nom complet" value={user.fullName} onChange={v => setUser(p => ({ ...p, fullName: v }))} />
+            <Field label="Adresse email" type="email" value={user.email} onChange={v => setUser(p => ({ ...p, email: v }))} />
+            <Field label="Nom d'utilisateur" value={user.username} onChange={v => setUser(p => ({ ...p, username: v }))} />
+            <Field label="Organisation" value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
+          </div>
+        </SCard>
+
+        {/* Security */}
+        <SCard icon={<Lock className="w-4 h-4 text-blue-400" />} title="Sécurité">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <Field label="Nouveau mot de passe" type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+            <Field label="Confirmer le mot de passe" type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-[#0d1120] border border-white/[0.06]">
+            <div>
+              <p className="text-xs font-semibold text-zinc-100">Validation Double Facteur (2FA / TOTP)</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
             </div>
+            <ToggleSwitch checked={mfa} onChange={setMfa} />
+          </div>
+        </SCard>
+
+        {/* Notifications */}
+        <SCard icon={<Bell className="w-4 h-4 text-blue-400" />} title="Notifications">
+          <p className="text-xs text-zinc-500 mb-3">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
+          <div className="space-y-2.5 mb-4">
+            {[
+              { key: 'cveAlerts', label: 'Alertes sur les failles de sécurité (CVE)' },
+              { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
+              { key: 'deployments', label: 'Déploiements et Rollouts pivots effectués' },
+              { key: 'secretLeaks', label: 'Fuites de secrets détectées (SecOps)' },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notif[key]}
+                  onChange={e => setNotif(p => ({ ...p, [key]: e.target.checked }))}
+                  className="accent-blue-500 w-3.5 h-3.5"
+                />
+                <span className="text-xs text-zinc-200">{label}</span>
+              </label>
+            ))}
           </div>
 
-          {/* Right panel: Restructured Cards Forms */}
-          <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            {/* Section 1: La Partie Compte */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-address-card" style={{ fontSize: '1rem', color: 'var(--primary)' }}></i>
-                La partie compte
-              </h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Nom Complet</label>
-                  <input 
-                    type="text" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    value={user.fullName} 
-                    onChange={e => setUser(prev => ({ ...prev, fullName: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Adresse Email</label>
-                  <input 
-                    type="email" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    value={user.email} 
-                    onChange={e => setUser(prev => ({ ...prev, email: e.target.value }))}
-                    required
-                  />
-                </div>
+          <div className="p-3 rounded-lg bg-[#0d1120] border border-white/[0.06] space-y-2">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={notif.enableThreshold}
+                onChange={e => setNotif(p => ({ ...p, enableThreshold: e.target.checked }))}
+                className="accent-blue-500 w-3.5 h-3.5 mt-0.5"
+              />
+              <div>
+                <p className="text-xs font-semibold text-zinc-200">Filtrer par niveau de criticité minimum</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
               </div>
+            </label>
+            {notif.enableThreshold && (
+              <select
+                value={notif.minSeverity}
+                onChange={e => setNotif(p => ({ ...p, minSeverity: e.target.value }))}
+                className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg bg-[#151d2e] border border-white/[0.08] text-zinc-200 focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="CRITICAL">CRITICAL — alertes critiques uniquement</option>
+                <option value="HIGH">HIGH — critique et haute gravité</option>
+                <option value="MEDIUM">MEDIUM — critique, haute et moyenne</option>
+                <option value="LOW">LOW — toutes les alertes</option>
+              </select>
+            )}
+          </div>
+        </SCard>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Nom d'utilisateur</label>
-                  <input 
-                    type="text" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    value={user.username} 
-                    onChange={e => setUser(prev => ({ ...prev, username: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Organisation</label>
-                  <input 
-                    type="text" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    value={user.organization} 
-                    onChange={e => setUser(prev => ({ ...prev, organization: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2: La Partie Sécurité */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-lock" style={{ fontSize: '1rem', color: 'var(--primary)' }}></i>
-                La partie sécurité
-              </h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Nouveau mot de passe</label>
-                  <input 
-                    type="password" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    placeholder="••••••••••••"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.4rem' }}>Confirmer le mot de passe</label>
-                  <input 
-                    type="password" 
-                    className="glass-input" 
-                    style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: '8px' }} 
-                    placeholder="••••••••••••"
-                  />
-                </div>
-              </div>
-
-              {/* MFA Switch Toggle */}
-              <div className="glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                <div>
-                  <strong style={{ display: 'block', fontSize: '0.85rem' }}>Validation Double Facteur (2FA / TOTP)</strong>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Sécuriser l'accès avec un code temporaire authentifié sur votre appareil mobile.</span>
-                </div>
-                <label className="switch-toggle">
-                  <input 
-                    type="checkbox" 
-                    checked={mfaEnabled} 
-                    onChange={e => setMfaEnabled(e.target.checked)} 
-                  />
-                  <span className="slider-toggle"></span>
-                </label>
-              </div>
-            </div>
-
-            {/* Section 3: La Partie Notifications */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-bell" style={{ fontSize: '1rem', color: 'var(--primary)' }}></i>
-                La partie notifications
-              </h4>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 1.25rem 0' }}>
-                Sélectionnez précisément les événements pour lesquels vous souhaitez être averti par e-mail et fixez vos seuils d'alertes.
-              </p>
-              
-              {/* Event types checkboxes list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.5rem', paddingLeft: '0.25rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={notificationSettings.cveAlerts} 
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, cveAlerts: e.target.checked }))} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Alertes sur les failles de sécurité (CVE)</span>
-                </label>
-                
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={notificationSettings.statusChanges} 
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, statusChanges: e.target.checked }))} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Changements de statuts de conteneurs (Start/Stop)</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={notificationSettings.deployments} 
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, deployments: e.target.checked }))} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Déploiements et Rollouts pivots effectués</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={notificationSettings.secretLeaks} 
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, secretLeaks: e.target.checked }))} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Fuites de secrets détectées (SecOps)</span>
-                </label>
-              </div>
-
-              {/* Gravity Threshold Configuration */}
-              <div className="glass" style={{ padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={notificationSettings.enableThreshold} 
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, enableThreshold: e.target.checked }))} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Filtrer par niveau de criticité minimum</span>
-                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Vous ne recevrez que les alertes de ce niveau de gravité ou plus élevé.</span>
-                  </div>
-                </label>
-
-                {notificationSettings.enableThreshold && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.5rem', animation: 'fadeIn 0.2s ease-in' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Niveau seuil minimum</label>
-                    <select 
-                      value={notificationSettings.minSeverity} 
-                      onChange={e => setNotificationSettings(prev => ({ ...prev, minSeverity: e.target.value }))}
-                      className="glass-input"
-                      style={{ cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      <option value="CRITICAL">CRITICAL (Alertes critiques uniquement)</option>
-                      <option value="HIGH">HIGH (Critique et Haute gravité)</option>
-                      <option value="MEDIUM">MEDIUM (Critique, Haute et Moyenne)</option>
-                      <option value="LOW">LOW (Toutes les alertes, même basses)</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Form Footer Save Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{saveStatus}</span>
-              <button type="submit" className="btn btn-primary" style={{ padding: '0.6rem 1.75rem', borderRadius: '8px' }}>
-                <i className="fa-solid fa-save"></i>
-                <span style={{ marginLeft: '0.4rem' }}>Enregistrer les préférences</span>
-              </button>
-            </div>
-
-          </form>
+        <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
+          {status && <p className="text-xs text-emerald-400 font-medium">{status}</p>}
+          <button
+            type="submit"
+            className="px-5 py-2 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors"
+          >
+            Enregistrer les préférences
+          </button>
         </div>
-      </section>
+      </form>
     </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between text-xs gap-2">
+      <span className="text-zinc-500">{label} :</span>
+      <span className="text-zinc-300 text-right">{value}</span>
+    </div>
+  );
+}
+
+function SCard({ icon, title, children }) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
+        {icon}
+        <h3 className="text-xs font-semibold text-zinc-100">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, type = 'text', value, onChange, placeholder }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] font-semibold text-zinc-500">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+      />
+    </div>
+  );
+}
+
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0',
+        checked ? 'bg-blue-500' : 'bg-zinc-700'
+      )}
+    >
+      <span className={cn(
+        'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200',
+        checked ? 'translate-x-5' : 'translate-x-0.5'
+      )} />
+    </button>
   );
 }

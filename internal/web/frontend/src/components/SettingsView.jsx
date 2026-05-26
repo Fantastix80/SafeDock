@@ -1,594 +1,440 @@
 import React, { useState, useEffect } from 'react';
+import { Mail, ShieldHalf, Settings2, Key, Users, Server, Building2, CheckCircle2, XCircle } from 'lucide-react';
+import { cn } from '../lib/utils';
 
-export default function SettingsView({ 
-  config, 
-  registries, 
-  onSaveGlobalSettings, 
-  onAddRegistry, 
-  onDeleteRegistry 
-}) {
-  const [activeTab, setActiveTab] = useState('smtp');
+const TABS = [
+  { id: 'smtp',       label: 'SMTP / Alertes',    icon: Mail,       group: 'Base' },
+  { id: 'seuils',     label: 'Seuils SecOps',     icon: ShieldHalf, group: 'Base' },
+  { id: 'prefs',      label: 'Préférences',       icon: Settings2,  group: 'Base' },
+  { id: 'registries', label: 'Registres Privés',  icon: Key,        group: 'Admin' },
+  { id: 'users',      label: 'Utilisateurs',      icon: Users,      group: 'Admin' },
+  { id: 'agents',     label: 'Multi-Hôtes',       icon: Server,     group: 'Admin' },
+  { id: 'security',   label: 'Sécurité Entreprise', icon: Building2, group: 'Admin' },
+];
 
-  // Global settings inputs
+export default function SettingsView({ config, registries, onSaveGlobalSettings, onAddRegistry, onDeleteRegistry }) {
+  const [tab, setTab] = useState('smtp');
   const [severity, setSeverity] = useState('HIGH');
   const [allowRoot, setAllowRoot] = useState(false);
   const [allowPrivileged, setAllowPrivileged] = useState(false);
-  const [secopsScanner, setSecopsScanner] = useState('trivy');
-
-  // SMTP Settings inputs
+  const [scanner, setScanner] = useState('trivy');
   const [smtpHost, setSmtpHost] = useState('');
   const [smtpPort, setSmtpPort] = useState('');
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
   const [smtpFrom, setSmtpFrom] = useState('');
   const [smtpTo, setSmtpTo] = useState('');
-  const [smtpTlsSkip, setSmtpTlsSkip] = useState(false);
-
-  // General Preferences inputs
+  const [smtpTls, setSmtpTls] = useState(false);
   const [pollInterval, setPollInterval] = useState('10');
   const [defaultView, setDefaultView] = useState('dashboard');
-  const [uiLanguage, setUiLanguage] = useState('fr');
-  const [autoUpdateRollout, setAutoUpdateRollout] = useState(false);
-
-  // Registry addition inputs
+  const [autoUpdate, setAutoUpdate] = useState(false);
   const [regServer, setRegServer] = useState('');
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
-
-  // Mock Multi-Host Agents list
   const [agents, setAgents] = useState([
     { name: 'prod-swarm-01', ip: '192.168.1.90', status: 'connected', version: 'v0.9.5' },
     { name: 'db-node-02', ip: '192.168.1.91', status: 'connected', version: 'v0.9.5' },
     { name: 'stage-aws-us-east', ip: '10.0.4.15', status: 'connected', version: 'v0.9.5' },
     { name: 'edge-node-02', ip: '192.168.1.95', status: 'offline', version: 'v0.9.3' }
   ]);
-  const [newAgentName, setNewAgentName] = useState('');
-  const [newAgentIp, setNewAgentIp] = useState('');
-
-  // Mock Users list
+  const [agentName, setAgentName] = useState('');
+  const [agentIp, setAgentIp] = useState('');
   const [users, setUsers] = useState([
     { username: 'Hell0W0rld', email: 'secops-admin@safedock.local', role: 'Administrateur' },
     { username: 'Reader01', email: 'reader@safedock.local', role: 'Lecteur' },
     { username: 'AuditBot', email: 'bot@safedock.local', role: 'Auditeur SecOps' }
   ]);
   const [newUsername, setNewUsername] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserRole, setNewUserRole] = useState('Lecteur');
-
-  // Save status msg
-  const [saveStatus, setSaveStatus] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState('Lecteur');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    if (config) {
-      setSeverity(config.SecOps?.MaxSeverityAllowed || 'HIGH');
-      setAllowRoot(config.SecOps?.AllowRoot || false);
-      setAllowPrivileged(config.SecOps?.AllowPrivileged || false);
-      setSecopsScanner(config.SecOps?.SecopsScanner || 'trivy');
-      
-      setSmtpHost(config.SMTP?.Host || '');
-      setSmtpPort(config.SMTP?.Port !== undefined && config.SMTP?.Port !== null ? String(config.SMTP.Port) : '');
-      setSmtpUser(config.SMTP?.User || '');
-      setSmtpPass(''); // Keep blank for security
-      setSmtpFrom(config.SMTP?.From || '');
-      setSmtpTo(config.SMTP?.To || '');
-      setSmtpTlsSkip(config.SMTP?.TLSSkipVerify || false);
-    }
+    if (!config) return;
+    setSeverity(config.SecOps?.MaxSeverityAllowed || 'HIGH');
+    setAllowRoot(config.SecOps?.AllowRoot || false);
+    setAllowPrivileged(config.SecOps?.AllowPrivileged || false);
+    setScanner(config.SecOps?.SecopsScanner || 'trivy');
+    setSmtpHost(config.SMTP?.Host || '');
+    setSmtpPort(config.SMTP?.Port != null ? String(config.SMTP.Port) : '');
+    setSmtpUser(config.SMTP?.User || '');
+    setSmtpFrom(config.SMTP?.From || '');
+    setSmtpTo(config.SMTP?.To || '');
+    setSmtpTls(config.SMTP?.TLSSkipVerify || false);
   }, [config]);
 
-  const handleGlobalSubmit = (e) => {
-    if (e) e.preventDefault();
-    setSaveStatus('Enregistrement...');
-    
-    const settingsData = {
+  const saveGlobal = () => {
+    setStatus('Enregistrement...');
+    onSaveGlobalSettings({
       secops_max_severity_allowed: severity,
       secops_allow_root: allowRoot,
       secops_allow_privileged: allowPrivileged,
-      secops_scanner: secopsScanner,
+      secops_scanner: scanner,
       smtp_host: smtpHost,
       smtp_port: smtpPort ? parseInt(smtpPort, 10) : 0,
       smtp_user: smtpUser,
       smtp_password: smtpPass,
       smtp_from: smtpFrom,
       smtp_to: smtpTo,
-      smtp_tls_skip_verify: smtpTlsSkip
-    };
-
-    onSaveGlobalSettings(settingsData)
-      .then(() => {
-        setSaveStatus('✅ Paramètres sauvegardés avec succès !');
-        setTimeout(() => setSaveStatus(''), 4000);
-      })
-      .catch(err => {
-        setSaveStatus('❌ Erreur de sauvegarde.');
-        setTimeout(() => setSaveStatus(''), 4000);
-      });
+      smtp_tls_skip_verify: smtpTls
+    })
+      .then(() => { setStatus('Paramètres sauvegardés.'); setTimeout(() => setStatus(''), 4000); })
+      .catch(() => { setStatus('Erreur de sauvegarde.'); setTimeout(() => setStatus(''), 4000); });
   };
 
-  const handleRegistrySubmit = (e) => {
+  const handleRegSubmit = (e) => {
     e.preventDefault();
     if (!regServer || !regUser || !regPass) return;
     onAddRegistry(regServer, regUser, regPass).then(() => {
-      setRegServer('');
-      setRegUser('');
-      setRegPass('');
-      setSaveStatus('✅ Registre privé enregistré !');
-      setTimeout(() => setSaveStatus(''), 4000);
+      setRegServer(''); setRegUser(''); setRegPass('');
+      setStatus('Registre enregistré.'); setTimeout(() => setStatus(''), 4000);
     });
   };
 
   const handleAddAgent = (e) => {
     e.preventDefault();
-    if (!newAgentName || !newAgentIp) return;
-    setAgents(prev => [...prev, { name: newAgentName, ip: newAgentIp, status: 'connected', version: 'v0.9.5' }]);
-    setNewAgentName('');
-    setNewAgentIp('');
-    setSaveStatus('✅ Agent hôte enregistré avec succès !');
-    setTimeout(() => setSaveStatus(''), 4000);
+    if (!agentName || !agentIp) return;
+    setAgents(p => [...p, { name: agentName, ip: agentIp, status: 'connected', version: 'v0.9.5' }]);
+    setAgentName(''); setAgentIp('');
+    setStatus('Agent connecté.'); setTimeout(() => setStatus(''), 4000);
   };
 
   const handleAddUser = (e) => {
     e.preventDefault();
-    if (!newUsername || !newUserEmail) return;
-    setUsers(prev => [...prev, { username: newUsername, email: newUserEmail, role: newUserRole }]);
-    setNewUsername('');
-    setNewUserEmail('');
-    setNewUserRole('Lecteur');
-    setSaveStatus('✅ Invitation utilisateur envoyée !');
-    setTimeout(() => setSaveStatus(''), 4000);
+    if (!newUsername || !newEmail) return;
+    setUsers(p => [...p, { username: newUsername, email: newEmail, role: newRole }]);
+    setNewUsername(''); setNewEmail(''); setNewRole('Lecteur');
+    setStatus('Invitation envoyée.'); setTimeout(() => setStatus(''), 4000);
   };
 
+  const inputClass = "w-full px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors";
+  const selectClass = cn(inputClass, "cursor-pointer");
+  const thCl = "px-3 py-2.5 text-left text-[10px] font-semibold text-zinc-600 uppercase tracking-wide";
+
+  const groups = ['Base', 'Admin'];
+
   return (
-    <div id="view-settings" className="page-view">
-      <div className="glass" style={{ padding: '2rem 2.5rem', borderRadius: '16px' }}>
-        
-        {/* Settings Title Area */}
-        <div className="settings-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-          <div className="settings-title-area">
-            <h3 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-header)', fontWeight: 800 }}>
-              <i className="fa-solid fa-sliders"></i> Configuration Globale de Sécurité
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              Ajustez les seuils, configurez les connexions distantes, la messagerie et gérez les accès d'entreprise.
-            </p>
+    <div className="grid gap-4" style={{ gridTemplateColumns: '180px 1fr' }}>
+      {/* Sidebar tabs */}
+      <div className="card p-2 h-fit">
+        {groups.map(g => (
+          <div key={g}>
+            <p className="px-2 py-1.5 text-[10px] font-bold text-zinc-700 uppercase tracking-wider">{g}</p>
+            {TABS.filter(t => t.group === g).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors mb-0.5',
+                  tab === id
+                    ? 'bg-brand-DEFAULT/15 text-brand-DEFAULT'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                {label}
+              </button>
+            ))}
           </div>
-        </div>
-
-        {/* Multi-Tab Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '2rem', minHeight: '380px' }}>
-          
-          {/* Sidebar Tab Selector */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderRight: '1px solid var(--border-color)', paddingRight: '1rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', paddingLeft: '0.5rem', marginBottom: '0.25rem' }}>Paramètres de base</span>
-            <button 
-              className={`tab-btn ${activeTab === 'smtp' ? 'active' : ''}`}
-              onClick={() => setActiveTab('smtp')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-envelope"></i> SMTP / Alertes
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'seuils' ? 'active' : ''}`}
-              onClick={() => setActiveTab('seuils')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-shield-halved"></i> Seuils SecOps
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'prefs' ? 'active' : ''}`}
-              onClick={() => setActiveTab('prefs')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-gear"></i> Préférences
-            </button>
-
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', paddingLeft: '0.5rem', marginTop: '1rem', marginBottom: '0.25rem' }}>Administration</span>
-            <button 
-              className={`tab-btn ${activeTab === 'registries' ? 'active' : ''}`}
-              onClick={() => setActiveTab('registries')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-key"></i> Registres Privés
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-users"></i> Utilisateurs
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'agents' ? 'active' : ''}`}
-              onClick={() => setActiveTab('agents')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-server"></i> Multi-Hôtes / Agents
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-              onClick={() => setActiveTab('security')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left' }}
-              type="button"
-            >
-              <i className="fa-solid fa-building-shield"></i> Sécurité Entreprise
-            </button>
-          </div>
-
-          {/* Form Content Pane */}
-          <div style={{ paddingLeft: '0.5rem' }}>
-            
-            {/* TAB: SMTP */}
-            {activeTab === 'smtp' && (
-              <div>
-                <h4 style={{ margin: '0 0 1.25rem 0' }}>Configuration du Serveur d'alerte SMTP</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Hôte du serveur SMTP</label>
-                    <input type="text" placeholder="smtp.domain.com" className="glass-input" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Port SMTP</label>
-                    <input type="number" placeholder="587" className="glass-input" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
-                  </div>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Utilisateur SMTP</label>
-                    <input type="text" placeholder="user@domain.com" className="glass-input" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Mot de passe SMTP</label>
-                    <input type="password" placeholder="•••••••• (inchangé)" className="glass-input" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Expéditeur de l'alerte</label>
-                    <input type="email" placeholder="alerts@safedock.local" className="glass-input" value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} />
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Destinataire de l'alerte</label>
-                    <input type="email" placeholder="admin@domain.com" className="glass-input" value={smtpTo} onChange={(e) => setSmtpTo(e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="form-group-checkbox glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Ignorer la vérification TLS (STARTTLS)</span>
-                  <label className="switch-toggle">
-                    <input type="checkbox" checked={smtpTlsSkip} onChange={(e) => setSmtpTlsSkip(e.target.checked)} />
-                    <span className="slider-toggle"></span>
-                  </label>
-                </div>
-
-                <button type="button" className="btn btn-accent" onClick={handleGlobalSubmit} style={{ alignSelf: 'flex-end', height: '35px' }}>
-                  <i className="fa-solid fa-save"></i> Enregistrer SMTP
-                </button>
-              </div>
-            )}
-
-            {/* TAB: SEUILS */}
-            {activeTab === 'seuils' && (
-              <div>
-                <h4 style={{ margin: '0 0 1.25rem 0' }}>Seuils de tolérance SecOps globaux</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tolérance de sévérité des failles CVE globale</label>
-                    <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="glass-input" style={{ fontWeight: 600, cursor: 'pointer' }}>
-                      <option value="CRITICAL">CRITICAL (Bloque toutes les failles critiques)</option>
-                      <option value="HIGH">HIGH (Bloque critiques et hautes)</option>
-                      <option value="MEDIUM">MEDIUM (Bloque critiques, hautes et moyennes)</option>
-                      <option value="LOW">LOW (Bloque toutes les failles sauf info)</option>
-                      <option value="NONE">NONE (Bloque toutes les failles, même mineures)</option>
-                    </select>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div className="form-group-checkbox glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Autoriser l'utilisateur root</span>
-                      <label className="switch-toggle">
-                        <input type="checkbox" checked={allowRoot} onChange={(e) => setAllowRoot(e.target.checked)} />
-                        <span className="slider-toggle"></span>
-                      </label>
-                    </div>
-                    <div className="form-group-checkbox glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Autoriser le mode privilégié</span>
-                      <label className="switch-toggle">
-                        <input type="checkbox" checked={allowPrivileged} onChange={(e) => setAllowPrivileged(e.target.checked)} />
-                        <span className="slider-toggle"></span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <button type="button" className="btn btn-accent" onClick={handleGlobalSubmit} style={{ alignSelf: 'flex-end', height: '35px' }}>
-                  <i className="fa-solid fa-save"></i> Enregistrer les seuils globaux
-                </button>
-              </div>
-            )}
-
-            {/* TAB: PREFERENCES */}
-            {activeTab === 'prefs' && (
-              <div>
-                <h4 style={{ margin: '0 0 1.25rem 0' }}>Préférences générales de l'application</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Scanner CVE par défaut (Global)</label>
-                    <select value={secopsScanner} onChange={(e) => setSecopsScanner(e.target.value)} className="glass-input" style={{ fontWeight: 600, cursor: 'pointer' }}>
-                      <option value="trivy">Trivy (Sécurité & vulnérabilités standard)</option>
-                      <option value="grype">Grype (Scan ultra-rapide des packages OS)</option>
-                      <option value="hybrid">Double-scan hybride (Trivy + Grype fusionnés)</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Intervalle de rafraîchissement d'audit en tâche de fond (Secondes)</label>
-                    <select value={pollInterval} onChange={(e) => setPollInterval(e.target.value)} className="glass-input">
-                      <option value="5">5 secondes (Temps réel extrême)</option>
-                      <option value="10">10 secondes (Défaut SecOps)</option>
-                      <option value="30">30 secondes</option>
-                      <option value="60">60 secondes (Optimal hôtes limités)</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Page d'atterrissage par défaut</label>
-                    <select value={defaultView} onChange={(e) => setDefaultView(e.target.value)} className="glass-input">
-                      <option value="dashboard">Dashboard principal</option>
-                      <option value="containers">Statuts des conteneurs</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Langue de l'interface (UI)</label>
-                    <select value={uiLanguage} onChange={(e) => setUiLanguage(e.target.value)} className="glass-input">
-                      <option value="fr">Français (Défaut)</option>
-                      <option value="en">English</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group-checkbox glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
-                    <div>
-                      <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600 }}>Mises à jour automatiques des conteneurs</span>
-                      <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>Déployer automatiquement les versions pivots saines validées par SecOps.</span>
-                    </div>
-                    <label className="switch-toggle">
-                      <input type="checkbox" checked={autoUpdateRollout} onChange={(e) => setAutoUpdateRollout(e.target.checked)} />
-                      <span className="slider-toggle"></span>
-                    </label>
-                  </div>
-                </div>
-
-                <button type="button" className="btn btn-accent" onClick={(e) => {
-                  handleGlobalSubmit(e);
-                  setSaveStatus('✅ Préférences et scanner enregistrés !');
-                  setTimeout(() => setSaveStatus(''), 4000);
-                }} style={{ alignSelf: 'flex-end', height: '35px' }}>
-                  <i className="fa-solid fa-save"></i> Enregistrer les préférences
-                </button>
-              </div>
-            )}
-
-            {/* TAB: REGISTRIES */}
-            {activeTab === 'registries' && (
-              <div>
-                <h4 style={{ margin: '0 0 0.5rem 0' }}>Comptes de registres Docker privés</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Associez vos accès sécurisés pour les analyses de tags privés et de digests SHA256.</p>
-                
-                {/* List credentials */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                  {registries.length === 0 ? (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '1rem', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>Aucun registre privé configuré.</div>
-                  ) : (
-                    registries.map(reg => (
-                      <div key={reg.id} className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 1rem', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '0.8rem' }}>
-                          <strong style={{ color: 'var(--primary)' }}>{reg.server_address}</strong> 
-                          <span style={{ color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>({reg.username})</span>
-                        </div>
-                        <button 
-                          type="button" 
-                          className="btn btn-accent" 
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', borderRadius: '6px' }}
-                          onClick={() => onDeleteRegistry(reg.id)}
-                        >
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Registration Form */}
-                <form onSubmit={handleRegistrySubmit} className="glass" style={{ padding: '1rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <strong style={{ fontSize: '0.85rem' }}><i className="fa-solid fa-plus-circle"></i> Associer un registre privé</strong>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '0.5rem' }}>
-                    <input type="text" placeholder="registry.gitlab.com" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={regServer} onChange={(e) => setRegServer(e.target.value)} required />
-                    <input type="text" placeholder="user-deploy" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={regUser} onChange={(e) => setRegUser(e.target.value)} required />
-                    <input type="password" placeholder="Token / Pass" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={regPass} onChange={(e) => setRegPass(e.target.value)} required />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', borderRadius: '6px', alignSelf: 'flex-end' }}>
-                    <i className="fa-solid fa-key"></i> Enregistrer les identifiants
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* TAB: USERS */}
-            {activeTab === 'users' && (
-              <div>
-                <h4 style={{ margin: '0 0 0.5rem 0' }}>Gestion des Utilisateurs SecOps</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Gérez les privilèges d'accès et invitez de nouveaux auditeurs dans l'espace SafeDock.</p>
-                
-                {/* Users List Table */}
-                <div className="glass" style={{ padding: '0.75rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                        <th style={{ padding: '0.5rem' }}>Identifiant</th>
-                        <th style={{ padding: '0.5rem' }}>Adresse Email</th>
-                        <th style={{ padding: '0.5rem' }}>Rôle de Sécurité</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map(u => (
-                        <tr key={u.username} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                          <td style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>{u.username}</td>
-                          <td style={{ padding: '0.6rem 0.5rem', fontFamily: 'monospace' }}>{u.email}</td>
-                          <td style={{ padding: '0.6rem 0.5rem' }}>
-                            <span className="badge badge-success" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', fontWeight: 'bold' }}>{u.role}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Add User Form */}
-                <form onSubmit={handleAddUser} className="glass" style={{ padding: '1rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <strong style={{ fontSize: '0.85rem' }}><i className="fa-solid fa-plus-circle"></i> Inviter un nouvel utilisateur</strong>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr 1fr', gap: '0.5rem' }}>
-                    <input type="text" placeholder="Nom de l'utilisateur" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required />
-                    <input type="email" placeholder="email@domain.com" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required />
-                    <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} className="glass-input" style={{ fontSize: '0.75rem', height: '32px', cursor: 'pointer' }}>
-                      <option value="Lecteur">Lecteur</option>
-                      <option value="Auditeur SecOps">Auditeur SecOps</option>
-                      <option value="Administrateur">Administrateur</option>
-                    </select>
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', borderRadius: '6px', alignSelf: 'flex-end' }}>
-                    <i className="fa-solid fa-paper-plane"></i> Envoyer l'invitation
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* TAB: AGENTS */}
-            {activeTab === 'agents' && (
-              <div>
-                <h4 style={{ margin: '0 0 0.5rem 0' }}>Gestion des Hôtes de Multi-Hébergement (Agents)</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Associez vos agents daemon distants pour surveiller plusieurs hôtes Docker en temps réel.</p>
-                
-                {/* Agents List Table */}
-                <div className="glass" style={{ padding: '0.75rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                        <th style={{ padding: '0.5rem' }}>Hôte</th>
-                        <th style={{ padding: '0.5rem' }}>Adresse IP</th>
-                        <th style={{ padding: '0.5rem' }}>Statut de connexion</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Version</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {agents.map(a => (
-                        <tr key={a.name} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                          <td style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>
-                            <i className="fa-solid fa-server" style={{ marginRight: '0.4rem', color: 'var(--primary)', fontSize: '0.75rem' }}></i>
-                            {a.name}
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem', fontFamily: 'monospace' }}>{a.ip}</td>
-                          <td style={{ padding: '0.6rem 0.5rem' }}>
-                            <span className="status-indicator online" style={{ fontSize: '0.75rem', color: a.status === 'connected' ? 'var(--success)' : 'var(--danger)' }}>
-                              <span className="pulse-dot" style={{ backgroundColor: a.status === 'connected' ? 'var(--success)' : 'var(--danger)', boxShadow: `0 0 8px ${a.status === 'connected' ? 'var(--success)' : 'var(--danger)'}` }}></span>
-                              {a.status === 'connected' ? 'Connecté' : 'Hors ligne'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', color: 'var(--text-muted)' }}>{a.version}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Add Agent Form */}
-                <form onSubmit={handleAddAgent} className="glass" style={{ padding: '1rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <strong style={{ fontSize: '0.85rem' }}><i className="fa-solid fa-plus-circle"></i> Enrôler un nouvel agent hôte</strong>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <input type="text" placeholder="Nom de l'hôte (ex: edge-node-03)" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={newAgentName} onChange={(e) => setNewAgentName(e.target.value)} required />
-                    <input type="text" placeholder="Adresse IP (ex: 192.168.1.96)" className="glass-input" style={{ fontSize: '0.75rem', padding: '0.5rem' }} value={newAgentIp} onChange={(e) => setNewAgentIp(e.target.value)} required />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', borderRadius: '6px', alignSelf: 'flex-end' }}>
-                    <i className="fa-solid fa-server"></i> Connecter l'Agent
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* TAB: SECURITY */}
-            {activeTab === 'security' && (
-              <div>
-                <h4 style={{ margin: '0 0 0.5rem 0' }}>Paramètres de Sécurité Globale d'Entreprise</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Configurez le contrôle d'accès d'identité (SSO/MFA) et la matrice RBAC globale.</p>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h5 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600 }}>Authentification unique SAML / SSO</h5>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Intégrez SafeDock avec votre fournisseur d'identité (Okta, Azure AD).</p>
-                    </div>
-                    <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontSize: '0.65rem', padding: '0.15rem 0.4rem', fontWeight: 'bold' }}>Désactivé</span>
-                  </div>
-
-                  <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h5 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600 }}>Validation Double Facteur (MFA)</h5>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Forcez l'utilisation de TOTP pour l'authentification.</p>
-                    </div>
-                    <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontSize: '0.65rem', padding: '0.15rem 0.4rem', fontWeight: 'bold' }}>Désactivé</span>
-                  </div>
-                </div>
-
-                {/* RBAC matrix */}
-                <div className="glass" style={{ padding: '1.25rem', borderRadius: '12px' }}>
-                  <strong style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Aperçu de la Matrice RBAC</strong>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.75rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                        <th style={{ padding: '0.35rem 0.5rem' }}>Permission</th>
-                        <th style={{ padding: '0.35rem 0.5rem', textAlign: 'center' }}>Lecteur</th>
-                        <th style={{ padding: '0.35rem 0.5rem', textAlign: 'center' }}>Auditeur</th>
-                        <th style={{ padding: '0.35rem 0.5rem', textAlign: 'center' }}>Admin</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>Visualiser les métriques</td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>Lancer des audits</td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-xmark text-muted"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>Gérer les configurations</td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-xmark text-muted"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-xmark text-muted"></i></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><i className="fa-solid fa-circle-check text-success"></i></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-        </div>
-
-        {/* Global Save Status Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '2rem', alignItems: 'center' }}>
-          <span id="settings-save-status" style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', fontWeight: 600 }}>{saveStatus}</span>
-        </div>
-
+        ))}
       </div>
+
+      {/* Content pane */}
+      <div className="card p-5 space-y-4">
+        {/* SMTP */}
+        {tab === 'smtp' && (
+          <>
+            <SHead>Configuration SMTP</SHead>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Hôte SMTP</label>
+                <input className={inputClass} placeholder="smtp.domain.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Port</label>
+                <input type="number" className={inputClass} placeholder="587" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Utilisateur</label>
+                <input className={inputClass} placeholder="user@domain.com" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Mot de passe</label>
+                <input type="password" className={inputClass} placeholder="••••••••" value={smtpPass} onChange={e => setSmtpPass(e.target.value)} />
+              </div>
+              <div className="space-y-1 col-span-1" />
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Expéditeur</label>
+                <input type="email" className={inputClass} placeholder="alerts@safedock.local" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Destinataire</label>
+                <input type="email" className={inputClass} placeholder="admin@domain.com" value={smtpTo} onChange={e => setSmtpTo(e.target.value)} />
+              </div>
+            </div>
+            <Toggle label="Ignorer la vérification TLS" checked={smtpTls} onChange={setSmtpTls} />
+            <SaveBtn onClick={saveGlobal} />
+          </>
+        )}
+
+        {/* Seuils */}
+        {tab === 'seuils' && (
+          <>
+            <SHead>Seuils de tolérance SecOps globaux</SHead>
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-zinc-500">Tolérance de sévérité CVE globale</label>
+              <select value={severity} onChange={e => setSeverity(e.target.value)} className={selectClass}>
+                <option value="CRITICAL">CRITICAL — bloque les failles critiques</option>
+                <option value="HIGH">HIGH — critique et haute</option>
+                <option value="MEDIUM">MEDIUM — critique, haute et moyenne</option>
+                <option value="LOW">LOW — toutes les failles</option>
+                <option value="NONE">NONE — toutes, même mineures</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Toggle label="Autoriser l'utilisateur root" checked={allowRoot} onChange={setAllowRoot} />
+              <Toggle label="Autoriser le mode privilégié" checked={allowPrivileged} onChange={setAllowPrivileged} />
+            </div>
+            <SaveBtn onClick={saveGlobal} />
+          </>
+        )}
+
+        {/* Prefs */}
+        {tab === 'prefs' && (
+          <>
+            <SHead>Préférences générales</SHead>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Scanner CVE par défaut</label>
+                <select value={scanner} onChange={e => setScanner(e.target.value)} className={selectClass}>
+                  <option value="trivy">Trivy (Vulnérabilités standard)</option>
+                  <option value="grype">Grype (Scan ultra-rapide OS)</option>
+                  <option value="hybrid">Double-scan hybride (Trivy + Grype)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Intervalle de rafraîchissement (secondes)</label>
+                <select value={pollInterval} onChange={e => setPollInterval(e.target.value)} className={selectClass}>
+                  <option value="5">5s — Temps réel</option>
+                  <option value="10">10s — Défaut SecOps</option>
+                  <option value="30">30s</option>
+                  <option value="60">60s — Hôtes limités</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-zinc-500">Page d'atterrissage</label>
+                <select value={defaultView} onChange={e => setDefaultView(e.target.value)} className={selectClass}>
+                  <option value="dashboard">Dashboard principal</option>
+                  <option value="containers">Inventaire des conteneurs</option>
+                </select>
+              </div>
+              <Toggle label="Mises à jour automatiques des conteneurs" checked={autoUpdate} onChange={setAutoUpdate} />
+            </div>
+            <SaveBtn onClick={saveGlobal} />
+          </>
+        )}
+
+        {/* Registries */}
+        {tab === 'registries' && (
+          <>
+            <SHead>Registres Docker privés</SHead>
+            <div className="space-y-1.5 mb-3">
+              {registries.length === 0
+                ? <p className="text-xs text-zinc-600 py-4 text-center">Aucun registre configuré.</p>
+                : registries.map(r => (
+                  <div key={r.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#0d1120] border border-white/[0.05]">
+                    <span className="text-xs"><span className="text-blue-400 font-mono">{r.server_address}</span> <span className="text-zinc-600">({r.username})</span></span>
+                    <button type="button" onClick={() => onDeleteRegistry(r.id)} className="text-red-500 hover:text-red-400 text-xs transition-colors">Supprimer</button>
+                  </div>
+                ))
+              }
+            </div>
+            <form onSubmit={handleRegSubmit} className="space-y-2">
+              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wide">Associer un registre</p>
+              <div className="grid grid-cols-3 gap-2">
+                <input className={inputClass} placeholder="registry.gitlab.com" value={regServer} onChange={e => setRegServer(e.target.value)} required />
+                <input className={inputClass} placeholder="user-deploy" value={regUser} onChange={e => setRegUser(e.target.value)} required />
+                <input type="password" className={inputClass} placeholder="Token / Pass" value={regPass} onChange={e => setRegPass(e.target.value)} required />
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors">
+                  Enregistrer les identifiants
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* Users */}
+        {tab === 'users' && (
+          <>
+            <SHead>Utilisateurs SecOps</SHead>
+            <table className="w-full text-xs mb-3">
+              <thead><tr className="border-b border-white/[0.06]">
+                <th className={thCl}>Identifiant</th><th className={thCl}>Email</th><th className={thCl}>Rôle</th>
+              </tr></thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.username} className="border-b border-white/[0.03]">
+                    <td className="px-3 py-2.5 font-semibold text-zinc-200">{u.username}</td>
+                    <td className="px-3 py-2.5 font-mono text-zinc-500">{u.email}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400">{u.role}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <form onSubmit={handleAddUser} className="space-y-2">
+              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wide">Inviter un utilisateur</p>
+              <div className="grid grid-cols-3 gap-2">
+                <input className={inputClass} placeholder="Nom d'utilisateur" value={newUsername} onChange={e => setNewUsername(e.target.value)} required />
+                <input type="email" className={inputClass} placeholder="email@domain.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+                <select value={newRole} onChange={e => setNewRole(e.target.value)} className={selectClass}>
+                  <option value="Lecteur">Lecteur</option>
+                  <option value="Auditeur SecOps">Auditeur SecOps</option>
+                  <option value="Administrateur">Administrateur</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors">
+                  Envoyer l'invitation
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* Agents */}
+        {tab === 'agents' && (
+          <>
+            <SHead>Hôtes Multi-Hébergement</SHead>
+            <table className="w-full text-xs mb-3">
+              <thead><tr className="border-b border-white/[0.06]">
+                <th className={thCl}>Hôte</th><th className={thCl}>IP</th><th className={thCl}>Statut</th><th className={cn(thCl, 'text-right')}>Version</th>
+              </tr></thead>
+              <tbody>
+                {agents.map(a => (
+                  <tr key={a.name} className="border-b border-white/[0.03]">
+                    <td className="px-3 py-2.5 font-semibold text-zinc-200 flex items-center gap-1.5">
+                      <Server className="w-3 h-3 text-blue-400" />{a.name}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-zinc-500">{a.ip}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={cn('flex items-center gap-1.5 text-xs', a.status === 'connected' ? 'text-emerald-400' : 'text-zinc-600')}>
+                        <span className={cn('w-1.5 h-1.5 rounded-full', a.status === 'connected' ? 'bg-emerald-400' : 'bg-zinc-700')} />
+                        {a.status === 'connected' ? 'Connecté' : 'Hors ligne'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono text-zinc-600">{a.version}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <form onSubmit={handleAddAgent} className="space-y-2">
+              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wide">Enrôler un agent</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input className={inputClass} placeholder="Nom hôte (ex: edge-node-03)" value={agentName} onChange={e => setAgentName(e.target.value)} required />
+                <input className={inputClass} placeholder="IP (ex: 192.168.1.96)" value={agentIp} onChange={e => setAgentIp(e.target.value)} required />
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors">
+                  Connecter l'Agent
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* Security */}
+        {tab === 'security' && (
+          <>
+            <SHead>Sécurité Entreprise</SHead>
+            <div className="space-y-2">
+              {[
+                { label: 'Authentification unique SAML / SSO', desc: 'Intégrez SafeDock avec votre IdP (Okta, Azure AD).', enabled: false },
+                { label: 'Validation Double Facteur (MFA/TOTP)', desc: 'Forcez l\'utilisation de TOTP pour toutes les connexions.', enabled: false },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between p-3 rounded-lg bg-[#0d1120] border border-white/[0.05]">
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-100">{item.label}</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">{item.desc}</p>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-500">Désactivé</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-zinc-300 mb-2">Matrice RBAC</p>
+              <table className="w-full text-xs">
+                <thead><tr className="border-b border-white/[0.06]">
+                  <th className={thCl}>Permission</th>
+                  <th className={cn(thCl, 'text-center')}>Lecteur</th>
+                  <th className={cn(thCl, 'text-center')}>Auditeur</th>
+                  <th className={cn(thCl, 'text-center')}>Admin</th>
+                </tr></thead>
+                <tbody>
+                  {[
+                    ['Visualiser les métriques', true, true, true],
+                    ['Lancer des audits', false, true, true],
+                    ['Gérer les configurations', false, false, true],
+                  ].map(([perm, ...vals]) => (
+                    <tr key={perm} className="border-b border-white/[0.03]">
+                      <td className="px-3 py-2.5 font-medium text-zinc-300">{perm}</td>
+                      {vals.map((v, i) => (
+                        <td key={i} className="px-3 py-2.5 text-center">
+                          {v ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mx-auto" /> : <XCircle className="w-3.5 h-3.5 text-zinc-700 mx-auto" />}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Status footer */}
+        {status && (
+          <p className="text-xs text-emerald-400 font-medium pt-2 border-t border-white/[0.06]">{status}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SHead({ children }) {
+  return <h3 className="text-sm font-semibold text-zinc-100 mb-1 pb-3 border-b border-white/[0.06]">{children}</h3>;
+}
+
+function Toggle({ label, checked, onChange }) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-[#0d1120] border border-white/[0.06]">
+      <span className="text-xs font-medium text-zinc-200">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cn('relative w-8 h-4 rounded-full transition-colors', checked ? 'bg-blue-500' : 'bg-zinc-700')}
+      >
+        <span className={cn('absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform', checked ? 'translate-x-4' : 'translate-x-0.5')} />
+      </button>
+    </div>
+  );
+}
+
+function SaveBtn({ onClick }) {
+  return (
+    <div className="flex justify-end pt-2">
+      <button
+        type="button"
+        onClick={onClick}
+        className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors"
+      >
+        Enregistrer
+      </button>
     </div>
   );
 }

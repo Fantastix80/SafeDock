@@ -1,42 +1,37 @@
 import React from 'react';
+import { TriangleAlert, HouseIcon } from 'lucide-react';
 
 export default function NotFoundView({ onNavigate }) {
   return (
-    <div className="page-view" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: '2rem', textAlign: 'center' }}>
-      <div className="glass" style={{ maxWidth: '600px', width: '100%', padding: '3rem 2rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.25)', boxShadow: '0 8px 32px rgba(239, 68, 68, 0.08)', position: 'relative', overflow: 'hidden' }}>
-        
-        {/* Glowing cyber aura */}
-        <div style={{ position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0) 70%)', filter: 'blur(20px)', pointerEvents: 'none' }}></div>
-        
-        <div style={{ fontSize: '5rem', color: 'var(--danger)', marginBottom: '1rem', animation: 'pulse 2s infinite' }}>
-          <i className="fa-solid fa-triangle-exclamation"></i>
+    <div className="flex items-center justify-center min-h-[70vh]">
+      <div className="relative max-w-lg w-full text-center card p-10 border-red-500/20 overflow-hidden">
+        {/* Glow */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-40 h-40 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <TriangleAlert className="w-12 h-12 text-red-400 mx-auto mb-4 animate-pulse" />
+
+        <h1 className="text-7xl font-black text-zinc-100 font-mono tracking-tighter mb-1">404</h1>
+        <h2 className="text-lg font-bold text-zinc-200 mb-4">Rupture du Périmètre de Sécurité</h2>
+
+        <div className="bg-[#0d1120] border border-white/[0.06] rounded-lg p-3 mb-6 text-left font-mono text-xs text-zinc-500">
+          <span className="text-zinc-700">[root@safedock]# </span>
+          <span className="text-red-400">access --request-uri="{window.location.pathname}"</span>
+          <br />
+          <span className="text-red-500 font-bold">ERROR:</span>
+          <span className="text-zinc-600"> Route non autorisée. Code 0x04F4. Hôte sécurisé.</span>
         </div>
-        
-        <h1 style={{ fontSize: '4.5rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.03em', fontFamily: 'monospace' }}>
-          404
-        </h1>
-        
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem', marginBottom: '1.5rem' }}>
-          Rupture du Périmètre de Sécurité
-        </h2>
-        
-        <div className="glass" style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '2rem', textAlign: 'left', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: 'var(--danger)' }}><span style={{ color: 'var(--text-muted)' }}>[root@safedock]#</span> access --request-uri="{window.location.pathname}"</p>
-          <p style={{ margin: '0', color: 'var(--text-muted)' }}><span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>ERROR:</span> Route non autorisée ou inexistante. Le démon a renvoyé un code d'erreur 0x04F4. Hôte local sécurisé.</p>
-        </div>
-        
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem', lineHeight: '1.6' }}>
-          La ressource demandée n'a pu être localisée sur ce nœud Docker. Veuillez retourner au centre de commandement sécurisé.
+
+        <p className="text-sm text-zinc-500 mb-6 leading-relaxed">
+          La ressource demandée n'a pu être localisée sur ce nœud Docker. Retournez au centre de commandement sécurisé.
         </p>
-        
-        <button 
-          className="btn btn-primary"
-          onClick={() => onNavigate('dashboard')}
-          style={{ padding: '0.75rem 1.75rem', fontSize: '0.9rem', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}
+
+        <button
           type="button"
+          onClick={() => onNavigate('dashboard')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors"
         >
-          <i className="fa-solid fa-house-shield"></i>
-          <span>Retourner au Tableau de Bord</span>
+          <HouseIcon className="w-4 h-4" />
+          Retourner au Tableau de Bord
         </button>
       </div>
     </div>

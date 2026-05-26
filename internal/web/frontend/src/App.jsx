@@ -177,11 +177,11 @@ export default function App() {
   }, []);
 
   const applyThemeClass = (targetTheme) => {
-    const body = document.body;
-    if (targetTheme === 'light') {
-      body.classList.add('light-theme');
+    const html = document.documentElement;
+    if (targetTheme === 'dark') {
+      html.classList.add('dark');
     } else {
-      body.classList.remove('light-theme');
+      html.classList.remove('dark');
     }
   };
 
@@ -461,12 +461,9 @@ export default function App() {
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
 
   return (
-    <div className={`dashboard-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <div className="glass-bg-glow"></div>
-      
-      {/* Sidebar Section */}
-      <Sidebar 
-        activePage={activePage} 
+    <div className="flex h-screen overflow-hidden bg-[#0b0e18]">
+      <Sidebar
+        activePage={activePage}
         onNavigate={handleNavigate}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -474,8 +471,7 @@ export default function App() {
         isRefreshing={isRefreshing}
       />
 
-      {/* Main Content Pane */}
-      <main className="main-content">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header
           activePage={activePage}
           theme={theme}
@@ -486,7 +482,7 @@ export default function App() {
         />
 
         {/* View Router */}
-        <div className="page-body">
+        <main className="flex-1 overflow-y-auto p-6">
           {activePage === 'dashboard' && (
             <DashboardView
               containers={scopedContainers}
@@ -582,8 +578,8 @@ export default function App() {
           {activePage === '404' && (
             <NotFoundView onNavigate={handleNavigate} />
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

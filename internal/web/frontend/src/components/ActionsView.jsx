@@ -1,196 +1,177 @@
 import React, { useState } from 'react';
+import { CloudDownload, Bug, Settings2, CheckCircle2, TriangleAlert, RotateCw, Eye } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function ActionsView({ containers, onTriggerRollout, onNavigate }) {
-  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('');
+  const [autoUpdate, setAutoUpdate] = useState(false);
+  const [status, setStatus] = useState('');
 
-  const handleSaveAutoUpdate = () => {
-    setSaveStatus('Enregistrement...');
+  const updatesPending = (containers || []).filter(c => c.update_available);
+  const vulnerable = (containers || []).filter(c => c.score < 75 && !c.update_available);
+
+  const handleSave = () => {
+    setStatus('Enregistrement...');
     setTimeout(() => {
-      setSaveStatus('✅ Politique de mise à jour sauvegardée !');
-      setTimeout(() => setSaveStatus(''), 4000);
+      setStatus('Politique de mise à jour sauvegardée.');
+      setTimeout(() => setStatus(''), 4000);
     }, 800);
   };
 
-  // Compile required actions from containers
-  const updatesPending = (containers || []).filter(c => c.update_available);
-  const vulnerableContainers = (containers || []).filter(c => c.score < 75 && !c.update_available);
-
   return (
-    <div id="view-actions" className="page-view">
-      <section className="section-container">
-        
-        {/* Title Area */}
-        <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-          <div>
-            <h3>
-              <i className="fa-solid fa-triangle-exclamation text-warning" style={{ marginRight: '0.5rem' }}></i>
-              Actions de Sécurité Nécessaires
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              Consultez les mises à jour en attente d'approbation et résolvez les alertes CVE critiques actives.
-            </p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-zinc-100">Actions de Sécurité Nécessaires</h2>
+        <p className="text-xs text-zinc-500 mt-0.5">Mises à jour en attente d'approbation et alertes CVE critiques.</p>
+      </div>
 
-        {/* Grid split */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-          
-          {/* Left Panel: Pending Actions List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            {/* Updates list card */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-cloud-arrow-down" style={{ color: 'var(--primary)', fontSize: '1rem' }}></i>
-                Mises à jour prêtes à être déployées ({updatesPending.length})
-              </h4>
-
-              {updatesPending.length === 0 ? (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '1rem', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                  Aucune mise à jour de conteneur en attente. Tout est parfaitement à jour !
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {updatesPending.map(c => (
-                    <div key={c.id} className="glass" style={{ padding: '1rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--border-color)' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{c.name}</strong>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({c.host_name})</span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                          Image : {c.image_name}:{c.image_tag}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '0.35rem', fontWeight: 600 }}>
-                          <i className="fa-solid fa-circle-check"></i> Prêt pour pivot de cycle de vie sécurisé
-                        </div>
+      <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
+        {/* Left */}
+        <div className="space-y-4">
+          {/* Updates */}
+          <SectionCard
+            icon={<CloudDownload className="w-4 h-4 text-blue-400" />}
+            title={`Mises à jour prêtes (${updatesPending.length})`}
+          >
+            {updatesPending.length === 0 ? (
+              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />} text="Tous les conteneurs sont à jour." />
+            ) : (
+              <div className="space-y-2">
+                {updatesPending.map(c => (
+                  <div key={c.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-[#0d1120] border border-white/[0.05]">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-zinc-100">{c.name}</p>
+                        <span className="text-[10px] text-zinc-600">{c.host_name}</span>
                       </div>
-                      <button 
-                        className="btn btn-primary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                        onClick={() => onTriggerRollout(c.id, c.name)}
+                      <p className="text-[11px] font-mono text-zinc-500 mt-0.5">{c.image_name}:{c.image_tag}</p>
+                      <p className="text-[11px] text-emerald-400 mt-0.5 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Prêt pour pivot sécurisé
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onTriggerRollout(c.id, c.name)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors shrink-0"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" /> Déployer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          {/* CVEs */}
+          <SectionCard
+            icon={<Bug className="w-4 h-4 text-red-400" />}
+            title={`Vulnérabilités sans correctif (${vulnerable.length})`}
+          >
+            {vulnerable.length === 0 ? (
+              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />} text="Excellente posture — aucune vulnérabilité active." />
+            ) : (
+              <div className="space-y-2">
+                {vulnerable.map(c => (
+                  <div key={c.id} className="p-3 rounded-lg bg-[#0d1120] border border-white/[0.05]">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-zinc-100">{c.name}</p>
+                        <span className="text-[10px] text-zinc-600">{c.host_name}</span>
+                      </div>
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-500/15 text-red-400">
+                        Score : {c.score}/100
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed mb-2">
+                      Des CVE ont été remontées sur ce conteneur. Aucune nouvelle version publiée par l'éditeur pour le moment.
+                    </p>
+                    <div className="flex items-center justify-between border-t border-white/[0.04] pt-2">
+                      <p className="text-[10px] text-zinc-600 flex items-center gap-1">
+                        <TriangleAlert className="w-3 h-3 text-amber-600" />
+                        Recommandé : Isoler le réseau ou durcir les variables d'env.
+                      </p>
+                      <button
                         type="button"
+                        onClick={() => onNavigate('containers')}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] rounded text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition-colors"
                       >
-                        <i className="fa-solid fa-rotate"></i>
-                        <span>Déployer la MàJ</span>
+                        <Eye className="w-3 h-3" /> Inspecter
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Unresolved CVE card list */}
-            <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px' }}>
-              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-bug" style={{ color: 'var(--danger)', fontSize: '1rem' }}></i>
-                Vulnérabilités actives sans correctif automatique ({vulnerableContainers.length})
-              </h4>
-
-              {vulnerableContainers.length === 0 ? (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '1rem', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                  Aucune vulnérabilité active non-résolue. Excellente posture !
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {vulnerableContainers.map(c => (
-                    <div key={c.id} className="glass" style={{ padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{c.name}</strong>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({c.host_name})</span>
-                        </div>
-                        <span className="badge badge-danger" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', fontWeight: 'bold' }}>
-                          Score SecOps : {c.score}/100
-                        </span>
-                      </div>
-                      
-                      <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                        La veille SecOps a remonté des vulnérabilités critiques de type CVE sur ce conteneur, mais aucune nouvelle version (tag digest immuable) n'est publiée par l'éditeur pour le moment.
-                      </p>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                          <i className="fa-solid fa-shield-halved" style={{ marginRight: '0.3rem' }}></i> Recommandation : Isoler le réseau du conteneur ou durcir les variables d'environnement.
-                        </span>
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.7rem', borderRadius: '6px' }}
-                          onClick={() => {
-                            onNavigate('containers');
-                          }}
-                          type="button"
-                        >
-                          <span>Inspecter</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* Right Panel: Auto-Update Settings */}
-          <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px', height: 'fit-content' }}>
-            <h4 style={{ color: 'var(--text-primary)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <i className="fa-solid fa-gear" style={{ color: 'var(--primary)', fontSize: '1rem' }}></i>
-              Paramètres pivots
-            </h4>
-
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: '1.4' }}>
-              Configurez le comportement de mise à jour et de pivot du cycle de vie de SafeDock lors de la détection de versions saines.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              
-              {/* Option toggle */}
-              <div className="glass" style={{ padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={autoUpdateEnabled} 
-                    onChange={e => setAutoUpdateEnabled(e.target.checked)} 
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                  />
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>Mises à jour automatiques SecOps</span>
-                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', lineHeight: '1.3' }}>
-                      Mettre à jour le conteneur automatiquement dès que tous les tests de sécurité SecOps sont validés.
-                    </span>
                   </div>
-                </label>
+                ))}
               </div>
-
-              {!autoUpdateEnabled && (
-                <div className="glass" style={{ padding: '0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(245, 158, 11, 0.04)' }}>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <i className="fa-solid fa-circle-exclamation"></i> Mode Notification Seul
-                  </span>
-                  <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: '1.3' }}>
-                    Le programme n'effectuera aucun déploiement automatique. Vous recevrez une alerte pour déployer manuellement chaque conteneur.
-                  </span>
-                </div>
-              )}
-
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, textAlign: 'center', display: 'block', minHeight: '1.2rem' }}>{saveStatus}</span>
-
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={handleSaveAutoUpdate}
-                style={{ width: '100%', padding: '0.6rem', borderRadius: '8px' }}
-              >
-                <i className="fa-solid fa-save"></i>
-                <span style={{ marginLeft: '0.4rem' }}>Sauvegarder les règles</span>
-              </button>
-            </div>
-          </div>
-
+            )}
+          </SectionCard>
         </div>
-      </section>
+
+        {/* Right: Settings */}
+        <SectionCard icon={<Settings2 className="w-4 h-4 text-blue-400" />} title="Paramètres pivots">
+          <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+            Comportement de mise à jour lors de la détection de versions saines.
+          </p>
+
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-white/[0.06] bg-[#0d1120]">
+              <input
+                type="checkbox"
+                checked={autoUpdate}
+                onChange={e => setAutoUpdate(e.target.checked)}
+                className="mt-0.5 accent-blue-500"
+              />
+              <div>
+                <p className="text-xs font-semibold text-zinc-100">Mises à jour automatiques SecOps</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
+                  Mettre à jour automatiquement dès que tous les tests SecOps sont validés.
+                </p>
+              </div>
+            </label>
+
+            {!autoUpdate && (
+              <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 mb-1">
+                  <TriangleAlert className="w-3.5 h-3.5" /> Mode Notification Seul
+                </p>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Aucun déploiement automatique. Vous recevrez une alerte pour déployer manuellement.
+                </p>
+              </div>
+            )}
+
+            {status && (
+              <p className="text-xs text-center text-emerald-400 font-medium">{status}</p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSave}
+              className="w-full py-2 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors"
+            >
+              Sauvegarder les règles
+            </button>
+          </div>
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+function SectionCard({ icon, title, children }) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
+        {icon}
+        <h3 className="text-xs font-semibold text-zinc-100">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function EmptyState({ icon, text }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-zinc-600">
+      {icon}
+      <p className="text-xs">{text}</p>
     </div>
   );
 }
