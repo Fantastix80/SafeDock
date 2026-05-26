@@ -476,8 +476,8 @@ export default function App() {
 
       {/* Main Content Pane */}
       <main className="main-content">
-        <Header 
-          activePage={activePage} 
+        <Header
+          activePage={activePage}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onRefresh={handleRefreshAll}
@@ -486,101 +486,103 @@ export default function App() {
         />
 
         {/* View Router */}
-        {activePage === 'dashboard' && (
-          <DashboardView 
-            containers={scopedContainers} 
-            auditLogs={auditLogs}
-            stats={stats}
-            onSelectContainer={handleSelectContainer}
-            onRefreshLogs={fetchAuditLogs}
-            onNavigate={handleNavigate}
-          />
-        )}
+        <div className="page-body">
+          {activePage === 'dashboard' && (
+            <DashboardView
+              containers={scopedContainers}
+              auditLogs={auditLogs}
+              stats={stats}
+              onSelectContainer={handleSelectContainer}
+              onRefreshLogs={fetchAuditLogs}
+              onNavigate={handleNavigate}
+            />
+          )}
 
-        {activePage === 'containers' && (
-          <ContainersView 
-            containers={scopedContainers}
-            onSelectContainer={handleSelectContainer}
-            onNavigate={handleNavigate}
-          />
-        )}
+          {activePage === 'containers' && (
+            <ContainersView
+              containers={scopedContainers}
+              onSelectContainer={handleSelectContainer}
+              onNavigate={handleNavigate}
+            />
+          )}
 
-        {activePage === 'actions' && (
-          <ActionsView 
-            containers={scopedContainers}
-            onTriggerRollout={handleTriggerRollout}
-            onNavigate={handleNavigate}
-          />
-        )}
+          {activePage === 'actions' && (
+            <ActionsView
+              containers={scopedContainers}
+              onTriggerRollout={handleTriggerRollout}
+              onNavigate={handleNavigate}
+            />
+          )}
 
-        {activePage === 'agents' && (
-          <AgentsView />
-        )}
+          {activePage === 'agents' && (
+            <AgentsView />
+          )}
 
-        {activePage === 'watch' && (
-          <WatchView />
-        )}
+          {activePage === 'watch' && (
+            <WatchView />
+          )}
 
-        {activePage === 'notifications' && (
-          <NotificationsView />
-        )}
+          {activePage === 'notifications' && (
+            <NotificationsView />
+          )}
 
-        {activePage === 'account' && (
-          <AccountView />
-        )}
+          {activePage === 'account' && (
+            <AccountView />
+          )}
 
-        {activePage === 'permissions' && (
-          <PermissionsView 
-            simulatedUsers={simulatedUsers}
-            setSimulatedUsers={setSimulatedUsers}
-            activeUserProfile={activeUserProfile}
-            setActiveUserProfile={(prof) => {
-              setActiveUserProfile(prof);
-              localStorage.setItem('safedock-active-user', JSON.stringify(prof));
-            }}
-          />
-        )}
+          {activePage === 'permissions' && (
+            <PermissionsView
+              simulatedUsers={simulatedUsers}
+              setSimulatedUsers={setSimulatedUsers}
+              activeUserProfile={activeUserProfile}
+              setActiveUserProfile={(prof) => {
+                setActiveUserProfile(prof);
+                localStorage.setItem('safedock-active-user', JSON.stringify(prof));
+              }}
+            />
+          )}
 
-        {activePage === 'settings' && (
-          <SettingsView 
-            config={config}
-            registries={registries}
-            onSaveGlobalSettings={handleSaveGlobalSettings}
-            onAddRegistry={handleAddRegistry}
-            onDeleteRegistry={handleDeleteRegistry}
-          />
-        )}
+          {activePage === 'settings' && (
+            <SettingsView
+              config={config}
+              registries={registries}
+              onSaveGlobalSettings={handleSaveGlobalSettings}
+              onAddRegistry={handleAddRegistry}
+              onDeleteRegistry={handleDeleteRegistry}
+            />
+          )}
 
-        {activePage === 'container-settings' && (
-          <ContainerSettingsView 
-            containerId={selectedContainerId}
-            containers={scopedContainers}
-            overrides={overrides}
-            onSaveOverride={handleSaveOverride}
-            onDeleteOverride={handleDeleteOverride}
-            onNavigate={handleNavigate}
-          />
-        )}
+          {activePage === 'container-settings' && (
+            <ContainerSettingsView
+              containerId={selectedContainerId}
+              containers={scopedContainers}
+              overrides={overrides}
+              onSaveOverride={handleSaveOverride}
+              onDeleteOverride={handleDeleteOverride}
+              onNavigate={handleNavigate}
+            />
+          )}
 
-        {activePage === 'container-detail' && (
-          <ContainerDetailView 
-            containerId={selectedContainerId}
-            containers={scopedContainers}
-            overrides={overrides}
-            onSaveOverride={handleSaveOverride}
-            onDeleteOverride={handleDeleteOverride}
-            onTriggerRollout={handleTriggerRollout}
-            isRolloutLoading={isRolloutLoading}
-            rolloutStatusMsg={rolloutStatusMsg}
-            onNavigate={handleNavigate}
-            containerTags={containerTags}
-            onUpdateTags={handleUpdateContainerTags}
-          />
-        )}
+          {activePage === 'container-detail' && (
+            <ContainerDetailView
+              containerId={selectedContainerId}
+              containers={scopedContainers}
+              overrides={overrides}
+              onSaveOverride={handleSaveOverride}
+              onDeleteOverride={handleDeleteOverride}
+              onTriggerRollout={handleTriggerRollout}
+              isRolloutLoading={isRolloutLoading}
+              rolloutStatusMsg={rolloutStatusMsg}
+              onNavigate={handleNavigate}
+              containerTags={containerTags}
+              onUpdateTags={handleUpdateContainerTags}
+            />
+          )}
 
-        {activePage === '404' && (
-          <NotFoundView onNavigate={handleNavigate} />
-        )}
+          {activePage === '404' && (
+            <NotFoundView onNavigate={handleNavigate} />
+          )}
+        </div>
       </main>
     </div>
   );

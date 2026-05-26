@@ -1,202 +1,181 @@
 import React from 'react';
 
-export default function Sidebar({ 
-  activePage, 
-  onNavigate, 
-  isCollapsed, 
-  onToggleCollapse, 
-  onRefresh, 
-  isRefreshing 
+export default function Sidebar({
+  activePage,
+  onNavigate,
+  isCollapsed,
+  onToggleCollapse,
+  onRefresh,
+  isRefreshing
 }) {
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ position: 'relative' }}>
-      
-      {/* Logo Area & Collapse Button */}
-      <div className="logo-area" style={{ display: 'flex', justifyContent: isCollapsed ? 'center' : 'flex-start', alignItems: 'center', width: '100%', marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div className="logo-icon">
-            <svg className="safedock-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="var(--accent)" />
-                  <stop offset="100%" stop-color="var(--primary)" />
-                </linearGradient>
-                <linearGradient id="containerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="var(--info)" />
-                  <stop offset="100%" stop-color="var(--primary)" />
-                </linearGradient>
-              </defs>
-              {/* Outer Shield */}
-              <path d="M50,8 L85,22 L85,55 C85,75 50,88 50,88 C50,88 15,75 15,55 L15,22 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="6" stroke-linejoin="round" />
-              {/* Inner Glow Shield */}
-              <path d="M50,16 L77,27 L77,53 C77,69 50,79 50,79 C50,79 23,69 23,53 L23,27 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="1.5" opacity="0.4" />
-              {/* Padlock Handle Loop */}
-              <path d="M41,36 L41,27 C41,21 59,21 59,27 L59,36" fill="none" stroke="url(#containerGrad)" stroke-width="4.5" stroke-linecap="round" />
-              {/* Docker Container (Isometric Cube) */}
-              {/* Top Face */}
-              <path d="M50,34 L70,42 L50,50 L30,42 Z" fill="url(#containerGrad)" opacity="0.9" />
-              {/* Left Face */}
-              <path d="M30,42 L50,50 L50,70 L30,62 Z" fill="var(--primary)" opacity="0.8" />
-              {/* Right Face */}
-              <path d="M50,50 L70,42 L70,62 L50,70 Z" fill="var(--primary)" />
-              {/* Divider lines on Isometric Cube */}
-              <path d="M40,46 L40,66" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
-              <path d="M60,46 L60,66" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
-            </svg>
-          </div>
-          {!isCollapsed && (
-            <div className="logo-text">
-              <h1>SafeDock</h1>
-            </div>
-          )}
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+
+      {/* Logo + collapse toggle */}
+      <div className="logo-area">
+        <div className="logo-icon">
+          <svg className="safedock-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="var(--primary)" />
+                <stop offset="100%" stopColor="var(--info)" />
+              </linearGradient>
+              <linearGradient id="containerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="var(--info)" />
+                <stop offset="100%" stopColor="var(--primary)" />
+              </linearGradient>
+            </defs>
+            {/* Outer shield */}
+            <path d="M50,8 L85,22 L85,55 C85,75 50,88 50,88 C50,88 15,75 15,55 L15,22 Z" fill="none" stroke="url(#shieldGrad)" strokeWidth="6" strokeLinejoin="round" />
+            {/* Inner glow */}
+            <path d="M50,16 L77,27 L77,53 C77,69 50,79 50,79 C50,79 23,69 23,53 L23,27 Z" fill="none" stroke="url(#shieldGrad)" strokeWidth="1.5" opacity="0.4" />
+            {/* Padlock arc */}
+            <path d="M41,36 L41,27 C41,21 59,21 59,27 L59,36" fill="none" stroke="url(#containerGrad)" strokeWidth="4.5" strokeLinecap="round" />
+            {/* Cube — top face */}
+            <path d="M50,34 L70,42 L50,50 L30,42 Z" fill="url(#containerGrad)" opacity="0.9" />
+            {/* Cube — left face */}
+            <path d="M30,42 L50,50 L50,70 L30,62 Z" fill="var(--primary)" opacity="0.8" />
+            {/* Cube — right face */}
+            <path d="M50,50 L70,42 L70,62 L50,70 Z" fill="var(--primary)" />
+            {/* Cube dividers */}
+            <path d="M40,46 L40,66" stroke="#ffffff" strokeWidth="1.5" opacity="0.25" />
+            <path d="M60,46 L60,66" stroke="#ffffff" strokeWidth="1.5" opacity="0.25" />
+          </svg>
         </div>
-        
-        {/* Floating Absolute Collapse Toggle Button */}
-        <button 
-          className="sidebar-collapse-btn" 
+        {!isCollapsed && (
+          <div className="logo-text">
+            <h1>SafeDock</h1>
+          </div>
+        )}
+        <button
+          className="sidebar-collapse-btn"
           onClick={onToggleCollapse}
-          style={{ 
-            position: 'absolute', 
-            right: '-14px', 
-            top: '2.75rem',
-            background: 'var(--bg-card)', 
-            border: '1px solid var(--border-color)', 
-            color: 'var(--text-secondary)', 
-            cursor: 'pointer', 
-            fontSize: '0.75rem', 
-            width: '28px', 
-            height: '28px', 
-            borderRadius: '50%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-            zIndex: 100,
-            transition: 'var(--transition-smooth)'
-          }}
-          title={isCollapsed ? "Déplier le menu" : "Replier le menu"}
+          title={isCollapsed ? 'Déplier le menu' : 'Replier le menu'}
           type="button"
+          aria-label={isCollapsed ? 'Déplier le menu' : 'Replier le menu'}
         >
           <i className={`fa-solid ${isCollapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
         </button>
       </div>
-      
-      {/* Navigation Links */}
-      <nav className="sidebar-nav" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <div 
-          className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`} 
+
+      {/* Primary navigation */}
+      <nav className="sidebar-nav" aria-label="Navigation principale">
+        <button
+          className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
           onClick={() => onNavigate('dashboard')}
           title="Dashboard"
+          aria-current={activePage === 'dashboard' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-chart-line"></i>
+          <i className="fa-solid fa-chart-line" aria-hidden="true"></i>
           <span>Dashboard</span>
-        </div>
-        
-        <div 
-          className={`nav-item ${activePage === 'containers' ? 'active' : ''}`} 
+        </button>
+
+        <button
+          className={`nav-item ${activePage === 'containers' ? 'active' : ''}`}
           onClick={() => onNavigate('containers')}
           title="Conteneurs"
+          aria-current={activePage === 'containers' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-cubes"></i>
+          <i className="fa-solid fa-cubes" aria-hidden="true"></i>
           <span>Conteneurs</span>
-        </div>
+        </button>
 
-        <div 
-          className={`nav-item ${activePage === 'actions' ? 'active' : ''}`} 
+        <button
+          className={`nav-item ${activePage === 'actions' ? 'active' : ''}`}
           onClick={() => onNavigate('actions')}
-          title="Actions Nécessaires"
+          title="Actions SecOps"
+          aria-current={activePage === 'actions' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-shield-halved"></i>
+          <i className="fa-solid fa-shield-halved" aria-hidden="true"></i>
           <span>Actions</span>
-        </div>
+        </button>
 
-        <div 
-          className={`nav-item ${activePage === 'agents' ? 'active' : ''}`} 
+        <button
+          className={`nav-item ${activePage === 'agents' ? 'active' : ''}`}
           onClick={() => onNavigate('agents')}
           title="Agents SecOps"
+          aria-current={activePage === 'agents' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-server"></i>
+          <i className="fa-solid fa-server" aria-hidden="true"></i>
           <span>Agents</span>
-        </div>
-        
-        <div 
-          className={`nav-item ${activePage === 'watch' ? 'active' : ''}`} 
+        </button>
+
+        <button
+          className={`nav-item ${activePage === 'watch' ? 'active' : ''}`}
           onClick={() => onNavigate('watch')}
           title="Veille SecOps"
+          aria-current={activePage === 'watch' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-newspaper"></i>
+          <i className="fa-solid fa-newspaper" aria-hidden="true"></i>
           <span>Veille SecOps</span>
-        </div>
-        
-        <div 
-          className={`nav-item ${activePage === 'notifications' ? 'active' : ''}`} 
+        </button>
+
+        <button
+          className={`nav-item ${activePage === 'notifications' ? 'active' : ''}`}
           onClick={() => onNavigate('notifications')}
           title="Notifications"
+          aria-current={activePage === 'notifications' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-bell"></i>
+          <i className="fa-solid fa-bell" aria-hidden="true"></i>
           <span>Notifications</span>
-        </div>
+        </button>
 
-        <div 
-          className={`nav-item ${activePage === 'permissions' ? 'active' : ''}`} 
+        <button
+          className={`nav-item ${activePage === 'permissions' ? 'active' : ''}`}
           onClick={() => onNavigate('permissions')}
           title="Permissions"
+          aria-current={activePage === 'permissions' ? 'page' : undefined}
+          type="button"
         >
-          <i className="fa-solid fa-user-lock"></i>
+          <i className="fa-solid fa-user-lock" aria-hidden="true"></i>
           <span>Permissions</span>
-        </div>
+        </button>
       </nav>
 
-      {/* Relocated Global Audit Action */}
-      <div className="sidebar-audit-action" style={{ margin: '1rem 0' }}>
-        <button 
-          className={`btn btn-primary ${isRefreshing ? 'disabled' : ''}`} 
-          style={{ 
-            width: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '0.6rem', 
-            padding: isCollapsed ? '0' : '0.75rem 1rem', 
-            borderRadius: isCollapsed ? '50%' : '12px',
-            minWidth: isCollapsed ? '44px' : 'auto',
-            height: isCollapsed ? '44px' : 'auto'
-          }}
-          id="btn-global-refresh"
+      {/* Global audit action */}
+      <div className="sidebar-audit-action">
+        <button
+          className={`btn btn-primary w-full ${isRefreshing ? 'disabled' : ''}`}
           onClick={onRefresh}
           disabled={isRefreshing}
           title="Lancer un Audit Global"
           type="button"
         >
-          <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`}></i>
-          <span>Audit Global</span>
+          <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`} aria-hidden="true"></i>
+          {!isCollapsed && <span>Audit Global</span>}
         </button>
       </div>
 
-      {/* Settings Navigation Link - Relocated to Bottom */}
-      <div 
-        className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} 
+      {/* Settings link */}
+      <button
+        className={`nav-item ${activePage === 'settings' ? 'active' : ''}`}
         onClick={() => onNavigate('settings')}
-        style={{ marginBottom: '0.5rem' }}
         title="Paramètres"
+        aria-current={activePage === 'settings' ? 'page' : undefined}
+        type="button"
+        style={{ marginBottom: '0.375rem' }}
       >
-        <i className="fa-solid fa-sliders"></i>
+        <i className="fa-solid fa-sliders" aria-hidden="true"></i>
         <span>Paramètres</span>
-      </div>
+      </button>
 
-      {/* Subtle App Version Label */}
-      <div 
-        style={{ 
-          fontSize: '0.7rem', 
-          color: 'var(--text-muted)', 
-          textAlign: isCollapsed ? 'center' : 'left', 
-          padding: '0.25rem 1rem 1rem 1rem', 
-          fontFamily: 'monospace',
-          transition: 'var(--transition-smooth)'
-        }}
-      >
-        {isCollapsed ? "v1.0" : "SafeDock v1.0.0"}
-      </div>
+      {/* Version label */}
+      {!isCollapsed && (
+        <div className="version" style={{ padding: '0 0.75rem 0.25rem' }}>
+          SafeDock v1.0.0
+        </div>
+      )}
+      {isCollapsed && (
+        <div className="version" style={{ textAlign: 'center', padding: '0 0 0.25rem' }}>
+          v1
+        </div>
+      )}
     </aside>
   );
 }

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-export default function Header({ 
-  activePage, 
-  theme, 
-  onToggleTheme, 
-  onRefresh, 
+export default function Header({
+  activePage,
+  theme,
+  onToggleTheme,
+  onRefresh,
   isRefreshing,
-  onNavigate 
+  onNavigate
 }) {
   const [currentTime, setCurrentTime] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -14,7 +14,15 @@ export default function Header({
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      const options = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      };
       setCurrentTime(now.toLocaleDateString('fr-FR', options));
     };
 
@@ -34,48 +42,68 @@ export default function Header({
     switch (activePage) {
       case 'dashboard':
         return {
-          title: "Tableau de bord de sécurité",
-          desc: currentTime || "Analyse en temps réel de votre hôte Docker"
+          title: 'Tableau de bord de sécurité',
+          desc: currentTime || 'Analyse en temps réel de votre hôte Docker'
         };
       case 'containers':
         return {
-          title: "Statuts et métadonnées de sécurité",
-          desc: "Liste complète de vos conteneurs actifs et évaluation SecOps"
+          title: 'Statuts et métadonnées de sécurité',
+          desc: 'Liste complète de vos conteneurs actifs et évaluation SecOps'
         };
       case 'watch':
         return {
-          title: "Veille SecOps & Menaces",
-          desc: "Bulletins de vulnérabilités en temps réel et guides de durcissement Docker"
+          title: 'Veille SecOps & Menaces',
+          desc: 'Bulletins de vulnérabilités en temps réel et guides de durcissement Docker'
         };
       case 'notifications':
         return {
-          title: "Centre de Notifications",
-          desc: "Alertes et événements de sécurité récents de vos infrastructures"
+          title: 'Centre de Notifications',
+          desc: 'Alertes et événements de sécurité récents de vos infrastructures'
         };
       case 'account':
         return {
-          title: "Mon Compte SecOps",
-          desc: "Gérez votre identité, vos préférences d'alertes et vos jetons d'accès"
+          title: 'Mon Compte SecOps',
+          desc: 'Gérez votre identité, vos préférences d\'alertes et vos jetons d\'accès'
         };
       case 'settings':
         return {
-          title: "Configuration de sécurité",
-          desc: "Ajustez les règles SecOps globales et configurez vos accès et surcharges"
+          title: 'Configuration de sécurité',
+          desc: 'Règles SecOps globales, accès et surcharges de politiques'
         };
       case 'container-settings':
         return {
-          title: "Surcharges SecOps du conteneur",
-          desc: "Définissez des seuils de tolérance spécifiques à ce conteneur particulier"
+          title: 'Surcharges SecOps du conteneur',
+          desc: 'Seuils de tolérance spécifiques à ce conteneur'
+        };
+      case 'actions':
+        return {
+          title: 'Actions SecOps requises',
+          desc: 'Déploiements, rollouts et correctifs à appliquer'
+        };
+      case 'agents':
+        return {
+          title: 'Agents SecOps',
+          desc: 'Gestion des agents de surveillance distribués'
+        };
+      case 'permissions':
+        return {
+          title: 'Gestion des Permissions',
+          desc: 'Contrôle d\'accès, rôles et périmètres utilisateurs'
+        };
+      case 'container-detail':
+        return {
+          title: 'Cockpit du conteneur',
+          desc: 'Détails, scans de vulnérabilités et conformité'
         };
       case '404':
         return {
-          title: "Accès Bloqué - 404 Not Found",
-          desc: "La ressource demandée n'existe pas ou a été déplacée"
+          title: 'Accès Bloqué — 404',
+          desc: 'La ressource demandée n\'existe pas ou a été déplacée'
         };
       default:
         return {
-          title: "SafeDock SecOps",
-          desc: "Analyse en temps réel"
+          title: 'SafeDock SecOps',
+          desc: 'Analyse en temps réel'
         };
     }
   };
@@ -83,140 +111,148 @@ export default function Header({
   const meta = getPageMeta();
 
   return (
-    <header className="main-header" style={{ position: 'relative' }}>
+    <header className="main-header">
+      {/* Page title */}
       <div className="header-title">
         <h2>{meta.title}</h2>
         <p>{meta.desc}</p>
       </div>
+
+      {/* Right-side controls */}
       <div className="header-actions">
-        {/* Capsule Theme Switcher */}
-        <div 
-          className="theme-switch-pill" 
-          id="theme-toggle-pill"
+        {/* Theme toggle */}
+        <div
+          className="theme-switch-pill"
           onClick={() => onToggleTheme(theme === 'light' ? 'dark' : 'light')}
+          role="switch"
+          aria-checked={theme === 'dark'}
+          aria-label="Basculer le thème"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onToggleTheme(theme === 'light' ? 'dark' : 'light')}
         >
           <div className="theme-switch-slider"></div>
-          <button 
+          <button
             className={`theme-switch-btn ${theme === 'dark' ? 'active' : ''}`}
             data-theme="dark"
             title="Thème Nuit"
             type="button"
+            tabIndex={-1}
           >
-            <i className="fa-solid fa-moon"></i>
+            <i className="fa-solid fa-moon" aria-hidden="true"></i>
           </button>
-          <button 
+          <button
             className={`theme-switch-btn ${theme === 'light' ? 'active' : ''}`}
             data-theme="light"
             title="Thème Clair"
             type="button"
+            tabIndex={-1}
           >
-            <i className="fa-solid fa-sun"></i>
+            <i className="fa-solid fa-sun" aria-hidden="true"></i>
           </button>
         </div>
 
-        {/* Separator line */}
-        <div className="header-separator"></div>
+        <div className="header-separator" role="separator"></div>
 
-        {/* Clickable User Profile Area */}
-        <div 
-          className="user-profile" 
-          style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', userSelect: 'none' }}
-        >
-          {/* Avatar and Name: Redirects to Account page directly */}
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}
+        {/* User profile */}
+        <div className="user-profile" style={{ position: 'relative' }}>
+          {/* Avatar + name → navigates to account */}
+          <img
+            src="/avatar.png"
+            alt="Avatar utilisateur"
+            className="user-avatar"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate('account');
+            }}
+          />
+          <div
+            className="user-info"
             onClick={(e) => {
               e.stopPropagation();
               onNavigate('account');
             }}
           >
-            <img src="/avatar.png" alt="Hell0W0rld" className="user-avatar" />
-            <div className="user-info">
-              <span className="user-name">Hell0W0rld</span>
-              <span className="user-role">SecOps Admin</span>
-            </div>
+            <span className="user-name">Hell0W0rld</span>
+            <span className="user-role">SecOps Admin</span>
           </div>
-          
-          {/* Chevron: Toggles dropdown list */}
-          <div 
-            style={{ cursor: 'pointer', padding: '0.4rem 0.25rem', display: 'flex', alignItems: 'center' }}
+
+          {/* Chevron → toggles dropdown */}
+          <button
+            type="button"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              color: 'var(--text-2)'
+            }}
             onClick={(e) => {
               e.stopPropagation();
               setIsDropdownOpen(!isDropdownOpen);
             }}
+            aria-label="Menu utilisateur"
+            aria-expanded={isDropdownOpen}
           >
-            <i className="fa-solid fa-chevron-down" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}></i>
-          </div>
-
-          {/* Profile Dropdown Card */}
-          {isDropdownOpen && (
-            <div 
-              className="glass" 
-              style={{ 
-                position: 'absolute', 
-                top: '55px', 
-                right: '0', 
-                width: '230px', 
-                padding: '0.75rem', 
-                borderRadius: '12px', 
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)', 
-                border: '1px solid var(--border-color)', 
-                zIndex: 100, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '0.25rem',
-                textAlign: 'left'
+            <i
+              className={`fa-solid fa-chevron-down`}
+              style={{
+                fontSize: '0.65rem',
+                transition: 'transform 0.15s ease',
+                transform: isDropdownOpen ? 'rotate(180deg)' : 'none'
               }}
+              aria-hidden="true"
+            ></i>
+          </button>
+
+          {/* Dropdown */}
+          {isDropdownOpen && (
+            <div
+              className="profile-dropdown"
               onClick={(e) => e.stopPropagation()}
+              role="menu"
             >
-              <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)' }}>Hell0W0rld</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>secops-admin@safedock.local</div>
+              <div className="profile-dropdown-header">
+                <div className="pd-name">Hell0W0rld</div>
+                <div className="pd-email">secops-admin@safedock.local</div>
               </div>
 
-              <div 
-                className="dropdown-item-btn" 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition-smooth)' }}
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onNavigate('account');
-                }}
+              <button
+                className="dropdown-item-btn"
+                role="menuitem"
+                onClick={() => { setIsDropdownOpen(false); onNavigate('account'); }}
               >
-                <i className="fa-solid fa-user-gear" style={{ width: '15px' }}></i> Mon compte
-              </div>
+                <i className="fa-solid fa-user-gear" aria-hidden="true"></i>
+                Mon compte
+              </button>
 
-              <div 
-                className="dropdown-item-btn" 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition-smooth)' }}
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onNavigate('account');
-                }}
+              <button
+                className="dropdown-item-btn"
+                role="menuitem"
+                onClick={() => { setIsDropdownOpen(false); onNavigate('notifications'); }}
               >
-                <i className="fa-solid fa-bell" style={{ width: '15px' }}></i> Préférences d'alertes
-              </div>
+                <i className="fa-solid fa-bell" aria-hidden="true"></i>
+                Préférences d'alertes
+              </button>
 
-              <div 
-                className="dropdown-item-btn" 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition-smooth)' }}
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onNavigate('settings');
-                }}
+              <button
+                className="dropdown-item-btn"
+                role="menuitem"
+                onClick={() => { setIsDropdownOpen(false); onNavigate('settings'); }}
               >
-                <i className="fa-solid fa-sliders" style={{ width: '15px' }}></i> Paramètres globaux
-              </div>
+                <i className="fa-solid fa-sliders" aria-hidden="true"></i>
+                Paramètres globaux
+              </button>
 
-              <div 
-                className="dropdown-item-btn" 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition-smooth)' }}
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  onNavigate('settings');
-                }}
+              <button
+                className="dropdown-item-btn"
+                role="menuitem"
+                onClick={() => { setIsDropdownOpen(false); onNavigate('settings'); }}
               >
-                <i className="fa-solid fa-building-shield" style={{ width: '15px' }}></i> Paramètres d'organisation
-              </div>
+                <i className="fa-solid fa-building-shield" aria-hidden="true"></i>
+                Paramètres d'organisation
+              </button>
             </div>
           )}
         </div>
