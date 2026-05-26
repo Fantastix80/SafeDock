@@ -169,7 +169,7 @@ func TestContainerSettingsCRUD(t *testing.T) {
 	_, _ = InitDB(":memory:")
 
 	// 1. Check default settings for container on empty DB (should return nil values)
-	maxSev, allowRoot, allowPriv, err := GetContainerSettings("my-app")
+	maxSev, allowRoot, allowPriv, _, err := GetContainerSettings("my-app")
 	if err != nil {
 		t.Fatalf("Erreur lecture sur table vide : %v", err)
 	}
@@ -180,18 +180,18 @@ func TestContainerSettingsCRUD(t *testing.T) {
 	// 2. Save settings (SaveContainerSettings)
 	trueVal := true
 	falseVal := false
-	err = SaveContainerSettings("my-app", "HIGH", &trueVal, &falseVal)
+	err = SaveContainerSettings("my-app", "HIGH", &trueVal, &falseVal, "trivy")
 	if err != nil {
 		t.Fatalf("Impossible de sauvegarder la surcharge : %v", err)
 	}
 
 	// 3. Read specific container settings (GetContainerSettings)
-	maxSev, allowRoot, allowPriv, err = GetContainerSettings("my-app")
+	maxSev, allowRoot, allowPriv, scannerVal, err := GetContainerSettings("my-app")
 	if err != nil {
 		t.Fatalf("Impossible de charger la surcharge : %v", err)
 	}
-	if maxSev != "HIGH" || allowRoot == nil || *allowRoot != true || allowPriv == nil || *allowPriv != false {
-		t.Errorf("Surcharge lue incorrecte : maxSev=%s, root=%v, priv=%v", maxSev, allowRoot, allowPriv)
+	if maxSev != "HIGH" || allowRoot == nil || *allowRoot != true || allowPriv == nil || *allowPriv != false || scannerVal != "trivy" {
+		t.Errorf("Surcharge lue incorrecte : maxSev=%s, root=%v, priv=%v, scanner=%s", maxSev, allowRoot, allowPriv, scannerVal)
 	}
 
 	// 4. Read all container settings (GetAllContainerSettings)
@@ -206,7 +206,7 @@ func TestContainerSettingsCRUD(t *testing.T) {
 	if !exists {
 		t.Fatalf("Surcharge my-app introuvable dans la liste")
 	}
-	if item.MaxSeverityAllowed != "HIGH" || item.AllowRoot == nil || *item.AllowRoot != true || item.AllowPrivileged == nil || *item.AllowPrivileged != false {
+	if item.MaxSeverityAllowed != "HIGH" || item.AllowRoot == nil || *item.AllowRoot != true || item.AllowPrivileged == nil || *item.AllowPrivileged != false || item.SecopsScanner != "trivy" {
 		t.Errorf("Surcharge liste incorrecte")
 	}
 
@@ -216,7 +216,7 @@ func TestContainerSettingsCRUD(t *testing.T) {
 		t.Fatalf("Erreur lors de la suppression de la surcharge : %v", err)
 	}
 
-	maxSev, allowRoot, allowPriv, err = GetContainerSettings("my-app")
+	maxSev, allowRoot, allowPriv, _, err = GetContainerSettings("my-app")
 	if err != nil {
 		t.Fatalf("Erreur après suppression : %v", err)
 	}

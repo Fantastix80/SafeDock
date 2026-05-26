@@ -118,7 +118,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	allowRoot := lo.cfg.SecOps.AllowRoot
 	allowPrivileged := lo.cfg.SecOps.AllowPrivileged
 
-	maxSevOverride, allowRootOverride, allowPrivilegedOverride, err := db.GetContainerSettings(containerName)
+	maxSevOverride, allowRootOverride, allowPrivilegedOverride, _, err := db.GetContainerSettings(containerName)
 	if err != nil {
 		fmt.Printf("   │  ⚠️  Impossible de charger les surcharges de configuration de DB : %v. Repli sur le global.\n", err)
 	} else {
