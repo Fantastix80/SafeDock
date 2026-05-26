@@ -25,6 +25,7 @@ type SecOpsConfig struct {
 	MaxSeverityAllowed string // LOW, MEDIUM, HIGH, CRITICAL, NONE (NONE = bloque sur n'importe quelle CVE)
 	AllowRoot          bool   // Autoriser ou non le démarrage de conteneurs tournant en root
 	AllowPrivileged    bool   // Autoriser ou non le démarrage de conteneurs en mode privilégié
+	SecopsScanner      string // trivy, grype, hybrid
 }
 
 // Config regroupe l'ensemble des configurations de SafeDock.
@@ -40,7 +41,7 @@ var activeConfig *Config
 func LoadConfig() *Config {
 	// Si SQLite est déjà initialisé et contient des paramètres, on charge depuis la DB
 	if db.GetDB() != nil {
-		host, port, user, pass, from, to, skip, maxSev, allowRoot, allowPriv, err := db.GetSettings()
+		host, port, user, pass, from, to, skip, maxSev, allowRoot, allowPriv, scanner, err := db.GetSettings()
 		if err == nil {
 			activeConfig = &Config{
 				SMTP: SMTPConfig{
@@ -56,6 +57,7 @@ func LoadConfig() *Config {
 					MaxSeverityAllowed: maxSev,
 					AllowRoot:          allowRoot,
 					AllowPrivileged:    allowPriv,
+					SecopsScanner:      scanner,
 				},
 			}
 			return activeConfig
@@ -79,6 +81,7 @@ func LoadConfig() *Config {
 			MaxSeverityAllowed: getEnv("SAFEDOCK_MAX_SEVERITY_ALLOWED", "HIGH"), // HIGH par défaut (bloque sur CRITICAL)
 			AllowRoot:          getEnvAsBool("SAFEDOCK_ALLOW_ROOT", true),       // Root toléré par défaut
 			AllowPrivileged:    getEnvAsBool("SAFEDOCK_ALLOW_PRIVILEGED", false), // Privilégié bloqué par défaut
+			SecopsScanner:      getEnv("SAFEDOCK_SECOPS_SCANNER", "trivy"),
 		},
 	}
 
@@ -86,7 +89,7 @@ func LoadConfig() *Config {
 	if db.GetDB() != nil {
 		err := db.SaveSettings(
 			cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User, cfg.SMTP.Password, cfg.SMTP.From, cfg.SMTP.To, cfg.SMTP.TLSSkipVerify,
-			cfg.SecOps.MaxSeverityAllowed, cfg.SecOps.AllowRoot, cfg.SecOps.AllowPrivileged,
+			cfg.SecOps.MaxSeverityAllowed, cfg.SecOps.AllowRoot, cfg.SecOps.AllowPrivileged, cfg.SecOps.SecopsScanner,
 		)
 		if err != nil {
 			log.Printf("[CONFIG WARNING] Impossible d'enregistrer la config initiale en DB : %v\n", err)

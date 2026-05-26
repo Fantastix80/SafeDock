@@ -13,11 +13,12 @@ import ContainerSettingsView from './components/ContainerSettingsView';
 import ActionsView from './components/ActionsView';
 import AgentsView from './components/AgentsView';
 import ContainerDetailView from './components/ContainerDetailView';
+import PermissionsView from './components/PermissionsView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail'];
+    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
@@ -37,6 +38,58 @@ export default function App() {
   const [isRolloutLoading, setIsRolloutLoading] = useState(false);
   const [rolloutStatusMsg, setRolloutStatusMsg] = useState({ text: '', type: '' });
 
+  // Custom container tags state
+  const [containerTags, setContainerTags] = useState(() => {
+    const saved = localStorage.getItem('safedock-custom-tags');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Simulated users & active user profile for scoping data permissions
+  const [simulatedUsers, setSimulatedUsers] = useState(() => {
+    const saved = localStorage.getItem('safedock-simulated-users');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 1, name: 'Jean Admin', role: 'Admin', scopeType: 'all', scopeValue: null, desc: 'Accès complet à l\'infrastructure' },
+      { id: 2, name: 'Alice Dev', role: 'Lecteur', scopeType: 'tags', scopeValue: ['Staging', 'Dev'], desc: 'Limité aux tags Staging et Dev' },
+      { id: 3, name: 'Bob Auditor', role: 'Auditeur', scopeType: 'hosts', scopeValue: ['db-node-02'], desc: 'Limité à l\'hôte db-node-02' },
+      { id: 4, name: 'Charlie External', role: 'Lecteur', scopeType: 'hybrid', scopeValue: { host: 'prod-swarm-01', tag: 'Web' }, desc: 'Limité aux conteneurs Web de prod-swarm-01' }
+    ];
+  });
+
+  const [activeUserProfile, setActiveUserProfile] = useState(() => {
+    const saved = localStorage.getItem('safedock-active-user');
+    return saved ? JSON.parse(saved) : { id: 1, name: 'Jean Admin', role: 'Admin', scopeType: 'all', scopeValue: null, desc: 'Accès complet à l\'infrastructure' };
+  });
+
+  const handleUpdateContainerTags = (containerName, newTags) => {
+    setContainerTags(prev => {
+      const updated = { ...prev, [containerName]: newTags };
+      localStorage.setItem('safedock-custom-tags', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const getScopedContainers = () => {
+    return containers.filter(c => {
+      if (activeUserProfile.scopeType === 'all') return true;
+      if (activeUserProfile.scopeType === 'tags') {
+        const allowedTags = activeUserProfile.scopeValue;
+        return (c.tags || []).some(tag => allowedTags.includes(tag));
+      }
+      if (activeUserProfile.scopeType === 'hosts') {
+        const allowedHosts = activeUserProfile.scopeValue;
+        return allowedHosts.includes(c.host_name);
+      }
+      if (activeUserProfile.scopeType === 'hybrid') {
+        const { host, tag } = activeUserProfile.scopeValue;
+        return c.host_name === host && (c.tags || []).includes(tag);
+      }
+      return true;
+    });
+  };
+
+  const scopedContainers = getScopedContainers();
+
   const [stats, setStats] = useState({
     total: 0,
     secure: 0,
@@ -47,16 +100,27 @@ export default function App() {
     globalScore: 100
   });
 
-  // Calculate statistics when containers change
+  // Calculate statistics when containers or profile changes
   useEffect(() => {
-    if (containers.length === 0) return;
+    const count = scopedContainers.length;
+    if (count === 0) {
+      setStats({
+        total: 0,
+        secure: 0,
+        warnings: 0,
+        cves: 0,
+        updatesAvailable: 0,
+        globalGrade: 'A',
+        globalScore: 100
+      });
+      return;
+    }
 
-    const count = containers.length;
     let sumScore = 0;
     let critCount = 0;
     let updatesAvail = 0;
 
-    containers.forEach(c => {
+    scopedContainers.forEach(c => {
       sumScore += c.score;
       if (c.score < 75) {
         critCount++;
@@ -79,12 +143,12 @@ export default function App() {
       total: count,
       secure: count - critCount,
       warnings: critCount,
-      cves: containers.reduce((acc, c) => acc + (c.cve_critical || 0) + (c.cve_high || 0) + (c.cve_medium || 0) + (c.cve_low || 0), 0),
+      cves: scopedContainers.reduce((acc, c) => acc + (c.cve_critical || 0) + (c.cve_high || 0) + (c.cve_medium || 0) + (c.cve_low || 0), 0),
       updatesAvailable: updatesAvail,
       globalGrade: globalGrade,
       globalScore: avgScore
     });
-  }, [containers]);
+  }, [containers, activeUserProfile]);
 
   // Load theme and initial data on mount
   useEffect(() => {
@@ -186,11 +250,16 @@ export default function App() {
             host_name = 'edge-node-02';
             tags = ['Backup', 'Cron', 'System'];
           } else {
-            // Assign random/default hosts based on ID
+          // Assign random/default hosts based on ID
             const hosts = ['prod-swarm-01', 'db-node-02', 'stage-aws-us-east', 'edge-node-02'];
             const idCode = c.id ? c.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
             host_name = hosts[idCode % hosts.length] || 'prod-swarm-01';
             tags = ['App', 'Docker'];
+          }
+
+          // Apply user custom tags override
+          if (containerTags[c.name]) {
+            tags = containerTags[c.name];
           }
           
           let cve_critical = 0;
@@ -419,7 +488,7 @@ export default function App() {
         {/* View Router */}
         {activePage === 'dashboard' && (
           <DashboardView 
-            containers={containers} 
+            containers={scopedContainers} 
             auditLogs={auditLogs}
             stats={stats}
             onSelectContainer={handleSelectContainer}
@@ -430,7 +499,7 @@ export default function App() {
 
         {activePage === 'containers' && (
           <ContainersView 
-            containers={containers}
+            containers={scopedContainers}
             onSelectContainer={handleSelectContainer}
             onNavigate={handleNavigate}
           />
@@ -438,7 +507,7 @@ export default function App() {
 
         {activePage === 'actions' && (
           <ActionsView 
-            containers={containers}
+            containers={scopedContainers}
             onTriggerRollout={handleTriggerRollout}
             onNavigate={handleNavigate}
           />
@@ -460,6 +529,18 @@ export default function App() {
           <AccountView />
         )}
 
+        {activePage === 'permissions' && (
+          <PermissionsView 
+            simulatedUsers={simulatedUsers}
+            setSimulatedUsers={setSimulatedUsers}
+            activeUserProfile={activeUserProfile}
+            setActiveUserProfile={(prof) => {
+              setActiveUserProfile(prof);
+              localStorage.setItem('safedock-active-user', JSON.stringify(prof));
+            }}
+          />
+        )}
+
         {activePage === 'settings' && (
           <SettingsView 
             config={config}
@@ -473,7 +554,7 @@ export default function App() {
         {activePage === 'container-settings' && (
           <ContainerSettingsView 
             containerId={selectedContainerId}
-            containers={containers}
+            containers={scopedContainers}
             overrides={overrides}
             onSaveOverride={handleSaveOverride}
             onDeleteOverride={handleDeleteOverride}
@@ -484,7 +565,7 @@ export default function App() {
         {activePage === 'container-detail' && (
           <ContainerDetailView 
             containerId={selectedContainerId}
-            containers={containers}
+            containers={scopedContainers}
             overrides={overrides}
             onSaveOverride={handleSaveOverride}
             onDeleteOverride={handleDeleteOverride}
@@ -492,6 +573,8 @@ export default function App() {
             isRolloutLoading={isRolloutLoading}
             rolloutStatusMsg={rolloutStatusMsg}
             onNavigate={handleNavigate}
+            containerTags={containerTags}
+            onUpdateTags={handleUpdateContainerTags}
           />
         )}
 

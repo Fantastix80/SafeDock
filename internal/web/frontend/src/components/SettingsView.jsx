@@ -13,6 +13,7 @@ export default function SettingsView({
   const [severity, setSeverity] = useState('HIGH');
   const [allowRoot, setAllowRoot] = useState(false);
   const [allowPrivileged, setAllowPrivileged] = useState(false);
+  const [secopsScanner, setSecopsScanner] = useState('trivy');
 
   // SMTP Settings inputs
   const [smtpHost, setSmtpHost] = useState('');
@@ -62,6 +63,7 @@ export default function SettingsView({
       setSeverity(config.SecOps?.MaxSeverityAllowed || 'HIGH');
       setAllowRoot(config.SecOps?.AllowRoot || false);
       setAllowPrivileged(config.SecOps?.AllowPrivileged || false);
+      setSecopsScanner(config.SecOps?.SecopsScanner || 'trivy');
       
       setSmtpHost(config.SMTP?.Host || '');
       setSmtpPort(config.SMTP?.Port !== undefined && config.SMTP?.Port !== null ? String(config.SMTP.Port) : '');
@@ -81,6 +83,7 @@ export default function SettingsView({
       secops_max_severity_allowed: severity,
       secops_allow_root: allowRoot,
       secops_allow_privileged: allowPrivileged,
+      secops_scanner: secopsScanner,
       smtp_host: smtpHost,
       smtp_port: smtpPort ? parseInt(smtpPort, 10) : 0,
       smtp_user: smtpUser,
@@ -316,6 +319,14 @@ export default function SettingsView({
                 <h4 style={{ margin: '0 0 1.25rem 0' }}>Préférences générales de l'application</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Scanner CVE par défaut (Global)</label>
+                    <select value={secopsScanner} onChange={(e) => setSecopsScanner(e.target.value)} className="glass-input" style={{ fontWeight: 600, cursor: 'pointer' }}>
+                      <option value="trivy">Trivy (Sécurité & vulnérabilités standard)</option>
+                      <option value="grype">Grype (Scan ultra-rapide des packages OS)</option>
+                      <option value="hybrid">Double-scan hybride (Trivy + Grype fusionnés)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Intervalle de rafraîchissement d'audit en tâche de fond (Secondes)</label>
                     <select value={pollInterval} onChange={(e) => setPollInterval(e.target.value)} className="glass-input">
                       <option value="5">5 secondes (Temps réel extrême)</option>
@@ -351,9 +362,10 @@ export default function SettingsView({
                   </div>
                 </div>
 
-                <button type="button" className="btn btn-accent" onClick={() => {
-                  setSaveStatus('✅ Préférences enregistrées !');
-                  setTimeout(() => setSaveStatus(''), 3000);
+                <button type="button" className="btn btn-accent" onClick={(e) => {
+                  handleGlobalSubmit(e);
+                  setSaveStatus('✅ Préférences et scanner enregistrés !');
+                  setTimeout(() => setSaveStatus(''), 4000);
                 }} style={{ alignSelf: 'flex-end', height: '35px' }}>
                   <i className="fa-solid fa-save"></i> Enregistrer les préférences
                 </button>

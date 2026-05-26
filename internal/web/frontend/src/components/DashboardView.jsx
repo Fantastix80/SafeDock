@@ -14,18 +14,26 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   const score = stats.globalScore || 100;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  let strokeColor = "var(--success)";
+  let strokeColor = "var(--success)"; // A
   let badgeClass = "badge badge-success";
   let statusText = "Excellent";
 
-  if (score < 60) {
+  if (stats.globalGrade === 'F') {
     strokeColor = "var(--danger)";
     badgeClass = "badge badge-danger";
-    statusText = "Vulnérable";
-  } else if (score < 75) {
+    statusText = "Critique";
+  } else if (stats.globalGrade === 'D') {
+    strokeColor = "#F97316";
+    badgeClass = "badge badge-orange";
+    statusText = "Faible";
+  } else if (stats.globalGrade === 'C') {
     strokeColor = "var(--warning)";
     badgeClass = "badge badge-warning";
-    statusText = "Améliorable";
+    statusText = "Moyen";
+  } else if (stats.globalGrade === 'B') {
+    strokeColor = "#4578F9";
+    badgeClass = "badge badge-info";
+    statusText = "Bon";
   }
 
   // Format date helper
@@ -59,10 +67,10 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
   const chartWidth = 500;
   const chartHeight = 200;
-  const paddingLeft = 45;
-  const paddingRight = 20;
-  const paddingTop = 25;
-  const paddingBottom = 35;
+  const paddingLeft = 35;
+  const paddingRight = 15;
+  const paddingTop = 15;
+  const paddingBottom = 30;
 
   const maxVal = Math.max(cveCounts.critical, cveCounts.high, cveCounts.medium, cveCounts.low, 5);
   const baselineY = chartHeight - paddingBottom;
@@ -91,9 +99,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     `.replace(/\s+/g, ' ').trim();
   };
 
-  const barWidth = 45;
+  const barWidth = 55;
   const gap = 55;
-  const startX = paddingLeft + 45;
+  const startX = paddingLeft + 30;
 
   const severityData = [
     { label: 'Critique', count: cveCounts.critical, color: '#EF4444', glow: 'rgba(239, 68, 68, 0.45)' },
@@ -140,9 +148,43 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         </div>
       </section>
 
-      {/* Visual Analytics Row: Chart + Circular Gauge + Quick Actions (3 Columns) */}
-      <section className="dashboard-visuals" style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 0.8fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        {/* Left: Custom SVG CVE Severity Bar Chart (1.4fr) */}
+      {/* Visual Analytics Row: Circular Gauge + Chart + Quick Actions (3 Columns) */}
+      <section className="dashboard-visuals" style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.6fr 0.8fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
+        
+        {/* Left: Circular SecOps Gauge Circle Card (0.8fr) */}
+        <div className="stat-card glass score-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '1.5rem', borderRadius: '16px', minHeight: '260px' }}>
+          <div className="score-container" style={{ width: '120px', height: '120px', marginBottom: '0.8rem' }}>
+            <div className="score-circle">
+              <svg className="score-ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="44"></circle>
+                <circle 
+                  cx="50" 
+                  cy="50" 
+                  r="44" 
+                  id="score-ring-progress"
+                  style={{ strokeDashoffset, stroke: strokeColor }}
+                ></circle>
+                <text 
+                  x="50" 
+                  y="50" 
+                  textAnchor="middle" 
+                  dominantBaseline="central" 
+                  className="score-grade-text"
+                  style={{ fontSize: '38px' }}
+                >
+                  {stats.globalGrade}
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div className="score-info" style={{ width: '100%' }}>
+            <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: 800 }}>Score Global</h3>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Posture globale du parc</p>
+            <span className={badgeClass} id="global-status-badge" style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 'bold' }}>{statusText}</span>
+          </div>
+        </div>
+
+        {/* Middle: Custom SVG CVE Severity Bar Chart (1.6fr) */}
         <div className="glass chart-card" style={{ height: '100%', minHeight: '260px' }}>
           <div className="chart-header">
             <div>
@@ -157,7 +199,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
             </div>
           </div>
 
-          <div style={{ position: 'relative', width: '100%', height: '140px', marginTop: '0.5rem' }}>
+          <div style={{ position: 'relative', width: '100%', height: '180px', marginTop: '0.25rem' }}>
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
               
               {/* Baseline Axis */}
@@ -266,38 +308,6 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           </div>
         </div>
 
-        {/* Middle: Circular SecOps Gauge Circle Card (0.8fr) */}
-        <div className="stat-card glass score-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '1.5rem', borderRadius: '16px', minHeight: '260px' }}>
-          <div className="score-container" style={{ marginBottom: '1rem' }}>
-            <div className="score-circle">
-              <svg className="score-ring" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="44"></circle>
-                <circle 
-                  cx="50" 
-                  cy="50" 
-                  r="44" 
-                  id="score-ring-progress"
-                  style={{ strokeDashoffset, stroke: strokeColor }}
-                ></circle>
-                <text 
-                  x="50" 
-                  y="50" 
-                  textAnchor="middle" 
-                  dominantBaseline="central" 
-                  className="score-grade-text"
-                >
-                  {stats.globalGrade}
-                </text>
-              </svg>
-            </div>
-          </div>
-          <div className="score-info" style={{ width: '100%' }}>
-            <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: 800 }}>Score Global</h3>
-            <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Posture de sécurité globale</p>
-            <span className={badgeClass} id="global-status-badge" style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem' }}>{statusText}</span>
-          </div>
-        </div>
-
         {/* Right: Quick Actions Card (0.8fr) */}
         <div className="stat-card glass" style={{ padding: '1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
           <div style={{ width: '100%' }}>
@@ -392,8 +402,10 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
             {filteredContainers.map(c => {
               const grade = c.grade ? c.grade.toLowerCase() : 'f';
               let scoreClass = 'score-a';
-              if (c.score < 50) scoreClass = 'score-f';
+              if (c.score < 40) scoreClass = 'score-f';
+              else if (c.score < 60) scoreClass = 'score-d';
               else if (c.score < 75) scoreClass = 'score-c';
+              else if (c.score < 90) scoreClass = 'score-b';
 
               return (
                 <div 

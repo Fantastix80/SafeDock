@@ -77,7 +77,7 @@ export default function Sidebar({
           title={isCollapsed ? "Déplier le menu" : "Replier le menu"}
           type="button"
         >
-          <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
+          <i className={`fa-solid ${isCollapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
         </button>
       </div>
       
@@ -136,6 +136,15 @@ export default function Sidebar({
           <i className="fa-solid fa-bell"></i>
           <span>Notifications</span>
         </div>
+
+        <div 
+          className={`nav-item ${activePage === 'permissions' ? 'active' : ''}`} 
+          onClick={() => onNavigate('permissions')}
+          title="Permissions"
+        >
+          <i className="fa-solid fa-user-lock"></i>
+          <span>Permissions</span>
+        </div>
       </nav>
 
       {/* Relocated Global Audit Action */}
@@ -168,11 +177,25 @@ export default function Sidebar({
       <div 
         className={`nav-item ${activePage === 'settings' ? 'active' : ''}`} 
         onClick={() => onNavigate('settings')}
-        style={{ marginBottom: '1.25rem' }}
+        style={{ marginBottom: '0.5rem' }}
         title="Paramètres"
       >
         <i className="fa-solid fa-sliders"></i>
         <span>Paramètres</span>
+      </div>
+
+      {/* Subtle App Version Label */}
+      <div 
+        style={{ 
+          fontSize: '0.7rem', 
+          color: 'var(--text-muted)', 
+          textAlign: isCollapsed ? 'center' : 'left', 
+          padding: '0.25rem 1rem 1rem 1rem', 
+          fontFamily: 'monospace',
+          transition: 'var(--transition-smooth)'
+        }}
+      >
+        {isCollapsed ? "v1.0" : "SafeDock v1.0.0"}
       </div>
     </aside>
   );

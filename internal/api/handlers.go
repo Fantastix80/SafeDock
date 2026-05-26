@@ -80,6 +80,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			MaxSeverityAllowed string `json:"MaxSeverityAllowed"`
 			AllowRoot          bool   `json:"AllowRoot"`
 			AllowPrivileged    bool   `json:"AllowPrivileged"`
+			SecopsScanner      string `json:"SecopsScanner"`
 		} `json:"SecOps"`
 	}{}
 
@@ -94,6 +95,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	safeConfig.SecOps.MaxSeverityAllowed = s.cfg.SecOps.MaxSeverityAllowed
 	safeConfig.SecOps.AllowRoot = s.cfg.SecOps.AllowRoot
 	safeConfig.SecOps.AllowPrivileged = s.cfg.SecOps.AllowPrivileged
+	safeConfig.SecOps.SecopsScanner = s.cfg.SecOps.SecopsScanner
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(safeConfig)
@@ -112,6 +114,7 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		SecOpsMaxSeverity   string `json:"secops_max_severity_allowed"`
 		SecOpsAllowRoot      bool   `json:"secops_allow_root"`
 		SecOpsAllowPrivileged bool   `json:"secops_allow_privileged"`
+		SecopsScanner       string `json:"secops_scanner"`
 	}
 
 	var req updateConfigReq
@@ -128,10 +131,16 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validation du scanner
+	scanner := strings.ToLower(req.SecopsScanner)
+	if scanner != "trivy" && scanner != "grype" && scanner != "hybrid" {
+		scanner = "trivy"
+	}
+
 	// Enregistrement en base de données
 	err = db.SaveSettings(
 		req.SMTPHost, req.SMTPPort, req.SMTPUser, req.SMTPPassword, req.SMTPFrom, req.SMTPTo, req.SMTPTLSSkipVerify,
-		maxSev, req.SecOpsAllowRoot, req.SecOpsAllowPrivileged,
+		maxSev, req.SecOpsAllowRoot, req.SecOpsAllowPrivileged, scanner,
 	)
 	if err != nil {
 		log.Printf("[API CONFIG ERROR] Échec enregistrement paramètres DB : %v\n", err)
@@ -307,9 +316,29 @@ func (s *Server) getTrivyReport(w http.ResponseWriter, r *http.Request, containe
 		return
 	}
 
-	// On cherche d'abord dans le cache par Digest ou image ID
+	// 1. Détection du type de scanner demandé
+	scannerType := strings.ToLower(r.URL.Query().Get("scanner"))
+	if scannerType == "" {
+		// Sinon on regarde la surcharge du conteneur
+		_, _, _, containerScanner, errO := db.GetContainerSettings(c.Name)
+		if errO == nil && containerScanner != "" {
+			scannerType = strings.ToLower(containerScanner)
+		}
+	}
+	if scannerType == "" {
+		// Sinon la config globale
+		scannerType = strings.ToLower(s.cfg.SecOps.SecopsScanner)
+	}
+	if scannerType == "" {
+		scannerType = "trivy"
+	}
+
+	// Pour éviter des collisions de cache, on clé par Digest + Type de scanner
+	cacheKey := c.CurrentDigest + "_" + scannerType
+
+	// On cherche d'abord dans le cache
 	trivyCacheMu.RLock()
-	cachedReport, exists := trivyCache[c.CurrentDigest]
+	cachedReport, exists := trivyCache[cacheKey]
 	trivyCacheMu.RUnlock()
 
 	if exists {
@@ -318,18 +347,32 @@ func (s *Server) getTrivyReport(w http.ResponseWriter, r *http.Request, containe
 		return
 	}
 
-	// Sinon, on lance le scan
-	log.Printf("🔍 [TRIVY SCAN] Lancement du scan de vulnérabilités pour l'image '%s'...\n", c.ImageName)
-	report, err := secops.ScanImage(r.Context(), c.ImageName+":"+c.ImageTag)
-	if err != nil {
-		log.Printf("❌ [TRIVY ERROR] Échec du scan : %v\n", err)
-		http.Error(w, fmt.Sprintf("Échec du scan Trivy : %v", err), http.StatusInternalServerError)
+	// Sinon, on lance le scan selon le type demandé
+	var report *secops.TrivyReport
+	var errScan error
+
+	switch scannerType {
+	case "grype":
+		log.Printf("🔍 [GRYPE SCAN] Lancement du scan pour l'image '%s'...\n", c.ImageName)
+		report, errScan = secops.ScanImageGrype(r.Context(), c.ImageName+":"+c.ImageTag)
+	case "hybrid":
+		log.Printf("🔍 [HYBRID SCAN] Lancement du scan double (Trivy + Grype) pour '%s'...\n", c.ImageName)
+		report, errScan = secops.ScanImageHybrid(r.Context(), c.ImageName+":"+c.ImageTag)
+	case "trivy":
+	default:
+		log.Printf("🔍 [TRIVY SCAN] Lancement du scan pour l'image '%s'...\n", c.ImageName)
+		report, errScan = secops.ScanImage(r.Context(), c.ImageName+":"+c.ImageTag)
+	}
+
+	if errScan != nil {
+		log.Printf("❌ [%s ERROR] Échec du scan : %v\n", strings.ToUpper(scannerType), errScan)
+		http.Error(w, fmt.Sprintf("Échec du scan %s : %v", scannerType, errScan), http.StatusInternalServerError)
 		return
 	}
 
 	// Sauvegarde en cache
 	trivyCacheMu.Lock()
-	trivyCache[c.CurrentDigest] = report
+	trivyCache[cacheKey] = report
 	trivyCacheMu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -430,6 +473,7 @@ func (s *Server) HandleContainersSettings(w http.ResponseWriter, r *http.Request
 			MaxSeverityAllowed string `json:"secops_max_severity_allowed"`
 			AllowRoot          *bool  `json:"secops_allow_root"`
 			AllowPrivileged    *bool  `json:"secops_allow_privileged"`
+			SecopsScanner      string `json:"secops_scanner"`
 		}
 		
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -442,7 +486,7 @@ func (s *Server) HandleContainersSettings(w http.ResponseWriter, r *http.Request
 			return
 		}
 		
-		err := db.SaveContainerSettings(req.ContainerName, req.MaxSeverityAllowed, req.AllowRoot, req.AllowPrivileged)
+		err := db.SaveContainerSettings(req.ContainerName, req.MaxSeverityAllowed, req.AllowRoot, req.AllowPrivileged, req.SecopsScanner)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Erreur sauvegarde surcharge : %v", err), http.StatusInternalServerError)
 			return

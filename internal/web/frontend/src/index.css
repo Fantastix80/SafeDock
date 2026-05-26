@@ -654,13 +654,17 @@ body.light-theme .filter-btn.active {
     background-color: var(--text-muted);
 }
 
-.container-card.grade-a::before, .container-card.grade-b::before { background-color: var(--success); }
-.container-card.grade-c::before, .container-card.grade-d::before { background-color: var(--warning); }
+.container-card.grade-a::before { background-color: var(--success); }
+.container-card.grade-b::before { background-color: #4578F9; }
+.container-card.grade-c::before { background-color: var(--warning); }
+.container-card.grade-d::before { background-color: #F97316; }
 .container-card.grade-f::before { background-color: var(--danger); }
 
 /* Glowing shadows matching threat level */
 .container-card.grade-a:hover { box-shadow: var(--card-shadow), 0 10px 25px var(--success-glow); }
-.container-card.grade-c:hover, .container-card.grade-d:hover { box-shadow: var(--card-shadow), 0 10px 25px var(--warning-glow); }
+.container-card.grade-b:hover { box-shadow: var(--card-shadow), 0 10px 25px rgba(69, 120, 249, 0.15); }
+.container-card.grade-c:hover { box-shadow: var(--card-shadow), 0 10px 25px var(--warning-glow); }
+.container-card.grade-d:hover { box-shadow: var(--card-shadow), 0 10px 25px rgba(249, 115, 22, 0.15); }
 .container-card.grade-f:hover { box-shadow: var(--card-shadow), 0 10px 25px var(--danger-glow); }
 
 .card-top {
@@ -709,7 +713,9 @@ body.light-theme .filter-btn.active {
 }
 
 .card-badge-score.score-a { background-color: var(--success-glow); color: var(--success); border-color: rgba(16, 185, 129, 0.25); }
+.card-badge-score.score-b { background-color: rgba(69, 120, 249, 0.12); color: #4578F9; border-color: rgba(69, 120, 249, 0.25); }
 .card-badge-score.score-c { background-color: var(--warning-glow); color: var(--warning); border-color: rgba(234, 179, 8, 0.25); }
+.card-badge-score.score-d { background-color: rgba(249, 115, 22, 0.12); color: #F97316; border-color: rgba(249, 115, 22, 0.25); }
 .card-badge-score.score-f { background-color: var(--danger-glow); color: var(--danger); border-color: rgba(239, 68, 68, 0.25); }
 
 /* Indicators tags */

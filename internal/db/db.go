@@ -109,7 +109,8 @@ func runMigrations(db *sql.DB) error {
 		smtp_tls_skip_verify BOOLEAN,
 		secops_max_severity_allowed TEXT,
 		secops_allow_root BOOLEAN,
-		secops_allow_privileged BOOLEAN
+		secops_allow_privileged BOOLEAN,
+		secops_scanner TEXT DEFAULT 'trivy'
 	);`
 
 	// 2. Table registries (Identifiants registres privés)
@@ -142,7 +143,8 @@ func runMigrations(db *sql.DB) error {
 		container_name TEXT PRIMARY KEY,
 		secops_max_severity_allowed TEXT DEFAULT "",
 		secops_allow_root INTEGER DEFAULT -1,
-		secops_allow_privileged INTEGER DEFAULT -1
+		secops_allow_privileged INTEGER DEFAULT -1,
+		secops_scanner TEXT DEFAULT ""
 	);`
 
 	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable}
@@ -152,6 +154,10 @@ func runMigrations(db *sql.DB) error {
 			return fmt.Errorf("échec exécution migration : %w | requete : %s", err, sqlStmt)
 		}
 	}
+
+	// On applique les migrations de colonnes supplémentaires s'il s'agit d'une DB existante
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN secops_scanner TEXT DEFAULT 'trivy';")
+	_, _ = db.Exec("ALTER TABLE container_settings ADD COLUMN secops_scanner TEXT DEFAULT '';")
 
 	return nil
 }
@@ -163,7 +169,7 @@ func runMigrations(db *sql.DB) error {
 // SaveSettings insère ou met à jour la configuration en DB (ligne unique ID=1).
 func SaveSettings(
 	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom, smtpTo string, smtpTlsSkip bool,
-	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool,
+	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool, secopsScanner string,
 ) error {
 	db := GetDB()
 	if db == nil {
@@ -173,8 +179,8 @@ func SaveSettings(
 	query := `
 	INSERT INTO settings (
 		id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_to, smtp_tls_skip_verify,
-		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
-	) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
+	) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(id) DO UPDATE SET
 		smtp_host=excluded.smtp_host,
 		smtp_port=excluded.smtp_port,
@@ -185,20 +191,21 @@ func SaveSettings(
 		smtp_tls_skip_verify=excluded.smtp_tls_skip_verify,
 		secops_max_severity_allowed=excluded.secops_max_severity_allowed,
 		secops_allow_root=excluded.secops_allow_root,
-		secops_allow_privileged=excluded.secops_allow_privileged;`
+		secops_allow_privileged=excluded.secops_allow_privileged,
+		secops_scanner=excluded.secops_scanner;`
 
 	_, err := db.Exec(query,
 		smtpHost, smtpPort, smtpUser, smtpPassword, smtpFrom, smtpTo, smtpTlsSkip,
-		secopsMaxSev, secopsAllowRoot, secopsAllowPrivileged,
+		secopsMaxSev, secopsAllowRoot, secopsAllowPrivileged, secopsScanner,
 	)
 	return err
 }
 
-// GetSettingsSettings charge la ligne de configuration depuis la base de données.
+// GetSettings charge la ligne de configuration depuis la base de données.
 // Retourne sql.ErrNoRows s'il n'y a aucun enregistrement.
 func GetSettings() (
 	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom, smtpTo string, smtpTlsSkip bool,
-	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool, err error,
+	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool, secopsScanner string, err error,
 ) {
 	db := GetDB()
 	if db == nil {
@@ -209,12 +216,12 @@ func GetSettings() (
 	query := `
 	SELECT 
 		smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_to, smtp_tls_skip_verify,
-		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
 	FROM settings WHERE id = 1;`
 
 	err = db.QueryRow(query).Scan(
 		&smtpHost, &smtpPort, &smtpUser, &smtpPassword, &smtpFrom, &smtpTo, &smtpTlsSkip,
-		&secopsMaxSev, &secopsAllowRoot, &secopsAllowPrivileged,
+		&secopsMaxSev, &secopsAllowRoot, &secopsAllowPrivileged, &secopsScanner,
 	)
 	return
 }
@@ -340,10 +347,11 @@ type ContainerSettings struct {
 	MaxSeverityAllowed string `json:"secops_max_severity_allowed"` // "", "LOW", "MEDIUM", "HIGH", "CRITICAL", "NONE"
 	AllowRoot          *bool  `json:"secops_allow_root"`           // nil pour utiliser global, sinon bool
 	AllowPrivileged    *bool  `json:"secops_allow_privileged"`     // nil pour utiliser global, sinon bool
+	SecopsScanner      string `json:"secops_scanner"`              // "", "trivy", "grype", "hybrid"
 }
 
 // SaveContainerSettings insère ou met à jour la configuration d'un conteneur spécifique.
-func SaveContainerSettings(name string, maxSev string, allowRoot *bool, allowPrivilege *bool) error {
+func SaveContainerSettings(name string, maxSev string, allowRoot *bool, allowPrivilege *bool, secopsScanner string) error {
 	db := GetDB()
 	if db == nil {
 		return fmt.Errorf("base de données non initialisée")
@@ -369,19 +377,20 @@ func SaveContainerSettings(name string, maxSev string, allowRoot *bool, allowPri
 
 	query := `
 	INSERT INTO container_settings (
-		container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
-	) VALUES (?, ?, ?, ?)
+		container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
+	) VALUES (?, ?, ?, ?, ?)
 	ON CONFLICT(container_name) DO UPDATE SET
 		secops_max_severity_allowed=excluded.secops_max_severity_allowed,
 		secops_allow_root=excluded.secops_allow_root,
-		secops_allow_privileged=excluded.secops_allow_privileged;`
+		secops_allow_privileged=excluded.secops_allow_privileged,
+		secops_scanner=excluded.secops_scanner;`
 
-	_, err := db.Exec(query, name, maxSev, rootVal, privVal)
+	_, err := db.Exec(query, name, maxSev, rootVal, privVal, secopsScanner)
 	return err
 }
 
 // GetContainerSettings charge les surcharges de configuration pour un conteneur donné.
-func GetContainerSettings(name string) (maxSev string, allowRoot *bool, allowPrivilege *bool, err error) {
+func GetContainerSettings(name string) (maxSev string, allowRoot *bool, allowPrivilege *bool, secopsScanner string, err error) {
 	db := GetDB()
 	if db == nil {
 		err = fmt.Errorf("base de données non initialisée")
@@ -389,20 +398,21 @@ func GetContainerSettings(name string) (maxSev string, allowRoot *bool, allowPri
 	}
 
 	query := `
-	SELECT secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+	SELECT secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
 	FROM container_settings WHERE container_name = ?;`
 
-	var maxS string
+	var maxS, scanner string
 	var rootVal, privVal int
-	err = db.QueryRow(query, name).Scan(&maxS, &rootVal, &privVal)
+	err = db.QueryRow(query, name).Scan(&maxS, &rootVal, &privVal, &scanner)
 	if err == sql.ErrNoRows {
 		// Pas de surcharge, on retourne des valeurs par défaut/nil
-		return "", nil, nil, nil
+		return "", nil, nil, "", nil
 	} else if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, "", err
 	}
 
 	maxSev = maxS
+	secopsScanner = scanner
 	if rootVal == 1 {
 		b := true
 		allowRoot = &b
@@ -419,7 +429,7 @@ func GetContainerSettings(name string) (maxSev string, allowRoot *bool, allowPri
 		allowPrivilege = &b
 	}
 
-	return maxSev, allowRoot, allowPrivilege, nil
+	return maxSev, allowRoot, allowPrivilege, secopsScanner, nil
 }
 
 // GetAllContainerSettings renvoie toutes les surcharges actives sous forme de map.
@@ -430,7 +440,7 @@ func GetAllContainerSettings() (map[string]ContainerSettings, error) {
 	}
 
 	query := `
-	SELECT container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged
+	SELECT container_name, secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
 	FROM container_settings;`
 
 	rows, err := db.Query(query)
@@ -441,9 +451,9 @@ func GetAllContainerSettings() (map[string]ContainerSettings, error) {
 
 	settings := make(map[string]ContainerSettings)
 	for rows.Next() {
-		var name, maxS string
+		var name, maxS, scanner string
 		var rootVal, privVal int
-		if err := rows.Scan(&name, &maxS, &rootVal, &privVal); err != nil {
+		if err := rows.Scan(&name, &maxS, &rootVal, &privVal, &scanner); err != nil {
 			return nil, err
 		}
 
@@ -470,6 +480,7 @@ func GetAllContainerSettings() (map[string]ContainerSettings, error) {
 			MaxSeverityAllowed: maxS,
 			AllowRoot:          rootBool,
 			AllowPrivileged:    privBool,
+			SecopsScanner:      scanner,
 		}
 	}
 	return settings, nil

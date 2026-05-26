@@ -40,16 +40,15 @@ RUN apk add --no-cache \
 # 2. Installation de TRIVY depuis le dépôt officiel de test d'Alpine Edge
 RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing trivy
 
-# 3. Téléchargement et installation sécurisée de DOCKLE CLI
+# 3. Téléchargement et installation de GRYPE CLI (Anchore)
+RUN curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+# 3b. Téléchargement et installation sécurisée de DOCKLE CLI
 RUN wget -O dockle.tar.gz https://github.com/goodwithtech/dockle/releases/download/v${DOCKLE_VERSION}/dockle_${DOCKLE_VERSION}_Linux-64bit.tar.gz \
     && tar zxf dockle.tar.gz \
     && mv dockle /usr/local/bin/dockle \
     && chmod +x /usr/local/bin/dockle \
     && rm -rf dockle.tar.gz
-
-
-
-
 
 # 4. Création d'un utilisateur d'exécution non-root (sécurité de l'hôte)
 # UID 10001 est utilisé pour éviter les conflits standards
@@ -59,6 +58,7 @@ RUN addgroup -g 10001 safedock \
 # 5. Configuration des répertoires et permissions de cache SecOps
 RUN mkdir -p /home/safedock/.cache/trivy \
     && mkdir -p /home/safedock/.cache/dockle \
+    && mkdir -p /home/safedock/.cache/grype \
     && chown -R safedock:safedock /home/safedock
 
 # 6. Copie du binaire SafeDock depuis le builder
@@ -67,6 +67,7 @@ RUN chmod +x /usr/local/bin/safedock
 
 # Définition des variables d'environnement de cache
 ENV TRIVY_CACHE_DIR="/home/safedock/.cache/trivy"
+ENV GRYPE_DB_CACHE_DIR="/home/safedock/.cache/grype/db"
 
 # Exposition du port d'API REST & Dashboard Web
 EXPOSE 8080

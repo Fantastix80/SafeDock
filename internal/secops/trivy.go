@@ -19,6 +19,7 @@ type VulnerabilityDetail struct {
 	Title            string `json:"title"`
 	Description      string `json:"description"`
 	URL              string `json:"url"`
+	Scanner          string `json:"scanner"`
 }
 
 // TrivySummary stocke le décompte brut des CVE classées par sévérité.
@@ -111,6 +112,7 @@ func ParseTrivyJSON(imageName string, data []byte) (*TrivyReport, error) {
 				Title:            vuln.Title,
 				Description:      vuln.Description,
 				URL:              vuln.PrimaryURL,
+				Scanner:          "Trivy",
 			}
 			report.Vulnerabilities = append(report.Vulnerabilities, detail)
 
