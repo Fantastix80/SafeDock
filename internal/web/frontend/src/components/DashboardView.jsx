@@ -38,9 +38,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     return 'text-amber-400';
   };
   const logStatusLabel = (s) => {
-    if (s === 'SUCCESS' || s === 'CLEAN') return 'SUCCÃˆS';
-    if (s === 'BLOCKED') return 'BLOQUÃ‰';
-    return 'Ã‰CHEC';
+    if (s === 'SUCCESS' || s === 'CLEAN') return 'SUCCÈS';
+    if (s === 'BLOCKED') return 'BLOQUÉ';
+    return 'ÉCHEC';
   };
 
   return (
@@ -51,7 +51,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           icon={<Boxes className="w-6 h-6" />}
           iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
           value={stats.total}
-          label="Conteneurs auditÃ©s"
+          label="Conteneurs audités"
           glow="shadow-[0_0_40px_-15px_rgba(247,147,26,0.15)]"
         />
         <KpiCard
@@ -65,7 +65,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           icon={<CloudDownload className="w-6 h-6" />}
           iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
           value={stats.updatesAvailable}
-          label="Mises Ã  jour disponibles"
+          label="Mises à jour disponibles"
           glow=""
         />
       </div>
@@ -98,8 +98,8 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         {/* CVE Chart */}
         <div className="card p-6">
           <div className="mb-4">
-            <p className="font-heading text-base font-semibold text-white">GravitÃ© des Failles (CVE)</p>
-            <p className="text-sm text-[#94A3B8] mt-0.5">VulnÃ©rabilitÃ©s cumulÃ©es dÃ©tectÃ©es sur vos conteneurs</p>
+            <p className="font-heading text-base font-semibold text-white">Gravité des Failles (CVE)</p>
+            <p className="text-sm text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
           </div>
           <CveChart counts={cveCounts} />
         </div>
@@ -109,12 +109,12 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           <div>
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
               <Zap className="w-4 h-4 text-[#F7931A]" />
-              <p className="font-heading text-base font-semibold text-white">Actions recommandÃ©es</p>
+              <p className="font-heading text-base font-semibold text-white">Actions recommandées</p>
             </div>
             <div className="space-y-3">
               <ActionItem badge="CRITICAL" badgeClass="bg-red-500/15 text-red-400 border border-red-500/20" name="target-vuln"   desc="Faille critique sans patch." />
-              <ActionItem badge="SECURITY" badgeClass="bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20" name="docker-proxy" desc="Tag latest non-Ã©pinglÃ©." />
-              <ActionItem badge="UPDATE"   badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" name="safedock-app" desc="Mise Ã  jour en attente." />
+              <ActionItem badge="SECURITY" badgeClass="bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20" name="docker-proxy" desc="Tag latest non-épinglé." />
+              <ActionItem badge="UPDATE"   badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" name="safedock-app" desc="Mise à jour en attente." />
             </div>
           </div>
           <button
@@ -122,7 +122,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
             onClick={() => onNavigate('actions')}
             className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200"
           >
-            GÃ©rer les actions ({stats.warnings + stats.updatesAvailable})
+            Gérer les actions ({stats.warnings + stats.updatesAvailable})
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -182,7 +182,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
             <Clock className="w-4 h-4 text-[#94A3B8]" />
-            Historique d'audit & activitÃ©s SecOps
+            Historique d'audit & activités SecOps
           </div>
           <button
             type="button"
@@ -198,7 +198,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-white/[0.06]">
-                  {['Date', 'Conteneur', 'Image / digest', 'Statut', 'DÃ©tails', 'CVEs (C/H/M)'].map(h => (
+                  {['Date', 'Conteneur', 'Image / digest', 'Statut', 'Détails', 'CVEs (C/H/M)'].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">
                       {h}
                     </th>
@@ -209,7 +209,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
                 {auditLogs.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-4 py-10 text-center text-[#94A3B8]/40 font-mono text-xs">
-                      Aucun journal d'activitÃ© disponible.
+                      Aucun journal d'activité disponible.
                     </td>
                   </tr>
                 ) : (
@@ -224,7 +224,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
                       <td className="px-4 py-3 text-[#94A3B8] max-w-[200px] truncate">{log.message}</td>
                       <td className="px-4 py-3 text-center font-mono text-[#94A3B8]">
                         {(log.status === 'SUCCESS' || log.status === 'CLEAN')
-                          ? <span className="text-[#94A3B8]/30">â€”</span>
+                          ? <span className="text-[#94A3B8]/30">—</span>
                           : `${log.cve_critical || 0}/${log.cve_high || 0}/${log.cve_medium || 0}`
                         }
                       </td>
@@ -343,18 +343,18 @@ function ContainerCard({ c, onClick }) {
       <div className="flex gap-1.5 flex-wrap mb-3">
         <Pill pass={c.tag_pinned}>Pinning</Pill>
         <Pill pass={c.non_root}>Non-Root</Pill>
-        <Pill pass={c.privileged_safe}>PrivilÃ¨ges</Pill>
+        <Pill pass={c.privileged_safe}>Privilèges</Pill>
       </div>
 
       <div className="flex items-center justify-between font-mono text-xs text-[#94A3B8]">
         <span>Score : <span className={cn('font-bold', scoreCol)}>{c.score}/100</span></span>
         {c.update_available ? (
           <span className="flex items-center gap-1 text-amber-400">
-            <CloudDownload className="w-3.5 h-3.5" /> MÃ j dispo
+            <CloudDownload className="w-3.5 h-3.5" /> Màj dispo
           </span>
         ) : (
           <span className="flex items-center gap-1 text-emerald-400">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Ã€ jour
+            <CheckCircle2 className="w-3.5 h-3.5" /> À jour
           </span>
         )}
       </div>

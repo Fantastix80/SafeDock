@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
 
 const PAGE_META = {
-  dashboard:             { title: 'Tableau de bord',           desc: 'Analyse en temps rÃ©el de votre parc Docker' },
-  containers:            { title: 'Inventaire des conteneurs', desc: 'Statuts, scores SecOps et mÃ©tadonnÃ©es' },
-  watch:                 { title: 'Veille SecOps & Menaces',   desc: 'Bulletins de vulnÃ©rabilitÃ©s et guides de durcissement' },
-  notifications:         { title: 'Centre de Notifications',  desc: 'Alertes et Ã©vÃ©nements de sÃ©curitÃ© rÃ©cents' },
-  account:               { title: 'Mon Compte',                desc: "IdentitÃ©, sÃ©curitÃ© et prÃ©fÃ©rences d'alertes" },
-  settings:              { title: 'Configuration',             desc: 'RÃ¨gles SecOps globales, accÃ¨s et politiques' },
-  'container-settings':  { title: 'Surcharges du conteneur',  desc: 'Seuils de tolÃ©rance spÃ©cifiques Ã  ce conteneur' },
-  actions:               { title: 'Actions SecOps',            desc: 'DÃ©ploiements, rollouts et correctifs Ã  appliquer' },
-  agents:                { title: 'Agents SecOps',             desc: 'Gestion des agents de surveillance distribuÃ©s' },
-  permissions:           { title: 'Permissions',               desc: "ContrÃ´le d'accÃ¨s, rÃ´les et pÃ©rimÃ¨tres utilisateurs" },
-  'container-detail':    { title: 'Cockpit du conteneur',     desc: 'DÃ©tails, scans de vulnÃ©rabilitÃ©s et conformitÃ©' },
-  'audit':               { title: 'Audit d\'Image',            desc: 'Analysez n\'importe quelle image Docker avant dÃ©ploiement' },
-  '404':                 { title: 'Ressource introuvable',     desc: "La page demandÃ©e n'existe pas" },
+  dashboard:             { title: 'Tableau de bord',           desc: 'Analyse en temps réel de votre parc Docker' },
+  containers:            { title: 'Inventaire des conteneurs', desc: 'Statuts, scores SecOps et métadonnées' },
+  watch:                 { title: 'Veille SecOps & Menaces',   desc: 'Bulletins de vulnérabilités et guides de durcissement' },
+  notifications:         { title: 'Centre de Notifications',  desc: 'Alertes et événements de sécurité récents' },
+  account:               { title: 'Mon Compte',                desc: "Identité, sécurité et préférences d'alertes" },
+  settings:              { title: 'Configuration',             desc: 'Règles SecOps globales, accès et politiques' },
+  'container-settings':  { title: 'Surcharges du conteneur',  desc: 'Seuils de tolérance spécifiques à ce conteneur' },
+  actions:               { title: 'Actions SecOps',            desc: 'Déploiements, rollouts et correctifs à appliquer' },
+  agents:                { title: 'Agents SecOps',             desc: 'Gestion des agents de surveillance distribués' },
+  permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
+  'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
+  'audit':               { title: 'Audit d\'Image',            desc: 'Analysez n\'importe quelle image Docker avant déploiement' },
+  '404':                 { title: 'Ressource introuvable',     desc: "La page demandée n'existe pas" },
 };
 
 export default function Header({ activePage, onNavigate }) {
@@ -60,7 +60,7 @@ export default function Header({ activePage, onNavigate }) {
       {/* Separator */}
       <div className="w-px h-5 bg-white/[0.08]" />
 
-      {/* Profile button â€” direct navigate to account */}
+      {/* Profile button — direct navigate to account */}
       <button
         type="button"
         onClick={() => onNavigate('account')}

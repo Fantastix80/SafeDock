@@ -19,11 +19,11 @@ export default function AgentsView() {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!name || !ip) return;
-    setSaveStatus('EnrÃ´lement...');
+    setSaveStatus('Enrôlement...');
     setTimeout(() => {
       setAgents(prev => [...prev, { name, ip, status: 'connected', version: 'v0.9.5', containers: 0, cpu: '2%', memory: '0.4 GB / 4 GB' }]);
       setName(''); setIp('');
-      setSaveStatus('Agent connectÃ© avec succÃ¨s.');
+      setSaveStatus('Agent connecté avec succès.');
       setTimeout(() => setSaveStatus(''), 4000);
     }, 1000);
   };
@@ -35,8 +35,8 @@ export default function AgentsView() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-heading text-sm font-semibold text-white">Gestion des Agents Multi-HÃ´tes</h2>
-        <p className="text-xs text-[#94A3B8] mt-0.5">EnrÃ´lez et administrez des daemons Docker dÃ©centralisÃ©s sur plusieurs serveurs.</p>
+        <h2 className="font-heading text-sm font-semibold text-white">Gestion des Agents Multi-Hôtes</h2>
+        <p className="text-xs text-[#94A3B8] mt-0.5">Enrôlez et administrez des daemons Docker décentralisés sur plusieurs serveurs.</p>
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
@@ -50,14 +50,14 @@ export default function AgentsView() {
                 <span className="font-heading text-xs font-semibold text-white">Agents Actifs</span>
               </div>
               <span className="font-mono text-xs text-[#94A3B8]">
-                <span className="text-emerald-400 font-semibold">{online}</span> / {agents.length} connectÃ©s
+                <span className="text-emerald-400 font-semibold">{online}</span> / {agents.length} connectés
               </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/[0.04]">
-                    <th className={thClass}>HÃ´te</th>
+                    <th className={thClass}>Hôte</th>
                     <th className={thClass}>Adresse IP</th>
                     <th className={thClass}>Statut</th>
                     <th className={cn(thClass, 'text-center')}>Conteneurs</th>
@@ -81,12 +81,12 @@ export default function AgentsView() {
                             'w-1.5 h-1.5 rounded-full shrink-0',
                             a.status === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-[#94A3B8]/30'
                           )} />
-                          {a.status === 'connected' ? 'ConnectÃ©' : 'Hors ligne'}
+                          {a.status === 'connected' ? 'Connecté' : 'Hors ligne'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center font-heading font-semibold text-white">{a.containers}</td>
                       <td className="px-4 py-3 text-center font-mono text-[#94A3B8]/70">
-                        {a.status === 'connected' ? `${a.cpu} Â· ${a.memory}` : 'â€”'}
+                        {a.status === 'connected' ? `${a.cpu} · ${a.memory}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-[#94A3B8]/50 text-xs">{a.version}</td>
                     </tr>
@@ -115,7 +115,7 @@ export default function AgentsView() {
             {showGuide && (
               <div className="px-4 pb-4 space-y-3 border-t border-white/[0.06] pt-3">
                 <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  Pour lier un hÃ´te Linux Ã  votre console SafeDock, exÃ©cutez la commande ci-dessous en tant que{' '}
+                  Pour lier un hôte Linux à votre console SafeDock, exécutez la commande ci-dessous en tant que{' '}
                   <code className="bg-[#F7931A]/10 text-[#F7931A] px-1.5 rounded font-mono border border-[#F7931A]/20">root</code>{' '}
                   sur le serveur cible :
                 </p>
@@ -123,11 +123,11 @@ export default function AgentsView() {
                   curl -sSL https://safedock.local/install.sh | bash -s -- --token sd_agent_tok_8a92b8cd19f08831 --server 192.168.1.90
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-white mb-1.5">PrÃ©-requis :</p>
+                  <p className="text-xs font-semibold text-white mb-1.5">Pré-requis :</p>
                   <ul className="text-xs text-[#94A3B8] space-y-1 list-disc list-inside leading-relaxed">
                     <li>Linux (Ubuntu, Debian, CentOS, AlmaLinux ou Rocky)</li>
-                    <li>Docker Engine v20.10+ installÃ© et en cours d'exÃ©cution</li>
-                    <li>Port 2375 ou 2376 (TLS) accessible en rÃ©seau interne</li>
+                    <li>Docker Engine v20.10+ installé et en cours d'exécution</li>
+                    <li>Port 2375 ou 2376 (TLS) accessible en réseau interne</li>
                   </ul>
                 </div>
               </div>
@@ -139,10 +139,10 @@ export default function AgentsView() {
         <div className="card p-4 h-fit">
           <div className="flex items-center gap-2 pb-3 mb-4 border-b border-white/[0.06]">
             <PlusCircle className="w-4 h-4 text-[#F7931A]" />
-            <h3 className="font-heading text-xs font-semibold text-white">EnrÃ´ler un hÃ´te</h3>
+            <h3 className="font-heading text-xs font-semibold text-white">Enrôler un hôte</h3>
           </div>
           <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">
-            Ajoutez l'adresse IP et le nom d'un hÃ´te sur lequel le daemon SafeDock est dÃ©jÃ  dÃ©ployÃ©.
+            Ajoutez l'adresse IP et le nom d'un hôte sur lequel le daemon SafeDock est déjà déployé.
           </p>
 
           <form onSubmit={handleAdd} className="space-y-3">

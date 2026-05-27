@@ -12,7 +12,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
   const handleSave = () => {
     setStatus('Enregistrement...');
     setTimeout(() => {
-      setStatus('Politique de mise Ã  jour sauvegardÃ©e.');
+      setStatus('Politique de mise à jour sauvegardée.');
       setTimeout(() => setStatus(''), 4000);
     }, 800);
   };
@@ -20,17 +20,17 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-heading text-sm font-semibold text-white">Actions de SÃ©curitÃ© NÃ©cessaires</h2>
-        <p className="text-xs text-[#94A3B8] mt-0.5">Mises Ã  jour en attente d'approbation et alertes CVE critiques.</p>
+        <h2 className="font-heading text-sm font-semibold text-white">Actions de Sécurité Nécessaires</h2>
+        <p className="text-xs text-[#94A3B8] mt-0.5">Mises à jour en attente d'approbation et alertes CVE critiques.</p>
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
         {/* Left */}
         <div className="space-y-4">
           {/* Updates */}
-          <SectionCard icon={<CloudDownload className="w-4 h-4 text-[#F7931A]" />} title={`Mises Ã  jour prÃªtes (${updatesPending.length})`}>
+          <SectionCard icon={<CloudDownload className="w-4 h-4 text-[#F7931A]" />} title={`Mises à jour prêtes (${updatesPending.length})`}>
             {updatesPending.length === 0 ? (
-              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} text="Tous les conteneurs sont Ã  jour." />
+              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} text="Tous les conteneurs sont à jour." />
             ) : (
               <div className="space-y-2">
                 {updatesPending.map(c => (
@@ -42,7 +42,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                       </div>
                       <p className="text-xs font-mono text-[#94A3B8]/70 mt-0.5">{c.image_name}:{c.image_tag}</p>
                       <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> PrÃªt pour pivot sÃ©curisÃ©
+                        <CheckCircle2 className="w-3 h-3" /> Prêt pour pivot sécurisé
                       </p>
                     </div>
                     <button
@@ -50,7 +50,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                       onClick={() => onTriggerRollout(c.id, c.name)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all shrink-0 shadow-[0_0_15px_-5px_rgba(247,147,26,0.3)]"
                     >
-                      <RotateCw className="w-3.5 h-3.5" /> DÃ©ployer
+                      <RotateCw className="w-3.5 h-3.5" /> Déployer
                     </button>
                   </div>
                 ))}
@@ -59,9 +59,9 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
           </SectionCard>
 
           {/* CVEs */}
-          <SectionCard icon={<Bug className="w-4 h-4 text-red-400" />} title={`VulnÃ©rabilitÃ©s sans correctif (${vulnerable.length})`}>
+          <SectionCard icon={<Bug className="w-4 h-4 text-red-400" />} title={`Vulnérabilités sans correctif (${vulnerable.length})`}>
             {vulnerable.length === 0 ? (
-              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} text="Excellente posture â€” aucune vulnÃ©rabilitÃ© active." />
+              <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} text="Excellente posture — aucune vulnérabilité active." />
             ) : (
               <div className="space-y-2">
                 {vulnerable.map(c => (
@@ -76,12 +76,12 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                       </span>
                     </div>
                     <p className="text-xs text-[#94A3B8] leading-relaxed mb-2">
-                      Des CVE ont Ã©tÃ© remontÃ©es sur ce conteneur. Aucune nouvelle version publiÃ©e par l'Ã©diteur pour le moment.
+                      Des CVE ont été remontées sur ce conteneur. Aucune nouvelle version publiée par l'éditeur pour le moment.
                     </p>
                     <div className="flex items-center justify-between border-t border-white/[0.04] pt-2">
                       <p className="text-xs text-[#94A3B8]/50 flex items-center gap-1">
                         <TriangleAlert className="w-3 h-3 text-amber-500/70" />
-                        RecommandÃ© : Isoler le rÃ©seau ou durcir les variables d'env.
+                        Recommandé : Isoler le réseau ou durcir les variables d'env.
                       </p>
                       <button
                         type="button"
@@ -99,9 +99,9 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
         </div>
 
         {/* Right: Settings */}
-        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="ParamÃ¨tres pivots">
+        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="Paramètres pivots">
           <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">
-            Comportement de mise Ã  jour lors de la dÃ©tection de versions saines.
+            Comportement de mise à jour lors de la détection de versions saines.
           </p>
 
           <div className="space-y-3">
@@ -111,9 +111,9 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
             >
               <CheckboxIndicator checked={autoUpdate} className="mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-white">Mises Ã  jour automatiques SecOps</p>
+                <p className="text-sm font-semibold text-white">Mises à jour automatiques SecOps</p>
                 <p className="text-xs text-[#94A3B8] mt-0.5 leading-relaxed">
-                  Mettre Ã  jour automatiquement dÃ¨s que tous les tests SecOps sont validÃ©s.
+                  Mettre à jour automatiquement dès que tous les tests SecOps sont validés.
                 </p>
               </div>
             </div>
@@ -124,7 +124,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                   <TriangleAlert className="w-3.5 h-3.5" /> Mode Notification Seul
                 </p>
                 <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  Aucun dÃ©ploiement automatique. Vous recevrez une alerte pour dÃ©ployer manuellement.
+                  Aucun déploiement automatique. Vous recevrez une alerte pour déployer manuellement.
                 </p>
               </div>
             )}
@@ -136,7 +136,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
               onClick={handleSave}
               className="w-full py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
             >
-              Sauvegarder les rÃ¨gles
+              Sauvegarder les règles
             </button>
           </div>
         </SectionCard>

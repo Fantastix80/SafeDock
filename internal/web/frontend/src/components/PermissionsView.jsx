@@ -12,20 +12,20 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
   const handleCreate = (e) => {
     e.preventDefault();
     if (!newName) return;
-    let scopeValue = null, desc = 'AccÃ¨s complet';
+    let scopeValue = null, desc = 'Accès complet';
     if (scopeType === 'tags') {
       scopeValue = scopeVal.split(',').map(s => s.trim()).filter(Boolean);
       desc = `Tags : ${scopeValue.join(', ')}`;
     } else if (scopeType === 'hosts') {
       scopeValue = [scopeVal.trim()];
-      desc = `HÃ´te : ${scopeVal.trim()}`;
+      desc = `Hôte : ${scopeVal.trim()}`;
     }
     const user = { id: Date.now(), name: newName, role: newRole, scopeType, scopeValue, desc };
     const updated = [...simulatedUsers, user];
     setSimulatedUsers(updated);
     localStorage.setItem('safedock-simulated-users', JSON.stringify(updated));
     setNewName(''); setScopeVal(''); setScopeType('all');
-    setStatus('Utilisateur crÃ©Ã©.'); setTimeout(() => setStatus(''), 4000);
+    setStatus('Utilisateur créé.'); setTimeout(() => setStatus(''), 4000);
   };
 
   const handleDelete = (id) => {
@@ -53,7 +53,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
             <Lock className="w-4 h-4 text-[#94A3B8]" />
             Matrice des Permissions & Scopes
           </div>
-          <p className="text-xs text-[#94A3B8]">VisibilitÃ© et droits d'administration SecOps des utilisateurs.</p>
+          <p className="text-xs text-[#94A3B8]">Visibilité et droits d'administration SecOps des utilisateurs.</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#F7931A]/25 bg-[#F7931A]/5 text-xs font-medium text-[#F7931A] shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-[#F7931A] shadow-[0_0_6px_rgba(247,147,26,0.8)]" />
@@ -66,14 +66,14 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
         <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/25 bg-amber-500/5">
           <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1 text-xs text-[#94A3B8] leading-relaxed">
-            <strong className="text-amber-400">Mode Simulation actif</strong> â€” Les donnÃ©es sont filtrÃ©es selon le scope de <strong className="text-white">{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
+            <strong className="text-amber-400">Mode Simulation actif</strong> — Les données sont filtrées selon le scope de <strong className="text-white">{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
           </div>
           <button
             type="button"
             onClick={() => setActiveUserProfile(simulatedUsers.find(u => u.id === 1))}
             className="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-xl bg-white/[0.06] text-[#94A3B8] hover:text-white hover:bg-white/[0.1] transition-colors font-mono"
           >
-            RÃ©tablir Admin
+            Rétablir Admin
           </button>
         </div>
       )}
@@ -90,7 +90,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/[0.04]">
-                    {['Utilisateur', 'RÃ´le', 'Scope', 'Simulation', 'Actions'].map(h => (
+                    {['Utilisateur', 'Rôle', 'Scope', 'Simulation', 'Actions'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">{h}</th>
                     ))}
                   </tr>
@@ -138,7 +138,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                               : 'bg-white/[0.04] text-[#94A3B8] hover:text-white hover:bg-white/[0.07]'
                           )}
                         >
-                          {activeUserProfile.id === u.id ? 'ConnectÃ©' : 'Se connecter'}
+                          {activeUserProfile.id === u.id ? 'Connecté' : 'Se connecter'}
                         </button>
                       </td>
                       <td className="px-4 py-3">
@@ -151,7 +151,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                             <Trash2 className="w-3 h-3" />
                           </button>
                         ) : (
-                          <span className="font-mono text-xs text-[#94A3B8]/30">SystÃ¨me</span>
+                          <span className="font-mono text-xs text-[#94A3B8]/30">Système</span>
                         )}
                       </td>
                     </tr>
@@ -164,11 +164,11 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
           <div className="card p-4 grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 font-heading text-xs font-semibold text-white mb-2">
-                <Info className="w-3.5 h-3.5 text-[#F7931A]" /> RÃ´les SecOps
+                <Info className="w-3.5 h-3.5 text-[#F7931A]" /> Rôles SecOps
               </div>
               <ul className="text-xs text-[#94A3B8] space-y-1.5 list-disc list-inside leading-relaxed">
                 <li><strong className="text-white">Admin</strong> : Audit, config SMTP, seuils et pivots</li>
-                <li><strong className="text-white">Auditeur</strong> : Inspecter, rescanner, rafraÃ®chir</li>
+                <li><strong className="text-white">Auditeur</strong> : Inspecter, rescanner, rafraîchir</li>
                 <li><strong className="text-white">Lecteur</strong> : Lecture seule des rapports SecOps</li>
               </ul>
             </div>
@@ -177,7 +177,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                 <Filter className="w-3.5 h-3.5 text-[#F7931A]" /> Scoping de Ressources
               </div>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Restreignez la visibilitÃ© par tags ou par hÃ´tes. Toutes les statistiques, CVEs et logs sont automatiquement calculÃ©s dans le scope assignÃ©.
+                Restreignez la visibilité par tags ou par hôtes. Toutes les statistiques, CVEs et logs sont automatiquement calculés dans le scope assigné.
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
         <div className="card p-4 h-fit">
           <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
             <UserPlus className="w-4 h-4 text-[#F7931A]" />
-            <h3 className="font-heading text-xs font-semibold text-white">CrÃ©er un profil</h3>
+            <h3 className="font-heading text-xs font-semibold text-white">Créer un profil</h3>
           </div>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1">
@@ -201,15 +201,15 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               />
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">RÃ´le global</label>
+              <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Rôle global</label>
               <select
                 value={newRole}
                 onChange={e => setNewRole(e.target.value)}
                 className={cn(inputClass, 'cursor-pointer')}
               >
-                <option value="Admin">Admin â€” Tous les privilÃ¨ges</option>
-                <option value="Auditeur">Auditeur â€” Scan, lecture, refresh</option>
-                <option value="Lecteur">Lecteur â€” Lecture seule</option>
+                <option value="Admin">Admin — Tous les privilèges</option>
+                <option value="Auditeur">Auditeur — Scan, lecture, refresh</option>
+                <option value="Lecteur">Lecteur — Lecture seule</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -221,13 +221,13 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               >
                 <option value="all">Tout le parc</option>
                 <option value="tags">Restreint par Tags</option>
-                <option value="hosts">Restreint par HÃ´te</option>
+                <option value="hosts">Restreint par Hôte</option>
               </select>
             </div>
             {scopeType !== 'all' && (
               <div className="space-y-1">
                 <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">
-                  {scopeType === 'tags' ? 'Tags autorisÃ©s (virgules)' : 'Nom exact de la machine'}
+                  {scopeType === 'tags' ? 'Tags autorisés (virgules)' : 'Nom exact de la machine'}
                 </label>
                 <input
                   className={inputClass}
@@ -243,7 +243,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               type="submit"
               className="w-full py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)] flex items-center justify-center gap-1.5"
             >
-              <UserPlus className="w-3.5 h-3.5" /> CrÃ©er l'utilisateur
+              <UserPlus className="w-3.5 h-3.5" /> Créer l'utilisateur
             </button>
           </form>
         </div>

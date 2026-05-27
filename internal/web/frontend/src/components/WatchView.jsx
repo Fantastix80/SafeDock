@@ -5,28 +5,28 @@ import { cn } from '../lib/utils';
 const BULLETINS = [
   {
     id: 'SB-2026-003', date: '25 Mai 2026', severity: 'CRITICAL',
-    title: 'VulnÃ©rabilitÃ© critique dans le dÃ©mon de runtime containerd',
-    summary: 'Une faille de contournement de namespace dans containerd (CVE-2026-9912) permet Ã  un conteneur malveillant d\'exÃ©cuter du code arbitraire sur l\'hÃ´te.',
-    remediation: 'Mettez Ã  jour containerd vers la version 1.7.15+ ou 2.0.0-rc.3+'
+    title: 'Vulnérabilité critique dans le démon de runtime containerd',
+    summary: 'Une faille de contournement de namespace dans containerd (CVE-2026-9912) permet à un conteneur malveillant d\'exécuter du code arbitraire sur l\'hôte.',
+    remediation: 'Mettez à jour containerd vers la version 1.7.15+ ou 2.0.0-rc.3+'
   },
   {
     id: 'SB-2026-002', date: '18 Mai 2026', severity: 'HIGH',
     title: 'Fuite de descripteurs de fichiers dans runc',
-    summary: 'Une mauvaise fermeture de descripteur de fichier (CVE-2026-4021) permet Ã  un attaquant disposant de privilÃ¨ges root dans le conteneur d\'accÃ©der au systÃ¨me de fichiers de l\'hÃ´te.',
-    remediation: 'Assurez-vous que runc est mis Ã  jour en v1.1.13'
+    summary: 'Une mauvaise fermeture de descripteur de fichier (CVE-2026-4021) permet à un attaquant disposant de privilèges root dans le conteneur d\'accéder au système de fichiers de l\'hôte.',
+    remediation: 'Assurez-vous que runc est mis à jour en v1.1.13'
   },
   {
     id: 'SB-2026-001', date: '05 Mai 2026', severity: 'MEDIUM',
     title: 'Faiblesses de chiffrement dans Docker Desktop',
-    summary: 'Le stockage local des identifiants de registres utilise une clÃ© statique faible sur certaines versions Windows.',
-    remediation: 'Activez l\'intÃ©gration du gestionnaire d\'identifiants Windows natif (Credential Manager).'
+    summary: 'Le stockage local des identifiants de registres utilise une clé statique faible sur certaines versions Windows.',
+    remediation: 'Activez l\'intégration du gestionnaire d\'identifiants Windows natif (Credential Manager).'
   }
 ];
 
 const PRACTICES = [
-  { cat: 'Isolation',   title: 'Restreindre l\'accÃ¨s Ã  la socket Docker',   desc: 'Le montage de /var/run/docker.sock Ã©quivaut Ã  donner des privilÃ¨ges root illimitÃ©s sur l\'hÃ´te. Utilisez des API proxifiÃ©es avec authentification.' },
-  { cat: 'PrivilÃ¨ges',  title: 'Activer le mode User Namespace',             desc: 'Mapper l\'utilisateur root du conteneur sur un utilisateur sans privilÃ¨ges sur l\'hÃ´te via les userns-remap.' },
-  { cat: 'IntÃ©gritÃ©',   title: 'DÃ©finir des Read-Only Root Filesystems',     desc: 'ExÃ©cutez vos conteneurs avec --read-only pour empÃªcher l\'Ã©criture et la persistance de charges virales en cas de compromission.' }
+  { cat: 'Isolation',   title: 'Restreindre l\'accès à la socket Docker',   desc: 'Le montage de /var/run/docker.sock équivaut à donner des privilèges root illimités sur l\'hôte. Utilisez des API proxifiées avec authentification.' },
+  { cat: 'Privilèges',  title: 'Activer le mode User Namespace',             desc: 'Mapper l\'utilisateur root du conteneur sur un utilisateur sans privilèges sur l\'hôte via les userns-remap.' },
+  { cat: 'Intégrité',   title: 'Définir des Read-Only Root Filesystems',     desc: 'Exécutez vos conteneurs avec --read-only pour empêcher l\'écriture et la persistance de charges virales en cas de compromission.' }
 ];
 
 const SEV_STYLE = {
@@ -40,7 +40,7 @@ export default function WatchView() {
     <div className="space-y-4">
       <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
         <Newspaper className="w-4 h-4 text-[#94A3B8]" />
-        Veille de SÃ©curitÃ© SecOps & Bulletins
+        Veille de Sécurité SecOps & Bulletins
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
@@ -65,7 +65,7 @@ export default function WatchView() {
                 <div className="flex items-start gap-2 p-2.5 rounded-xl bg-[#0A0C10] border border-white/[0.06]">
                   <Wrench className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                   <span className="text-xs text-white/80">
-                    <strong className="text-white">RemÃ©diation :</strong> {sb.remediation}
+                    <strong className="text-white">Remédiation :</strong> {sb.remediation}
                   </span>
                 </div>
               </div>
@@ -95,7 +95,7 @@ export default function WatchView() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F7931A]" />
               </span>
               <Radio className="w-3.5 h-3.5" />
-              <span className="font-mono text-xs tracking-wide">Flux synchronisÃ© (NVD & CERT)</span>
+              <span className="font-mono text-xs tracking-wide">Flux synchronisé (NVD & CERT)</span>
             </div>
           </div>
         </div>
