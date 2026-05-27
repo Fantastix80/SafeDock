@@ -140,10 +140,7 @@ func (da *DockerAuditor) AuditSingleContainer(ctx context.Context, containerID s
 	}
 
 	// Nettoyage du nom pour enlever le slash initial standard de Docker
-	containerName := inspect.Name
-	if strings.HasPrefix(containerName, "/") {
-		containerName = containerName[1:]
-	}
+	containerName := strings.TrimPrefix(inspect.Name, "/")
 
 	// 7. Analyse des secrets fuités dans les variables d'environnement
 	leaks := secops.ScanEnvVariables(inspect.Config.Env)

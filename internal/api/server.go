@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/safedock/safedock/internal/config"
 	"github.com/safedock/safedock/internal/web"
@@ -89,8 +90,9 @@ func (s *Server) Start(ctx context.Context) error {
 	// 3. Configuration et lancement du serveur HTTP
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: corsMiddleware(mux), // Activation du middleware CORS pour faciliter le dev local
+		Addr:              addr,
+		Handler:           corsMiddleware(mux), // Activation du middleware CORS pour faciliter le dev local
+		ReadHeaderTimeout: 10 * time.Second,    // Protection contre les attaques Slowloris (G112)
 	}
 
 	// Gestion de l'arrêt propre

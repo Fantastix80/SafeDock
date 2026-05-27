@@ -74,7 +74,7 @@ func TestSettingsCRUD(t *testing.T) {
 		t.Fatalf("Échec mise à jour : %v", err)
 	}
 
-	host, port, user, pass, from, to, skip, maxSev, root, priv, _, err = GetSettings()
+	host, port, _, pass, from, to, skip, maxSev, root, priv, _, err = GetSettings()
 	if err != nil {
 		t.Fatalf("Erreur lecture après MAJ : %v", err)
 	}

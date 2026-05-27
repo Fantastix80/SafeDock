@@ -64,7 +64,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	// Création des répertoires parents si nécessaire
 	dir := filepath.Dir(dbPath)
 	if dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return nil, fmt.Errorf("impossible de créer le dossier de base de données : %w", err)
 		}
 	}

@@ -54,9 +54,9 @@ func ResolveImageName(fullImageName string) ImageInfo {
 		// Pour Docker Hub, si pas d'organisation spécifiée, c'est l'organisation officielle "library"
 		if len(parts) == 1 {
 			name = "library/" + name
-		} else if len(parts) == 2 && !strings.Contains(parts[0], ".") {
-			// ex: fantastix80/safedock -> reste fantastix80/safedock
 		}
+		// Si len(parts) == 2 et pas de point dans parts[0], c'est un dépôt Docker Hub standard
+		// ex: fantastix80/safedock -> reste fantastix80/safedock (aucune transformation nécessaire)
 	}
 
 	return ImageInfo{

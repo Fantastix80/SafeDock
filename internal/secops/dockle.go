@@ -94,13 +94,7 @@ func ParseDockleJSON(imageName string, data []byte) (*DockleReport, error) {
 	}
 
 	for _, d := range raw.Details {
-		alert := DockleAlert{
-			Code:   d.Code,
-			Title:  d.Title,
-			Level:  d.Level,
-			Alerts: d.Alerts,
-		}
-		report.Details = append(report.Details, alert)
+		report.Details = append(report.Details, DockleAlert(d))
 	}
 
 	return report, nil
