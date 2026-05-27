@@ -460,6 +460,7 @@ export default function App() {
 
         {/* View Router */}
         <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-[1400px] mx-auto w-full">
           {activePage === 'dashboard' && (
             <DashboardView
               containers={scopedContainers}
@@ -562,6 +563,7 @@ export default function App() {
           {activePage === '404' && (
             <NotFoundView onNavigate={handleNavigate} />
           )}
+          </div>
         </main>
       </div>
     </div>

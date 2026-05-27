@@ -28,25 +28,26 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
       {/* Logo row */}
       <div className={cn(
-        'flex items-center h-16 border-b border-white/[0.06] px-3 shrink-0 gap-2',
-        isCollapsed && 'justify-center'
+        'flex items-center h-16 border-b border-white/[0.06] shrink-0',
+        isCollapsed ? 'justify-center gap-1.5 px-0' : 'px-3 gap-2'
       )}>
-        {!isCollapsed && <SafeDockLogo />}
+        {/* Logo always visible — smaller when collapsed */}
+        <SafeDockLogo size={isCollapsed ? 26 : 38} />
         {!isCollapsed && (
-          <span className="font-heading text-base font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
+          <span className="font-heading text-lg font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
         )}
         <button
           onClick={onToggleCollapse}
           title={isCollapsed ? 'Déplier' : 'Replier'}
           type="button"
           className={cn(
-            'flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-200 shrink-0',
+            'flex items-center justify-center rounded-lg transition-all duration-200 shrink-0',
             'text-[#94A3B8] hover:text-white bg-white/[0.03] hover:bg-white/[0.06]',
             'border border-white/[0.08] hover:border-[#F7931A]/40',
-            isCollapsed ? 'mx-auto' : 'ml-auto'
+            isCollapsed ? 'w-6 h-6' : 'w-7 h-7 ml-auto'
           )}
         >
-          {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+          {isCollapsed ? <ChevronsRight className="w-3.5 h-3.5" /> : <ChevronsLeft className="w-4 h-4" />}
         </button>
       </div>
 
@@ -131,9 +132,9 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
   );
 }
 
-function SafeDockLogo() {
+function SafeDockLogo({ size = 36 }) {
   return (
-    <svg viewBox="0 0 40 40" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg viewBox="0 0 40 40" width={size} height={size} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path
         d="M20 3L33 9V21C33 29 20 35 20 35C20 35 7 29 7 21V9Z"
         stroke="url(#sdlg1)" strokeWidth="2.5" strokeLinejoin="round"

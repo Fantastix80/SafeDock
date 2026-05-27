@@ -48,21 +48,21 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       {/* KPI Row */}
       <div className="grid grid-cols-3 gap-4">
         <KpiCard
-          icon={<Boxes className="w-5 h-5" />}
+          icon={<Boxes className="w-6 h-6" />}
           iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
           value={stats.total}
           label="Conteneurs audités"
           glow="shadow-[0_0_40px_-15px_rgba(247,147,26,0.15)]"
         />
         <KpiCard
-          icon={<TriangleAlert className="w-5 h-5" />}
+          icon={<TriangleAlert className="w-6 h-6" />}
           iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
           value={stats.warnings}
           label="Alertes critiques"
           glow={stats.warnings > 0 ? 'shadow-[0_0_40px_-15px_rgba(239,68,68,0.2)]' : ''}
         />
         <KpiCard
-          icon={<CloudDownload className="w-5 h-5" />}
+          icon={<CloudDownload className="w-6 h-6" />}
           iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
           value={stats.updatesAvailable}
           label="Mises à jour disponibles"
@@ -71,45 +71,45 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       </div>
 
       {/* Analytics Row */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: '260px 1fr 260px' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: '300px 1fr 300px' }}>
         {/* Score Gauge */}
-        <div className="card p-5 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
-          <p className="font-mono text-[10px] font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
-          <div className="relative w-32 h-32">
+        <div className="card p-6 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
+          <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
+          <div className="relative w-36 h-36">
             <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="44" />
               <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn('font-heading text-3xl font-extrabold', gradeColor(stats.globalScore))}>
+              <span className={cn('font-heading text-4xl font-extrabold', gradeColor(stats.globalScore))}>
                 {stats.globalGrade}
               </span>
-              <span className="text-[11px] text-[#94A3B8] mt-0.5 font-mono">{stats.globalScore}/100</span>
+              <span className="text-xs text-[#94A3B8] mt-0.5 font-mono">{stats.globalScore}/100</span>
             </div>
           </div>
           <div>
-            <p className={cn('font-heading text-sm font-bold', gradeColor(stats.globalScore))}>
+            <p className={cn('font-heading text-base font-bold', gradeColor(stats.globalScore))}>
               {gradeLabel(stats.globalGrade)}
             </p>
-            <p className="text-[11px] text-[#94A3B8] mt-0.5">Posture globale du parc</p>
+            <p className="text-sm text-[#94A3B8] mt-0.5">Posture globale du parc</p>
           </div>
         </div>
 
         {/* CVE Chart */}
-        <div className="card p-5">
+        <div className="card p-6">
           <div className="mb-4">
-            <p className="font-heading text-sm font-semibold text-white">Gravité des Failles (CVE)</p>
-            <p className="text-[11px] text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
+            <p className="font-heading text-base font-semibold text-white">Gravité des Failles (CVE)</p>
+            <p className="text-sm text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
           </div>
           <CveChart counts={cveCounts} />
         </div>
 
         {/* Recommended Actions */}
-        <div className="card p-5 flex flex-col justify-between">
+        <div className="card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
               <Zap className="w-4 h-4 text-[#F7931A]" />
-              <p className="font-heading text-sm font-semibold text-white">Actions recommandées</p>
+              <p className="font-heading text-base font-semibold text-white">Actions recommandées</p>
             </div>
             <div className="space-y-3">
               <ActionItem badge="CRITICAL" badgeClass="bg-red-500/15 text-red-400 border border-red-500/20" name="target-vuln"   desc="Faille critique sans patch." />
@@ -120,10 +120,10 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           <button
             type="button"
             onClick={() => onNavigate('actions')}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200"
+            className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200"
           >
             Gérer les actions ({stats.warnings + stats.updatesAvailable})
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -242,13 +242,13 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
 function KpiCard({ icon, iconClass, value, label, glow }) {
   return (
-    <div className={cn('card px-5 py-4 flex items-center gap-4 hover:border-white/[0.15] transition-all duration-300', glow)}>
-      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconClass)}>
+    <div className={cn('card px-6 py-5 flex items-center gap-5 hover:border-white/[0.15] transition-all duration-300', glow)}>
+      <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shrink-0', iconClass)}>
         {icon}
       </div>
       <div>
-        <p className="font-heading text-2xl font-bold text-white leading-none">{value}</p>
-        <p className="text-xs text-[#94A3B8] mt-1 font-mono">{label}</p>
+        <p className="font-heading text-4xl font-bold text-white leading-none">{value}</p>
+        <p className="text-sm text-[#94A3B8] mt-2 font-mono">{label}</p>
       </div>
     </div>
   );
@@ -256,8 +256,8 @@ function KpiCard({ icon, iconClass, value, label, glow }) {
 
 function ActionItem({ badge, badgeClass, name, desc }) {
   return (
-    <div className="flex gap-2.5 text-xs leading-relaxed">
-      <span className={cn('shrink-0 px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold h-fit tracking-wide', badgeClass)}>
+    <div className="flex gap-2.5 text-sm leading-relaxed">
+      <span className={cn('shrink-0 px-1.5 py-0.5 rounded-md font-mono text-xs font-bold h-fit tracking-wide', badgeClass)}>
         {badge}
       </span>
       <div>
@@ -327,15 +327,15 @@ function ContainerCard({ c, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="card p-4 text-left hover:-translate-y-0.5 hover:border-[#F7931A]/30 hover:shadow-[0_0_25px_-8px_rgba(247,147,26,0.2)] transition-all duration-300 group cursor-pointer"
+      className="card p-5 text-left hover:-translate-y-0.5 hover:border-[#F7931A]/30 hover:shadow-[0_0_25px_-8px_rgba(247,147,26,0.2)] transition-all duration-300 group cursor-pointer"
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
-          <p className="font-heading text-sm font-semibold text-white truncate">{c.name}</p>
-          <p className="text-[10px] text-[#94A3B8] mt-0.5 font-mono truncate">{c.image_name}:{c.image_tag}</p>
-          <p className="text-[10px] text-[#94A3B8]/50 mt-0.5 font-mono">{c.host_name}</p>
+          <p className="font-heading text-base font-semibold text-white truncate">{c.name}</p>
+          <p className="text-xs text-[#94A3B8] mt-0.5 font-mono truncate">{c.image_name}:{c.image_tag}</p>
+          <p className="text-xs text-[#94A3B8]/50 mt-0.5 font-mono">{c.host_name}</p>
         </div>
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center font-heading text-sm font-extrabold shrink-0', scoreCol, scoreBg)}>
+        <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center font-heading text-base font-extrabold shrink-0', scoreCol, scoreBg)}>
           {c.grade}
         </div>
       </div>
@@ -346,15 +346,15 @@ function ContainerCard({ c, onClick }) {
         <Pill pass={c.privileged_safe}>Privilèges</Pill>
       </div>
 
-      <div className="flex items-center justify-between font-mono text-[10px] text-[#94A3B8]">
+      <div className="flex items-center justify-between font-mono text-xs text-[#94A3B8]">
         <span>Score : <span className={cn('font-bold', scoreCol)}>{c.score}/100</span></span>
         {c.update_available ? (
           <span className="flex items-center gap-1 text-amber-400">
-            <CloudDownload className="w-3 h-3" /> Màj dispo
+            <CloudDownload className="w-3.5 h-3.5" /> Màj dispo
           </span>
         ) : (
           <span className="flex items-center gap-1 text-emerald-400">
-            <CheckCircle2 className="w-3 h-3" /> À jour
+            <CheckCircle2 className="w-3.5 h-3.5" /> À jour
           </span>
         )}
       </div>
@@ -365,10 +365,10 @@ function ContainerCard({ c, onClick }) {
 function Pill({ pass, children }) {
   return (
     <span className={cn(
-      'inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-md font-medium',
+      'inline-flex items-center gap-1 font-mono text-xs px-2 py-0.5 rounded-md font-medium',
       pass ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-400'
     )}>
-      {pass ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+      {pass ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
       {children}
     </span>
   );

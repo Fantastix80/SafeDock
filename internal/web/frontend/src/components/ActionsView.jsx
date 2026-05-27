@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CloudDownload, Bug, Settings2, CheckCircle2, TriangleAlert, RotateCw, Eye, Zap } from 'lucide-react';
+import { CloudDownload, Bug, Settings2, CheckCircle2, TriangleAlert, RotateCw, Eye, Zap, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function ActionsView({ containers, onTriggerRollout, onNavigate }) {
@@ -105,20 +105,18 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
           </p>
 
           <div className="space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-white/[0.06] bg-[#0A0C10] hover:border-[#F7931A]/20 transition-all">
-              <input
-                type="checkbox"
-                checked={autoUpdate}
-                onChange={e => setAutoUpdate(e.target.checked)}
-                className="mt-0.5 accent-[#F7931A] w-3.5 h-3.5"
-              />
+            <div
+              onClick={() => setAutoUpdate(v => !v)}
+              className="flex items-start gap-3 cursor-pointer group select-none p-3 rounded-xl border border-white/[0.06] bg-[#0A0C10] hover:border-[#F7931A]/20 transition-all"
+            >
+              <CheckboxIndicator checked={autoUpdate} className="mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-white">Mises à jour automatiques SecOps</p>
-                <p className="text-[11px] text-[#94A3B8] mt-0.5 leading-relaxed">
+                <p className="text-sm font-semibold text-white">Mises à jour automatiques SecOps</p>
+                <p className="text-xs text-[#94A3B8] mt-0.5 leading-relaxed">
                   Mettre à jour automatiquement dès que tous les tests SecOps sont validés.
                 </p>
               </div>
-            </label>
+            </div>
 
             {!autoUpdate && (
               <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
@@ -164,6 +162,20 @@ function EmptyState({ icon, text }) {
     <div className="flex flex-col items-center gap-2 py-6 text-[#94A3B8]/50">
       {icon}
       <p className="text-xs font-mono">{text}</p>
+    </div>
+  );
+}
+
+function CheckboxIndicator({ checked, className }) {
+  return (
+    <div className={cn(
+      'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all duration-200 border pointer-events-none',
+      checked
+        ? 'bg-[#F7931A] border-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.4)]'
+        : 'bg-transparent border-white/25 group-hover:border-[#F7931A]/50',
+      className
+    )}>
+      {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
     </div>
   );
 }
