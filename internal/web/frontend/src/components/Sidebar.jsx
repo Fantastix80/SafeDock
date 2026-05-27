@@ -19,46 +19,55 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
   return (
     <aside
       className={cn(
-        'flex flex-col h-screen shrink-0 border-r border-white/[0.06] transition-all duration-300',
-        'bg-[#0A0C10] relative',
+        'relative flex flex-col h-screen shrink-0 border-r border-white/[0.06] transition-all duration-300',
+        'bg-[#0A0C10]',
         isCollapsed ? 'w-[64px]' : 'w-[220px]'
       )}
     >
-      {/* Ambient orange glow top */}
+      {/* Ambient glow */}
       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-[#F7931A] opacity-[0.05] blur-[70px] pointer-events-none" />
 
-      {/* Logo row — logo always centered, toggle button absolutely positioned */}
-      <div className={cn(
-        'border-b border-white/[0.06] shrink-0',
-        isCollapsed
-          ? 'relative flex items-center justify-center h-16'
-          : 'flex items-center h-16 px-3 gap-2'
-      )}>
-        <SafeDockLogo size={isCollapsed ? 30 : 38} />
-        {!isCollapsed && (
-          <span className="font-heading text-xl font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
+      {/* Collapse toggle — straddles the right sidebar border at header mid-height */}
+      <button
+        onClick={onToggleCollapse}
+        title={isCollapsed ? 'Déplier' : 'Replier'}
+        type="button"
+        className={cn(
+          'absolute top-8 right-0 z-20',
+          '-translate-y-1/2 translate-x-1/2',
+          'w-6 h-6 flex items-center justify-center rounded-full',
+          'bg-[#0F1115] border border-white/[0.18] shadow-lg',
+          'text-[#94A3B8] hover:text-[#F7931A] hover:border-[#F7931A]/50',
+          'transition-all duration-200'
         )}
-        <button
-          onClick={onToggleCollapse}
-          title={isCollapsed ? 'Déplier' : 'Replier'}
-          type="button"
-          className={cn(
-            'flex items-center justify-center rounded-lg transition-all duration-200 shrink-0',
-            'text-[#94A3B8] hover:text-white bg-white/[0.03] hover:bg-white/[0.06]',
-            'border border-white/[0.08] hover:border-[#F7931A]/40',
-            isCollapsed
-              ? 'absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5'
-              : 'w-7 h-7 ml-auto'
-          )}
-        >
-          {isCollapsed
-            ? <ChevronsRight className="w-3 h-3" />
-            : <ChevronsLeft className="w-4 h-4" />
-          }
-        </button>
-      </div>
+      >
+        {isCollapsed
+          ? <ChevronsRight className="w-3 h-3" />
+          : <ChevronsLeft className="w-3 h-3" />
+        }
+      </button>
 
-      {/* Nav items */}
+      {/* Logo row — clickable, navigates home */}
+      <button
+        type="button"
+        onClick={() => onNavigate('dashboard')}
+        className={cn(
+          'flex items-center h-16 shrink-0 border-b border-white/[0.06]',
+          'transition-colors duration-200 hover:bg-white/[0.02]',
+          isCollapsed ? 'justify-center px-3' : 'px-4'
+        )}
+      >
+        <SafeDockLogo size={isCollapsed ? 30 : 36} />
+        <span className={cn(
+          'font-heading text-xl font-bold tracking-wide text-white whitespace-nowrap overflow-hidden',
+          'transition-all duration-300',
+          isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
+        )}>
+          SafeDock
+        </span>
+      </button>
+
+      {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navigation">
         {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
           const active = activePage === id;
@@ -70,19 +79,24 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
               aria-current={active ? 'page' : undefined}
               title={isCollapsed ? label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition-all duration-200',
+                'w-full flex items-center rounded-xl px-2.5 py-2.5 transition-all duration-200',
                 'text-base font-mono font-medium',
                 active
                   ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
-                  : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
-                isCollapsed && 'justify-center'
+                  : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
               )}
             >
               <Icon className="w-[18px] h-[18px] shrink-0" />
-              {!isCollapsed && <span className="truncate">{label}</span>}
-              {active && !isCollapsed && (
-                <span className="ml-auto w-1 h-4 rounded-full bg-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.9)]" />
-              )}
+              <span className={cn(
+                'truncate whitespace-nowrap overflow-hidden transition-all duration-300',
+                isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
+              )}>
+                {label}
+              </span>
+              <span className={cn(
+                'shrink-0 rounded-full bg-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.9)] transition-all duration-300',
+                (active && !isCollapsed) ? 'ml-auto w-1 h-4 opacity-100' : 'w-0 h-4 opacity-0 overflow-hidden'
+              )} />
             </button>
           );
         })}
@@ -90,24 +104,28 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
       {/* Bottom section */}
       <div className="px-2 pb-3 space-y-1 border-t border-white/[0.06] pt-3 shrink-0">
-        {/* Global audit button */}
+        {/* Global audit */}
         <button
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing}
           title={isCollapsed ? 'Audit Global' : undefined}
           className={cn(
-            'w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2.5',
+            'w-full flex items-center rounded-xl px-2.5 py-2.5',
             'text-base font-mono font-semibold transition-all duration-300',
             'bg-gradient-to-r from-[#EA580C]/15 to-[#F7931A]/15 text-[#F7931A]',
             'border border-[#F7931A]/20 hover:border-[#F7931A]/50',
             'hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.4)]',
-            'disabled:opacity-40 disabled:cursor-not-allowed',
-            isCollapsed && 'justify-center'
+            'disabled:opacity-40 disabled:cursor-not-allowed'
           )}
         >
           <RefreshCw className={cn('w-[18px] h-[18px] shrink-0', isRefreshing && 'animate-spin')} />
-          {!isCollapsed && <span>Audit Global</span>}
+          <span className={cn(
+            'whitespace-nowrap overflow-hidden transition-all duration-300',
+            isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-2.5 opacity-100'
+          )}>
+            Audit Global
+          </span>
         </button>
 
         {/* Settings */}
@@ -117,23 +135,29 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
           aria-current={activePage === 'settings' ? 'page' : undefined}
           title={isCollapsed ? 'Paramètres' : undefined}
           className={cn(
-            'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5',
+            'w-full flex items-center rounded-xl px-2.5 py-2.5',
             'text-base font-mono font-medium transition-all duration-200',
             activePage === 'settings'
               ? 'bg-[#F7931A]/10 text-[#F7931A]'
-              : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
-            isCollapsed && 'justify-center'
+              : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
           )}
         >
           <Settings className="w-[18px] h-[18px] shrink-0" />
-          {!isCollapsed && <span>Paramètres</span>}
+          <span className={cn(
+            'whitespace-nowrap overflow-hidden transition-all duration-300',
+            isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
+          )}>
+            Paramètres
+          </span>
         </button>
 
-        {!isCollapsed && (
-          <p className="text-xs text-[#94A3B8]/30 px-2.5 pt-1 font-mono tracking-wider">
-            SafeDock v1.0.0
-          </p>
-        )}
+        {/* Version */}
+        <span className={cn(
+          'block text-xs text-[#94A3B8]/30 px-2.5 pt-1 font-mono tracking-wider whitespace-nowrap overflow-hidden transition-all duration-300',
+          isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[200px] opacity-100'
+        )}>
+          SafeDock v1.0.0
+        </span>
       </div>
     </aside>
   );

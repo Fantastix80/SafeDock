@@ -111,7 +111,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
 
   const inputClass = "w-full px-3 py-1.5 text-xs rounded-xl bg-[#0A0C10] border border-white/[0.08] text-white placeholder-[#94A3B8]/30 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono";
   const selectClass = cn(inputClass, "cursor-pointer");
-  const thCl = "px-3 py-2.5 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest";
+  const thCl = "px-3 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest";
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: '180px 1fr' }}>
@@ -119,7 +119,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       <div className="card p-2 h-fit">
         {['Base', 'Admin'].map(g => (
           <div key={g}>
-            <p className="px-2 py-1.5 font-mono text-[10px] font-medium text-[#94A3B8]/40 uppercase tracking-widest">{g}</p>
+            <p className="px-2 py-1.5 font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">{g}</p>
             {TABS.filter(t => t.group === g).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -256,7 +256,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
               }
             </div>
             <form onSubmit={handleRegSubmit} className="space-y-2">
-              <p className="font-mono text-[10px] font-medium text-[#94A3B8]/40 uppercase tracking-widest">Associer un registre</p>
+              <p className="font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">Associer un registre</p>
               <div className="grid grid-cols-3 gap-2">
                 <input className={inputClass} placeholder="registry.gitlab.com" value={regServer} onChange={e => setRegServer(e.target.value)} required />
                 <input className={inputClass} placeholder="user-deploy" value={regUser} onChange={e => setRegUser(e.target.value)} required />
@@ -287,7 +287,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                     <td className="px-3 py-2.5 font-heading font-semibold text-white">{u.username}</td>
                     <td className="px-3 py-2.5 font-mono text-[#94A3B8]">{u.email}</td>
                     <td className="px-3 py-2.5">
-                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {u.role}
                       </span>
                     </td>
@@ -296,7 +296,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
               </tbody>
             </table>
             <form onSubmit={handleAddUser} className="space-y-2">
-              <p className="font-mono text-[10px] font-medium text-[#94A3B8]/40 uppercase tracking-widest">Inviter un utilisateur</p>
+              <p className="font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">Inviter un utilisateur</p>
               <div className="grid grid-cols-3 gap-2">
                 <input className={inputClass} placeholder="Nom d'utilisateur" value={newUsername} onChange={e => setNewUsername(e.target.value)} required />
                 <input type="email" className={inputClass} placeholder="email@domain.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
@@ -345,13 +345,13 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                         {a.status === 'connected' ? 'Connecté' : 'Hors ligne'}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-[#94A3B8]/50 text-[10px]">{a.version}</td>
+                    <td className="px-3 py-2.5 text-right font-mono text-[#94A3B8]/50 text-xs">{a.version}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <form onSubmit={handleAddAgent} className="space-y-2">
-              <p className="font-mono text-[10px] font-medium text-[#94A3B8]/40 uppercase tracking-widest">Enrôler un agent</p>
+              <p className="font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">Enrôler un agent</p>
               <div className="grid grid-cols-2 gap-2">
                 <input className={inputClass} placeholder="Nom hôte (ex: edge-node-03)" value={agentName} onChange={e => setAgentName(e.target.value)} required />
                 <input className={inputClass} placeholder="IP (ex: 192.168.1.96)" value={agentIp} onChange={e => setAgentIp(e.target.value)} required />
@@ -375,9 +375,9 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                 <div key={item.label} className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.05] hover:border-[#F7931A]/10 transition-all">
                   <div>
                     <p className="text-xs font-semibold text-white">{item.label}</p>
-                    <p className="text-[11px] text-[#94A3B8] mt-0.5">{item.desc}</p>
+                    <p className="text-xs text-[#94A3B8] mt-0.5">{item.desc}</p>
                   </div>
-                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">Désactivé</span>
+                  <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Désactivé</span>
                 </div>
               ))}
             </div>
@@ -436,7 +436,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
 }
 
 function FieldLabel({ children }) {
-  return <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">{children}</label>;
+  return <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">{children}</label>;
 }
 
 function SHead({ children }) {
@@ -453,14 +453,16 @@ function Toggle({ label, checked, onChange }) {
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative w-10 h-5 rounded-full transition-all duration-300 shrink-0',
-          checked ? 'bg-[#F7931A] shadow-[0_0_12px_rgba(247,147,26,0.5)]' : 'bg-[#94A3B8]/20'
+          'relative w-12 h-6 rounded-full transition-all duration-300 shrink-0 border',
+          checked
+            ? 'bg-[#F7931A] border-[#F7931A]/50 shadow-[0_0_14px_rgba(247,147,26,0.5)]'
+            : 'bg-white/[0.07] border-white/[0.14]'
         )}
       >
-        <span className={cn(
-          'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200',
-          checked ? 'translate-x-5' : 'translate-x-0.5'
-        )} />
+        <span
+          className="absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all duration-200"
+          style={{ left: checked ? '27px' : '3px' }}
+        />
       </button>
     </div>
   );

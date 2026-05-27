@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Bug, ListChecks, RefreshCw, RotateCw, Settings2,
   CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown
@@ -83,7 +83,7 @@ export default function ContainerDetailView({
   if (!container) {
     return (
       <div className="flex flex-col items-center gap-3 pt-24 text-[#94A3B8]">
-        <p className="text-sm font-mono">Conteneur non sélectionné.</p>
+        <p className="text-sm font-mono">Conteneur non sÃ©lectionnÃ©.</p>
         <button type="button" onClick={() => onNavigate('containers')} className="text-xs text-[#F7931A] hover:underline font-mono">
           Retour aux conteneurs
         </button>
@@ -139,7 +139,7 @@ export default function ContainerDetailView({
       ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true',
       ovrScanner
     )
-      .then(() => { setSaveStatus('Paramètres sauvegardés.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy(); })
+      .then(() => { setSaveStatus('ParamÃ¨tres sauvegardÃ©s.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy(); })
       .catch(() => { setSaveStatus('Erreur.'); setTimeout(() => setSaveStatus(''), 4000); });
   };
 
@@ -148,7 +148,7 @@ export default function ContainerDetailView({
     onDeleteOverride(container.name)
       .then(() => {
         setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege(''); setOvrScanner('');
-        setSaveStatus('Surcharge supprimée.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy();
+        setSaveStatus('Surcharge supprimÃ©e.'); setTimeout(() => setSaveStatus(''), 4000); fetchTrivy();
       })
       .catch(() => { setSaveStatus('Erreur.'); setTimeout(() => setSaveStatus(''), 4000); });
   };
@@ -158,9 +158,9 @@ export default function ContainerDetailView({
 
   const TABS = [
     { id: 'trivy',     label: 'Failles CVE',       icon: Bug },
-    { id: 'dockle',    label: 'Conformité Dockle', icon: ListChecks },
-    { id: 'lifecycle', label: 'Déploiement',       icon: RotateCw },
-    { id: 'overrides', label: 'Paramètres',        icon: Settings2 },
+    { id: 'dockle',    label: 'ConformitÃ© Dockle', icon: ListChecks },
+    { id: 'lifecycle', label: 'DÃ©ploiement',       icon: RotateCw },
+    { id: 'overrides', label: 'ParamÃ¨tres',        icon: Settings2 },
   ];
 
   const RuleRow = ({ label, pass, pts, tip }) => (
@@ -169,7 +169,7 @@ export default function ContainerDetailView({
         <span>{label}</span>
         <span>{pass ? `+${pts} pts` : `-${pts} pts`}</span>
       </div>
-      <p className="text-[10px] text-[#94A3B8]/50 leading-relaxed">{tip}</p>
+      <p className="text-xs text-[#94A3B8]/50 leading-relaxed">{tip}</p>
     </div>
   );
 
@@ -184,8 +184,8 @@ export default function ContainerDetailView({
           <ArrowLeft className="w-3.5 h-3.5" /> Retour
         </button>
         <div>
-          <p className="font-heading text-sm font-semibold text-white">Cockpit de Sécurité</p>
-          <p className="font-mono text-[11px] text-[#94A3B8]">Hôte : {container.host_name}</p>
+          <p className="font-heading text-sm font-semibold text-white">Cockpit de SÃ©curitÃ©</p>
+          <p className="font-mono text-xs text-[#94A3B8]">HÃ´te : {container.host_name}</p>
         </div>
       </div>
 
@@ -198,24 +198,24 @@ export default function ContainerDetailView({
               {container.grade}
             </div>
             <h3 className="font-heading text-sm font-bold text-white mb-0.5">{container.name}</h3>
-            <p className="font-mono text-[10px] text-[#94A3B8] break-all mb-2">{container.image_name}:{container.image_tag}</p>
+            <p className="font-mono text-xs text-[#94A3B8] break-all mb-2">{container.image_name}:{container.image_tag}</p>
             <div className="flex flex-wrap gap-1 justify-center mb-3">
               {activeTags.map((t, i) => (
-                <span key={i} className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-white/[0.05] text-[#94A3B8] border border-white/[0.08]">{t}</span>
+                <span key={i} className="px-1.5 py-0.5 rounded-md text-xs font-medium bg-white/[0.05] text-[#94A3B8] border border-white/[0.08]">{t}</span>
               ))}
             </div>
             <div className="space-y-2 border-t border-white/[0.06] pt-3 text-xs">
               {[
                 ['Digest',     container.tag_pinned],
                 ['Non-Root',   container.non_root],
-                ['Privilèges', container.privileged_safe],
+                ['PrivilÃ¨ges', container.privileged_safe],
                 ['Secrets',    !container.secret_leaks || container.secret_leaks.length === 0],
               ].map(([label, ok]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-[#94A3B8]">{label} :</span>
-                  <span className={cn('flex items-center gap-1 font-semibold text-[10px]', ok ? 'text-emerald-400' : 'text-red-400')}>
+                  <span className={cn('flex items-center gap-1 font-semibold text-xs', ok ? 'text-emerald-400' : 'text-red-400')}>
                     {ok ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                    {ok ? 'Conforme' : 'Défaut'}
+                    {ok ? 'Conforme' : 'DÃ©faut'}
                   </span>
                 </div>
               ))}
@@ -224,27 +224,27 @@ export default function ContainerDetailView({
 
           {/* Score breakdown */}
           <div className="card p-3">
-            <p className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest mb-2">
-              Détail du Score : {container.score}/100
+            <p className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest mb-2">
+              DÃ©tail du Score : {container.score}/100
             </p>
             <RuleRow
               label="Tag Pinned (SHA256)" pass={container.tag_pinned} pts={25}
-              tip={container.tag_pinned ? 'Image verrouillée par hash cryptographique.' : '⚠ Utilisez le digest @sha256:...'}
+              tip={container.tag_pinned ? 'Image verrouillÃ©e par hash cryptographique.' : 'âš  Utilisez le digest @sha256:...'}
             />
             <RuleRow
               label="Utilisateur Non-Root" pass={container.non_root} pts={25}
-              tip={container.non_root ? 'Privilèges UID réduits.' : '⚠ Ajoutez USER 1000 dans le Dockerfile.'}
+              tip={container.non_root ? 'PrivilÃ¨ges UID rÃ©duits.' : 'âš  Ajoutez USER 1000 dans le Dockerfile.'}
             />
             <RuleRow
-              label="Mode Privilégié Restreint" pass={container.privileged_safe} pts={30}
-              tip={container.privileged_safe ? 'Pas d\'accès au noyau hôte.' : '⚠ Lancez sans --privileged.'}
+              label="Mode PrivilÃ©giÃ© Restreint" pass={container.privileged_safe} pts={30}
+              tip={container.privileged_safe ? 'Pas d\'accÃ¨s au noyau hÃ´te.' : 'âš  Lancez sans --privileged.'}
             />
             <RuleRow
-              label="Absence de secrets fuités"
+              label="Absence de secrets fuitÃ©s"
               pass={!container.secret_leaks || container.secret_leaks.length === 0} pts={20}
               tip={(!container.secret_leaks || container.secret_leaks.length === 0)
-                ? 'Aucun secret détecté.'
-                : `⚠ ${container.secret_leaks.length} secret(s). Utilisez Docker Secrets.`}
+                ? 'Aucun secret dÃ©tectÃ©.'
+                : `âš  ${container.secret_leaks.length} secret(s). Utilisez Docker Secrets.`}
             />
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function ContainerDetailView({
                 <p className="font-heading text-xs font-semibold text-white">Analyse des Failles CVE (Trivy / Grype)</p>
                 <div className="flex items-center gap-2">
                   {trivyReport?.vulnerabilities?.[0]?.scanner && (
-                    <span className="font-mono text-[10px] text-[#94A3B8]">
+                    <span className="font-mono text-xs text-[#94A3B8]">
                       Moteur : <span className="text-[#F7931A] font-semibold">{trivyReport.vulnerabilities[0].scanner}</span>
                     </span>
                   )}
@@ -307,7 +307,7 @@ export default function ContainerDetailView({
                   onChange={e => setCveFilter(e.target.value)}
                   className={cn(inputClass, 'cursor-pointer w-36')}
                 >
-                  <option value="ALL">Toutes gravités</option>
+                  <option value="ALL">Toutes gravitÃ©s</option>
                   <option value="CRITICAL">CRITICAL</option>
                   <option value="HIGH">HIGH</option>
                   <option value="MEDIUM">MEDIUM</option>
@@ -325,18 +325,18 @@ export default function ContainerDetailView({
               ) : filteredCVEs.length === 0 ? (
                 <div className="py-12 flex flex-col items-center gap-2 text-[#94A3B8]">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                  <p className="font-heading text-sm font-semibold text-emerald-400">Aucune faille détectée</p>
-                  <p className="text-xs font-mono">Aucune vulnérabilité ne correspond aux critères.</p>
+                  <p className="font-heading text-sm font-semibold text-emerald-400">Aucune faille dÃ©tectÃ©e</p>
+                  <p className="text-xs font-mono">Aucune vulnÃ©rabilitÃ© ne correspond aux critÃ¨res.</p>
                 </div>
               ) : (
                 <div className="overflow-auto max-h-96">
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-[#0A0C10]">
                       <tr className="border-b border-white/[0.06]">
-                        {[['cve_id', 'CVE ID'], ['severity', 'Sévérité'], ['package_name', 'Paquet']].map(([f, lbl]) => (
+                        {[['cve_id', 'CVE ID'], ['severity', 'SÃ©vÃ©ritÃ©'], ['package_name', 'Paquet']].map(([f, lbl]) => (
                           <th
                             key={f}
-                            className="px-3 py-2.5 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest cursor-pointer hover:text-white transition-colors"
+                            className="px-3 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest cursor-pointer hover:text-white transition-colors"
                             onClick={() => handleSortCVE(f)}
                           >
                             <span className="flex items-center gap-1">
@@ -349,8 +349,8 @@ export default function ContainerDetailView({
                             </span>
                           </th>
                         ))}
-                        <th className="px-3 py-2.5 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest">Version</th>
-                        <th className="px-3 py-2.5 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest">Description</th>
+                        <th className="px-3 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">Version</th>
+                        <th className="px-3 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">Description</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -363,16 +363,16 @@ export default function ContainerDetailView({
                             }
                           </td>
                           <td className="px-3 py-2.5">
-                            <span className={cn('px-1.5 py-0.5 rounded-md text-[10px] font-bold', SEV_BADGE[v.severity] || 'bg-white/[0.05] text-[#94A3B8]')}>
+                            <span className={cn('px-1.5 py-0.5 rounded-md text-xs font-bold', SEV_BADGE[v.severity] || 'bg-white/[0.05] text-[#94A3B8]')}>
                               {v.severity}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 font-heading font-semibold text-white">{v.package_name || v.pkg_name}</td>
-                          <td className="px-3 py-2.5 font-mono text-[#94A3B8] text-[10px]">
+                          <td className="px-3 py-2.5 font-mono text-[#94A3B8] text-xs">
                             {v.installed_version}
-                            {v.fixed_version && <span className="block text-emerald-400">→ {v.fixed_version}</span>}
+                            {v.fixed_version && <span className="block text-emerald-400">â†’ {v.fixed_version}</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-[#94A3B8] max-w-xs">{v.description || v.title || '—'}</td>
+                          <td className="px-3 py-2.5 text-[#94A3B8] max-w-xs">{v.description || v.title || 'â€”'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -386,7 +386,7 @@ export default function ContainerDetailView({
           {tab === 'dockle' && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <p className="font-heading text-xs font-semibold text-white">Conformité de l'image (Dockle)</p>
+                <p className="font-heading text-xs font-semibold text-white">ConformitÃ© de l'image (Dockle)</p>
                 <button
                   type="button"
                   onClick={fetchDockle}
@@ -406,17 +406,17 @@ export default function ContainerDetailView({
               ) : !dockleReport?.details?.length ? (
                 <div className="py-12 flex flex-col items-center gap-2 text-[#94A3B8]">
                   <ShieldCheck className="w-8 h-8 text-emerald-500" />
-                  <p className="font-heading text-sm font-semibold text-emerald-400">Conformité parfaite</p>
-                  <p className="text-xs font-mono">Aucun problème de structure ou de sécurité détecté.</p>
+                  <p className="font-heading text-sm font-semibold text-emerald-400">ConformitÃ© parfaite</p>
+                  <p className="text-xs font-mono">Aucun problÃ¨me de structure ou de sÃ©curitÃ© dÃ©tectÃ©.</p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {dockleReport.details.map((a, i) => (
                     <div key={i} className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.05] hover:border-[#F7931A]/10 transition-all">
                       <div className="flex items-baseline justify-between mb-1">
-                        <code className="font-mono text-[11px] text-white">{a.code || 'DKL_RULE'}</code>
+                        <code className="font-mono text-xs text-white">{a.code || 'DKL_RULE'}</code>
                         <span className={cn(
-                          'px-1.5 py-0.5 rounded-md text-[10px] font-bold',
+                          'px-1.5 py-0.5 rounded-md text-xs font-bold',
                           (a.level === 'FATAL' || a.level === 'WARN')
                             ? 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20'
                             : 'bg-white/[0.04] text-[#94A3B8]'
@@ -427,7 +427,7 @@ export default function ContainerDetailView({
                       <p className="font-heading text-xs font-semibold text-white mb-1">{a.title}</p>
                       {a.alerts?.length > 0 && (
                         <ul className="list-disc list-inside space-y-0.5">
-                          {a.alerts.map((al, j) => <li key={j} className="font-mono text-[10px] text-[#94A3B8]">{al}</li>)}
+                          {a.alerts.map((al, j) => <li key={j} className="font-mono text-xs text-[#94A3B8]">{al}</li>)}
                         </ul>
                       )}
                     </div>
@@ -440,14 +440,14 @@ export default function ContainerDetailView({
           {/* TAB: Lifecycle */}
           {tab === 'lifecycle' && (
             <div className="space-y-3">
-              <p className="font-heading text-xs font-semibold text-white mb-1">Opérations de déploiement</p>
+              <p className="font-heading text-xs font-semibold text-white mb-1">OpÃ©rations de dÃ©ploiement</p>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Le pivotement de cycle de vie remplace le conteneur par sa dernière version saine validée. Opération transactionnelle sans coupure visible.
+                Le pivotement de cycle de vie remplace le conteneur par sa derniÃ¨re version saine validÃ©e. OpÃ©ration transactionnelle sans coupure visible.
               </p>
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
                 <div>
-                  <p className="text-xs font-semibold text-white">Déclencher le pivot (Rollout)</p>
-                  <p className="font-mono text-[11px] text-[#94A3B8] mt-0.5">Recherche, validation SecOps et recréation du conteneur.</p>
+                  <p className="text-xs font-semibold text-white">DÃ©clencher le pivot (Rollout)</p>
+                  <p className="font-mono text-xs text-[#94A3B8] mt-0.5">Recherche, validation SecOps et recrÃ©ation du conteneur.</p>
                 </div>
                 <button
                   type="button"
@@ -475,21 +475,21 @@ export default function ContainerDetailView({
           {/* TAB: Overrides */}
           {tab === 'overrides' && (
             <div className="space-y-3">
-              <p className="font-heading text-xs font-semibold text-white mb-1">Paramètres du conteneur</p>
+              <p className="font-heading text-xs font-semibold text-white mb-1">ParamÃ¨tres du conteneur</p>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Seuils de tolérance et configuration du scanner pour ce conteneur.
+                Seuils de tolÃ©rance et configuration du scanner pour ce conteneur.
               </p>
 
               {/* Tag Manager */}
               <div className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-2">
-                <p className="font-mono text-[11px] font-semibold text-white flex items-center gap-1.5">
+                <p className="font-mono text-xs font-semibold text-white flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-[#F7931A]" /> Gestion des Tags
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {activeTags.length === 0
-                    ? <p className="font-mono text-[10px] text-[#94A3B8]/40 italic">Aucun tag associé.</p>
+                    ? <p className="font-mono text-xs text-[#94A3B8]/40 italic">Aucun tag associÃ©.</p>
                     : activeTags.map((t, i) => (
-                      <span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#F7931A]/10 text-[#F7931A] border border-[#F7931A]/20 text-[10px] font-semibold font-mono">
+                      <span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#F7931A]/10 text-[#F7931A] border border-[#F7931A]/20 text-xs font-semibold font-mono">
                         {t}
                         <button type="button" onClick={() => onUpdateTags(container.name, activeTags.filter(x => x !== t))}>
                           <X className="w-2.5 h-2.5 hover:text-red-400 transition-colors" />
@@ -513,13 +513,13 @@ export default function ContainerDetailView({
 
               {[
                 { label: "Moteur d'analyse CVE", value: ovrScanner, onChange: setOvrScanner, options: [
-                  { v: '',       l: 'Hériter des paramètres globaux' },
+                  { v: '',       l: 'HÃ©riter des paramÃ¨tres globaux' },
                   { v: 'trivy',  l: 'Trivy (Aqua Security)' },
                   { v: 'grype',  l: 'Grype (Anchore Engine)' },
                   { v: 'hybrid', l: 'Double Scan Hybride (Trivy + Grype)' },
                 ]},
-                { label: 'Tolérance de sévérité CVE', value: ovrSeverity, onChange: setOvrSeverity, options: [
-                  { v: '',         l: 'Hériter des règles globales' },
+                { label: 'TolÃ©rance de sÃ©vÃ©ritÃ© CVE', value: ovrSeverity, onChange: setOvrSeverity, options: [
+                  { v: '',         l: 'HÃ©riter des rÃ¨gles globales' },
                   { v: 'CRITICAL', l: 'CRITICAL' },
                   { v: 'HIGH',     l: 'HIGH' },
                   { v: 'MEDIUM',   l: 'MEDIUM' },
@@ -527,18 +527,18 @@ export default function ContainerDetailView({
                   { v: 'NONE',     l: 'NONE' },
                 ]},
                 { label: "Autoriser l'utilisateur root", value: ovrAllowRoot, onChange: setOvrAllowRoot, options: [
-                  { v: '',      l: 'Hériter des règles globales' },
-                  { v: 'true',  l: 'Autorisé' },
+                  { v: '',      l: 'HÃ©riter des rÃ¨gles globales' },
+                  { v: 'true',  l: 'AutorisÃ©' },
                   { v: 'false', l: 'Interdit' },
                 ]},
-                { label: 'Autoriser le mode privilégié', value: ovrAllowPrivilege, onChange: setOvrAllowPrivilege, options: [
-                  { v: '',      l: 'Hériter des règles globales' },
-                  { v: 'true',  l: 'Autorisé' },
+                { label: 'Autoriser le mode privilÃ©giÃ©', value: ovrAllowPrivilege, onChange: setOvrAllowPrivilege, options: [
+                  { v: '',      l: 'HÃ©riter des rÃ¨gles globales' },
+                  { v: 'true',  l: 'AutorisÃ©' },
                   { v: 'false', l: 'Interdit' },
                 ]},
               ].map(({ label, value, onChange, options }) => (
                 <div key={label} className="space-y-1">
-                  <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
+                  <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
                   <select value={value} onChange={e => onChange(e.target.value)} className={selectClass}>
                     {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                   </select>

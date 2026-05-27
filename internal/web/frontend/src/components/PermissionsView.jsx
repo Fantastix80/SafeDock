@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Lock, UserPlus, Filter, Info, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -12,20 +12,20 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
   const handleCreate = (e) => {
     e.preventDefault();
     if (!newName) return;
-    let scopeValue = null, desc = 'Accès complet';
+    let scopeValue = null, desc = 'AccÃ¨s complet';
     if (scopeType === 'tags') {
       scopeValue = scopeVal.split(',').map(s => s.trim()).filter(Boolean);
       desc = `Tags : ${scopeValue.join(', ')}`;
     } else if (scopeType === 'hosts') {
       scopeValue = [scopeVal.trim()];
-      desc = `Hôte : ${scopeVal.trim()}`;
+      desc = `HÃ´te : ${scopeVal.trim()}`;
     }
     const user = { id: Date.now(), name: newName, role: newRole, scopeType, scopeValue, desc };
     const updated = [...simulatedUsers, user];
     setSimulatedUsers(updated);
     localStorage.setItem('safedock-simulated-users', JSON.stringify(updated));
     setNewName(''); setScopeVal(''); setScopeType('all');
-    setStatus('Utilisateur créé.'); setTimeout(() => setStatus(''), 4000);
+    setStatus('Utilisateur crÃ©Ã©.'); setTimeout(() => setStatus(''), 4000);
   };
 
   const handleDelete = (id) => {
@@ -53,7 +53,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
             <Lock className="w-4 h-4 text-[#94A3B8]" />
             Matrice des Permissions & Scopes
           </div>
-          <p className="text-xs text-[#94A3B8]">Visibilité et droits d'administration SecOps des utilisateurs.</p>
+          <p className="text-xs text-[#94A3B8]">VisibilitÃ© et droits d'administration SecOps des utilisateurs.</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#F7931A]/25 bg-[#F7931A]/5 text-xs font-medium text-[#F7931A] shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-[#F7931A] shadow-[0_0_6px_rgba(247,147,26,0.8)]" />
@@ -66,14 +66,14 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
         <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/25 bg-amber-500/5">
           <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1 text-xs text-[#94A3B8] leading-relaxed">
-            <strong className="text-amber-400">Mode Simulation actif</strong> — Les données sont filtrées selon le scope de <strong className="text-white">{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
+            <strong className="text-amber-400">Mode Simulation actif</strong> â€” Les donnÃ©es sont filtrÃ©es selon le scope de <strong className="text-white">{activeUserProfile.name}</strong>. {activeUserProfile.desc}.
           </div>
           <button
             type="button"
             onClick={() => setActiveUserProfile(simulatedUsers.find(u => u.id === 1))}
             className="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-xl bg-white/[0.06] text-[#94A3B8] hover:text-white hover:bg-white/[0.1] transition-colors font-mono"
           >
-            Rétablir Admin
+            RÃ©tablir Admin
           </button>
         </div>
       )}
@@ -90,8 +90,8 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/[0.04]">
-                    {['Utilisateur', 'Rôle', 'Scope', 'Simulation', 'Actions'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest">{h}</th>
+                    {['Utilisateur', 'RÃ´le', 'Scope', 'Simulation', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -101,7 +101,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className={cn(
-                            'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+                            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
                             activeUserProfile.id === u.id
                               ? 'bg-[#F7931A]/20 text-[#F7931A] ring-1 ring-[#F7931A]/30'
                               : 'bg-white/[0.06] text-[#94A3B8]'
@@ -117,12 +117,12 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn('px-1.5 py-0.5 rounded-md text-[10px] font-bold', roleStyle(u.role))}>
+                        <span className={cn('px-1.5 py-0.5 rounded-md text-xs font-bold', roleStyle(u.role))}>
                           {u.role}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#94A3B8]">
-                        <span className="flex items-center gap-1 font-mono text-[10px]">
+                        <span className="flex items-center gap-1 font-mono text-xs">
                           <Filter className="w-3 h-3 text-[#94A3B8]/40" />
                           {u.desc}
                         </span>
@@ -132,13 +132,13 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                           type="button"
                           onClick={() => setActiveUserProfile(u)}
                           className={cn(
-                            'px-2.5 py-1 rounded-xl text-[10px] font-semibold transition-colors font-mono',
+                            'px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors font-mono',
                             activeUserProfile.id === u.id
                               ? 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25'
                               : 'bg-white/[0.04] text-[#94A3B8] hover:text-white hover:bg-white/[0.07]'
                           )}
                         >
-                          {activeUserProfile.id === u.id ? 'Connecté' : 'Se connecter'}
+                          {activeUserProfile.id === u.id ? 'ConnectÃ©' : 'Se connecter'}
                         </button>
                       </td>
                       <td className="px-4 py-3">
@@ -151,7 +151,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
                             <Trash2 className="w-3 h-3" />
                           </button>
                         ) : (
-                          <span className="font-mono text-[10px] text-[#94A3B8]/30">Système</span>
+                          <span className="font-mono text-xs text-[#94A3B8]/30">SystÃ¨me</span>
                         )}
                       </td>
                     </tr>
@@ -164,11 +164,11 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
           <div className="card p-4 grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 font-heading text-xs font-semibold text-white mb-2">
-                <Info className="w-3.5 h-3.5 text-[#F7931A]" /> Rôles SecOps
+                <Info className="w-3.5 h-3.5 text-[#F7931A]" /> RÃ´les SecOps
               </div>
-              <ul className="text-[11px] text-[#94A3B8] space-y-1.5 list-disc list-inside leading-relaxed">
+              <ul className="text-xs text-[#94A3B8] space-y-1.5 list-disc list-inside leading-relaxed">
                 <li><strong className="text-white">Admin</strong> : Audit, config SMTP, seuils et pivots</li>
-                <li><strong className="text-white">Auditeur</strong> : Inspecter, rescanner, rafraîchir</li>
+                <li><strong className="text-white">Auditeur</strong> : Inspecter, rescanner, rafraÃ®chir</li>
                 <li><strong className="text-white">Lecteur</strong> : Lecture seule des rapports SecOps</li>
               </ul>
             </div>
@@ -176,8 +176,8 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               <div className="flex items-center gap-1.5 font-heading text-xs font-semibold text-white mb-2">
                 <Filter className="w-3.5 h-3.5 text-[#F7931A]" /> Scoping de Ressources
               </div>
-              <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                Restreignez la visibilité par tags ou par hôtes. Toutes les statistiques, CVEs et logs sont automatiquement calculés dans le scope assigné.
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Restreignez la visibilitÃ© par tags ou par hÃ´tes. Toutes les statistiques, CVEs et logs sont automatiquement calculÃ©s dans le scope assignÃ©.
               </p>
             </div>
           </div>
@@ -187,11 +187,11 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
         <div className="card p-4 h-fit">
           <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
             <UserPlus className="w-4 h-4 text-[#F7931A]" />
-            <h3 className="font-heading text-xs font-semibold text-white">Créer un profil</h3>
+            <h3 className="font-heading text-xs font-semibold text-white">CrÃ©er un profil</h3>
           </div>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1">
-              <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">Nom complet</label>
+              <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Nom complet</label>
               <input
                 className={inputClass}
                 placeholder="ex: David SecOps"
@@ -201,19 +201,19 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               />
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">Rôle global</label>
+              <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">RÃ´le global</label>
               <select
                 value={newRole}
                 onChange={e => setNewRole(e.target.value)}
                 className={cn(inputClass, 'cursor-pointer')}
               >
-                <option value="Admin">Admin — Tous les privilèges</option>
-                <option value="Auditeur">Auditeur — Scan, lecture, refresh</option>
-                <option value="Lecteur">Lecteur — Lecture seule</option>
+                <option value="Admin">Admin â€” Tous les privilÃ¨ges</option>
+                <option value="Auditeur">Auditeur â€” Scan, lecture, refresh</option>
+                <option value="Lecteur">Lecteur â€” Lecture seule</option>
               </select>
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">Type de scoping</label>
+              <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Type de scoping</label>
               <select
                 value={scopeType}
                 onChange={e => setScopeType(e.target.value)}
@@ -221,13 +221,13 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               >
                 <option value="all">Tout le parc</option>
                 <option value="tags">Restreint par Tags</option>
-                <option value="hosts">Restreint par Hôte</option>
+                <option value="hosts">Restreint par HÃ´te</option>
               </select>
             </div>
             {scopeType !== 'all' && (
               <div className="space-y-1">
-                <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">
-                  {scopeType === 'tags' ? 'Tags autorisés (virgules)' : 'Nom exact de la machine'}
+                <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">
+                  {scopeType === 'tags' ? 'Tags autorisÃ©s (virgules)' : 'Nom exact de la machine'}
                 </label>
                 <input
                   className={inputClass}
@@ -243,7 +243,7 @@ export default function PermissionsView({ simulatedUsers, setSimulatedUsers, act
               type="submit"
               className="w-full py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)] flex items-center justify-center gap-1.5"
             >
-              <UserPlus className="w-3.5 h-3.5" /> Créer l'utilisateur
+              <UserPlus className="w-3.5 h-3.5" /> CrÃ©er l'utilisateur
             </button>
           </form>
         </div>

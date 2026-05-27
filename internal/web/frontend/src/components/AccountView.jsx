@@ -51,7 +51,7 @@ export default function AccountView() {
         </span>
 
         <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
-          <p className="font-mono text-[10px] text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Appartenance</p>
+          <p className="font-mono text-xs text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Appartenance</p>
           <Row label="Organisation" value={user.organization} />
           <Row label="Session IP"   value={<code className="font-mono text-xs text-[#94A3B8]">192.168.1.100</code>} />
           <Row label="Status SSO"   value={<span className="font-mono text-xs text-[#94A3B8]/40">Désactivé</span>} />
@@ -196,7 +196,7 @@ function Row({ label, value }) {
 function Field({ label, type = 'text', value, onChange, placeholder }) {
   return (
     <div className="space-y-1">
-      <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
+      <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
       <input
         type={type}
         value={value}
@@ -234,16 +234,16 @@ function ToggleSwitch({ checked, onChange }) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative w-10 h-5 rounded-full transition-all duration-300 shrink-0',
+        'relative w-12 h-6 rounded-full transition-all duration-300 shrink-0 border',
         checked
-          ? 'bg-[#F7931A] shadow-[0_0_12px_rgba(247,147,26,0.5)]'
-          : 'bg-[#94A3B8]/20'
+          ? 'bg-[#F7931A] border-[#F7931A]/50 shadow-[0_0_14px_rgba(247,147,26,0.5)]'
+          : 'bg-white/[0.07] border-white/[0.14]'
       )}
     >
-      <span className={cn(
-        'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200',
-        checked ? 'translate-x-5' : 'translate-x-0.5'
-      )} />
+      <span
+        className="absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all duration-200"
+        style={{ left: checked ? '27px' : '3px' }}
+      />
     </button>
   );
 }

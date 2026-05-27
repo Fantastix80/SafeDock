@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Settings2, TriangleAlert } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 
@@ -25,7 +25,7 @@ export default function ContainerSettingsView({ containerId, containers, overrid
     return (
       <div className="flex flex-col items-center gap-3 pt-24 text-[#94A3B8]">
         <TriangleAlert className="w-8 h-8 text-[#94A3B8]/40" />
-        <p className="text-sm font-mono">Conteneur non trouvé.</p>
+        <p className="text-sm font-mono">Conteneur non trouvÃ©.</p>
         <button type="button" onClick={() => onNavigate('containers')} className="text-xs text-[#F7931A] hover:underline font-mono">
           Retour aux conteneurs
         </button>
@@ -40,7 +40,7 @@ export default function ContainerSettingsView({ containerId, containers, overrid
     const allowRootVal = ovrAllowRoot === '' ? null : ovrAllowRoot === 'true';
     const allowPrivilegeVal = ovrAllowPrivilege === '' ? null : ovrAllowPrivilege === 'true';
     onSaveOverride(container.name, ovrSeverity, allowRootVal, allowPrivilegeVal)
-      .then(() => { setStatus('Paramètres sauvegardés.'); setTimeout(() => setStatus(''), 4000); })
+      .then(() => { setStatus('ParamÃ¨tres sauvegardÃ©s.'); setTimeout(() => setStatus(''), 4000); })
       .catch(() => { setStatus('Erreur d\'enregistrement.'); setTimeout(() => setStatus(''), 4000); });
   };
 
@@ -50,7 +50,7 @@ export default function ContainerSettingsView({ containerId, containers, overrid
     onDeleteOverride(container.name)
       .then(() => {
         setOvrSeverity(''); setOvrAllowRoot(''); setOvrAllowPrivilege('');
-        setStatus('Surcharge supprimée.'); setTimeout(() => setStatus(''), 4000);
+        setStatus('Surcharge supprimÃ©e.'); setTimeout(() => setStatus(''), 4000);
       })
       .catch(() => { setStatus('Erreur.'); setTimeout(() => setStatus(''), 4000); });
   };
@@ -68,8 +68,8 @@ export default function ContainerSettingsView({ containerId, containers, overrid
           <ArrowLeft className="w-3.5 h-3.5" /> Retour
         </button>
         <div>
-          <p className="font-heading text-sm font-semibold text-white">Configuration spécifique du conteneur</p>
-          <p className="font-mono text-[11px] text-[#94A3B8]">Hôte : {container.host_name}</p>
+          <p className="font-heading text-sm font-semibold text-white">Configuration spÃ©cifique du conteneur</p>
+          <p className="font-mono text-xs text-[#94A3B8]">HÃ´te : {container.host_name}</p>
         </div>
       </div>
 
@@ -80,17 +80,17 @@ export default function ContainerSettingsView({ containerId, containers, overrid
             {container.grade}
           </div>
           <h3 className="font-heading text-sm font-bold text-white text-center mb-0.5">{container.name}</h3>
-          <p className="font-mono text-[10px] text-[#94A3B8] text-center mb-3 break-all">{container.image_name}:{container.image_tag}</p>
+          <p className="font-mono text-xs text-[#94A3B8] text-center mb-3 break-all">{container.image_name}:{container.image_tag}</p>
           <div className="space-y-2 border-t border-white/[0.06] pt-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-[#94A3B8]">Règle :</span>
+              <span className="text-[#94A3B8]">RÃ¨gle :</span>
               <span className={cn(
-                'px-1.5 py-0.5 rounded-md text-[10px] font-bold border',
+                'px-1.5 py-0.5 rounded-md text-xs font-bold border',
                 hasOverride
                   ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                   : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
               )}>
-                {hasOverride ? 'Surcharge active' : 'Héritage global'}
+                {hasOverride ? 'Surcharge active' : 'HÃ©ritage global'}
               </span>
             </div>
             <div className="flex justify-between">
@@ -104,22 +104,22 @@ export default function ContainerSettingsView({ containerId, containers, overrid
         <div className="card p-5">
           <div className="flex items-center gap-2 pb-3 mb-4 border-b border-white/[0.06]">
             <Settings2 className="w-4 h-4 text-[#F7931A]" />
-            <h3 className="font-heading text-sm font-semibold text-white">Règles de Surcharge</h3>
+            <h3 className="font-heading text-sm font-semibold text-white">RÃ¨gles de Surcharge</h3>
           </div>
 
           <div className="space-y-3">
             <SelectField
-              label="Tolérance de sévérité CVE"
+              label="TolÃ©rance de sÃ©vÃ©ritÃ© CVE"
               value={ovrSeverity}
               onChange={setOvrSeverity}
               className={selectClass}
             >
-              <option value="">Hériter des règles globales</option>
-              <option value="CRITICAL">CRITICAL — critique seulement</option>
-              <option value="HIGH">HIGH — critique et haute</option>
-              <option value="MEDIUM">MEDIUM — critique, haute et moyenne</option>
-              <option value="LOW">LOW — toutes</option>
-              <option value="NONE">NONE — toutes, même mineures</option>
+              <option value="">HÃ©riter des rÃ¨gles globales</option>
+              <option value="CRITICAL">CRITICAL â€” critique seulement</option>
+              <option value="HIGH">HIGH â€” critique et haute</option>
+              <option value="MEDIUM">MEDIUM â€” critique, haute et moyenne</option>
+              <option value="LOW">LOW â€” toutes</option>
+              <option value="NONE">NONE â€” toutes, mÃªme mineures</option>
             </SelectField>
 
             <SelectField
@@ -128,20 +128,20 @@ export default function ContainerSettingsView({ containerId, containers, overrid
               onChange={setOvrAllowRoot}
               className={selectClass}
             >
-              <option value="">Hériter des règles globales</option>
-              <option value="true">Autorisé</option>
-              <option value="false">Interdit (bloque si root détecté)</option>
+              <option value="">HÃ©riter des rÃ¨gles globales</option>
+              <option value="true">AutorisÃ©</option>
+              <option value="false">Interdit (bloque si root dÃ©tectÃ©)</option>
             </SelectField>
 
             <SelectField
-              label="Autoriser le mode privilégié"
+              label="Autoriser le mode privilÃ©giÃ©"
               value={ovrAllowPrivilege}
               onChange={setOvrAllowPrivilege}
               className={selectClass}
             >
-              <option value="">Hériter des règles globales</option>
-              <option value="true">Autorisé</option>
-              <option value="false">Interdit (bloque si privilégié détecté)</option>
+              <option value="">HÃ©riter des rÃ¨gles globales</option>
+              <option value="true">AutorisÃ©</option>
+              <option value="false">Interdit (bloque si privilÃ©giÃ© dÃ©tectÃ©)</option>
             </SelectField>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.06]">
@@ -173,7 +173,7 @@ export default function ContainerSettingsView({ containerId, containers, overrid
 function SelectField({ label, value, onChange, className, children }) {
   return (
     <div className="space-y-1">
-      <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
+      <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)} className={className}>
         {children}
       </select>
