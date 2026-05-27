@@ -52,7 +52,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
   const safePage = Math.min(page, totalPages);
   const slice = sorted.slice((safePage - 1) * perPage, safePage * perPage);
 
-  const thBase = "px-5 py-4 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest select-none";
+  const thBase = "px-4 py-3 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest select-none";
   const thSort = cn(thBase, "cursor-pointer hover:text-[#94A3B8] transition-colors");
 
   const tagColor = (tag) => {
@@ -65,8 +65,8 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 font-heading text-base font-semibold text-white">
-          <Boxes className="w-5 h-5 text-[#94A3B8]" />
+        <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
+          <Boxes className="w-4 h-4 text-[#94A3B8]" />
           Inventaire des conteneurs
         </div>
         <div className="relative">
@@ -115,13 +115,13 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
             <tbody>
               {containers.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-5 py-14 text-center text-[#94A3B8]/40 font-mono text-sm">
+                  <td colSpan="10" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
                     Chargement des conteneurs...
                   </td>
                 </tr>
               ) : slice.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-5 py-14 text-center text-[#94A3B8]/40 font-mono text-sm">
+                  <td colSpan="10" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
                     Aucun résultat pour cette recherche.
                   </td>
                 </tr>
@@ -132,51 +132,51 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                     onClick={() => onSelectContainer(c.id)}
                     className="border-b border-white/[0.03] hover:bg-[#F7931A]/[0.02] cursor-pointer transition-colors group"
                   >
-                    <td className="px-5 py-4">
-                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center font-heading text-base font-extrabold', gradeColor(c.score), gradeBg(c.score))}>
+                    <td className="px-4 py-3">
+                      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center font-heading text-sm font-extrabold', gradeColor(c.score), gradeBg(c.score))}>
                         {c.grade}
                       </div>
                     </td>
-                    <td className="px-5 py-4 font-heading font-semibold text-white group-hover:text-white text-base">{c.name}</td>
-                    <td className="px-5 py-4 text-[#94A3B8]">
-                      <span className="flex items-center gap-1.5 font-mono text-sm">
-                        <Server className="w-4 h-4 text-[#94A3B8]/40" />
+                    <td className="px-4 py-3 font-heading font-semibold text-white group-hover:text-white">{c.name}</td>
+                    <td className="px-4 py-3 text-[#94A3B8]">
+                      <span className="flex items-center gap-1.5 font-mono text-xs">
+                        <Server className="w-3.5 h-3.5 text-[#94A3B8]/40" />
                         {c.host_name}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-mono text-[#94A3B8]/70 text-sm">{c.image_name}:{c.image_tag}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3 font-mono text-[#94A3B8]/70 text-xs">{c.image_name}:{c.image_tag}</td>
+                    <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
                         {(c.tags || []).map((t, i) => (
-                          <span key={i} className={cn('px-2.5 py-0.5 rounded-md font-mono text-sm font-medium', tagColor(t))}>
+                          <span key={i} className={cn('px-2 py-0.5 rounded-md font-mono text-xs font-medium', tagColor(t))}>
                             {t}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-center"><BoolIcon ok={c.tag_pinned} /></td>
-                    <td className="px-5 py-4 text-center"><BoolIcon ok={c.non_root} /></td>
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-4 py-3 text-center"><BoolIcon ok={c.tag_pinned} /></td>
+                    <td className="px-4 py-3 text-center"><BoolIcon ok={c.non_root} /></td>
+                    <td className="px-4 py-3 text-center">
                       {c.privileged_safe
                         ? <ShieldCheck className="w-4 h-4 text-emerald-400 mx-auto" />
                         : <TriangleAlert className="w-4 h-4 text-amber-400 mx-auto" />
                       }
                     </td>
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-4 py-3 text-center">
                       {c.secret_leaks && c.secret_leaks.length > 0
-                        ? <span className="px-2 py-0.5 rounded-md font-mono text-sm font-bold bg-red-500/15 text-red-400 border border-red-500/20">
+                        ? <span className="px-1.5 py-0.5 rounded-md font-mono text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/20">
                             {c.secret_leaks.length} FUITE{c.secret_leaks.length > 1 ? 'S' : ''}
                           </span>
                         : <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
                       }
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                       <div className="flex gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => onSelectContainer(c.id)}
                           title="Inspecter"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#F7931A]/10 text-[#F7931A] hover:bg-[#F7931A]/20 border border-[#F7931A]/20 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#F7931A]/10 text-[#F7931A] hover:bg-[#F7931A]/20 border border-[#F7931A]/20 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -184,7 +184,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                           type="button"
                           onClick={() => { onSelectContainer(c.id); onNavigate('container-settings'); }}
                           title="Configurer"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.04] text-[#94A3B8] hover:bg-white/[0.08] hover:text-white border border-white/[0.06] transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] text-[#94A3B8] hover:bg-white/[0.08] hover:text-white border border-white/[0.06] transition-colors"
                         >
                           <Settings2 className="w-3.5 h-3.5" />
                         </button>
