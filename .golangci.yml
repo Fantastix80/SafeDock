@@ -1,0 +1,45 @@
+run:
+  timeout: 5m
+
+# Linters activés explicitement — liste stable et reproductible.
+# On désactive tout par défaut pour éviter que des nouvelles versions
+# de golangci-lint n'activent silencieusement de nouveaux linters.
+linters:
+  disable-all: true
+  enable:
+    - govet        # Analyse AST — détecte les bugs structurels (shadowing, alignement, etc.)
+    - errcheck     # Vérifie que les erreurs retournées sont bien traitées
+    - staticcheck  # Analyse sémantique avancée (SA/S1/QF rules)
+    - ineffassign  # Détecte les affectations de variables sans effet
+    - unused       # Détecte le code mort (fonctions, variables, types exportés inutilisés)
+    - gosimple     # Suggère des simplifications idiomatiques Go
+
+linters-settings:
+  errcheck:
+    # Ne pas vérifier les assertions de type (x.(T)) — standard en Go
+    check-type-assertions: false
+    # Ne pas vérifier les affectations explicitement ignorées (_ = f())
+    check-blank: false
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Pattern standard Go : defer rows.Close() / conn.Close() / client.Close()
+    # L'erreur de fermeture est non-actionnable dans un defer.
+    - linters: [ errcheck ]
+      source: "^\\s+defer "
+
+    # Encodage JSON vers http.ResponseWriter : l'erreur survient seulement si
+    # la connexion est fermée pendant l'écriture — non récupérable.
+    - linters: [ errcheck ]
+      text: "Error return value of `\\(\\*encoding/json\\.Encoder\\)\\.Encode`"
+
+    # Shutdown HTTP dans le goroutine d'arrêt propre — erreur ignorée intentionnellement.
+    - linters: [ errcheck ]
+      text: "Error return value of `\\(\\*net/http\\.Server\\)\\.Shutdown`"
+
+    # Write dans les réponses HTTP : erreur non-actionnable si la connexion est coupée.
+    - linters: [ errcheck ]
+      text: "Error return value of `\\(\\*net/http\\.response\\)\\.Write`"

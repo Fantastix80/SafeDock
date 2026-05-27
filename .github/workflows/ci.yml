@@ -7,18 +7,22 @@ on:
     branches: [ dev, master ]
 
 jobs:
-  # Job 1 : Exécution des tests unitaires
+  # ============================================================
+  # Job 1 : Tests unitaires — vérifie que le code compile et
+  # que la logique métier est correcte sur Go 1.22 et 1.23.
+  # ============================================================
   test:
-    name: Unit Tests & Build Check
+    name: Unit Tests & Build Check (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         go-version: [ '1.22', '1.23' ]
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Go Environment
+      - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
@@ -27,10 +31,13 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
-      - name: Run Unit Tests
-        run: go test -v ./...
+      - name: Run Unit Tests (with race detector)
+        run: go test -v -race -count=1 ./...
 
-  # Job 2 : Analyse de Qualité du Code (Linters)
+  # ============================================================
+  # Job 2 : Qualité du code — golangci-lint avec une version
+  # épinglée pour des résultats reproductibles.
+  # ============================================================
   lint:
     name: Code Quality (golangci-lint)
     runs-on: ubuntu-latest
@@ -38,33 +45,57 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Go Environment
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: true
+          # golangci-lint gère son propre cache — désactiver le cache Go ici
+          cache: false
 
       - name: Run golangci-lint
-        uses: golangci-lint/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
-          args: --timeout=5m
+          version: v1.62.2
+          args: --timeout=5m --config=.golangci.yml
 
-  # Job 3 : Scan de Sécurité Statique (SAST Gosec)
+  # ============================================================
+  # Job 3 : Scan SAST — analyse statique de sécurité du code Go
+  # avec gosec. Les exclusions sont documentées ci-dessous.
+  # ============================================================
   security:
-    name: SecOps Security Audit (gosec)
+    name: SecOps Security Audit (gosec SAST)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Go Environment
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
           cache: true
 
       - name: Run Gosec Security Scanner
-        # gosec scanne l'AST du code. Nous excluons G104 (erreurs non gérées dans defer/close)
-        # et G304 (chargement de fichier par variable pour le chemin de la base de données)
-        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -exclude=G104,G304 -fmt=text ./...
+        # Exclusions documentées et justifiées :
+        #
+        # G104 — Erreurs non gérées dans defer/close
+        #         Pattern standard Go, géré explicitement via `_ =` dans le code.
+        #
+        # G304 — Chemin de fichier construit depuis une variable
+        #         Le chemin de la base de données SQLite est configurable via
+        #         SAFEDOCK_DB_PATH (variable d'environnement) — comportement voulu.
+        #
+        # G204 — exec.Command lancé avec un argument variable
+        #         Les commandes trivy/dockle/grype reçoivent le nom d'image Docker
+        #         comme argument. Ces noms sont extraits de l'API Docker (source de
+        #         confiance interne) — pas d'injection externe possible.
+        #
+        # G402 — TLS InsecureSkipVerify potentiellement activé
+        #         La valeur de InsecureSkipVerify est contrôlée par l'administrateur
+        #         via la configuration SMTP (smtp_tls_skip_verify). Ce comportement
+        #         est documenté et intentionnel pour les environnements internes.
+        run: |
+          go run github.com/securego/gosec/v2/cmd/gosec@latest \
+            -exclude=G104,G304,G204,G402 \
+            -fmt=text \
+            ./...
