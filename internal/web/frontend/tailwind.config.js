@@ -8,26 +8,38 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        heading: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
-        bg: {
-          base: '#0b0e18',
-          surface: '#111827',
-          card: '#151d2e',
-          elevated: '#1a2235',
-          hover: '#1e2840',
+        void: '#030304',
+        surface: '#0F1115',
+        muted: '#94A3B8',
+        dim: '#1E293B',
+        bitcoin: '#F7931A',
+        'bitcoin-dark': '#EA580C',
+        gold: '#FFD600',
+      },
+      boxShadow: {
+        'orange-glow':    '0 0 20px -5px rgba(234,88,12,0.5)',
+        'orange-glow-lg': '0 0 30px -5px rgba(247,147,26,0.6)',
+        'gold-glow':      '0 0 20px rgba(255,214,0,0.3)',
+        'card-glow':      '0 0 50px -10px rgba(247,147,26,0.1)',
+        'card-hover':     '0 0 30px -10px rgba(247,147,26,0.2)',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%':      { transform: 'translateY(-20px)' },
         },
-        border: {
-          DEFAULT: 'rgba(255,255,255,0.06)',
-          strong: 'rgba(255,255,255,0.12)',
-        },
-        brand: {
-          DEFAULT: '#4F8EF7',
-          hover: '#6BA3F9',
-          muted: 'rgba(79,142,247,0.15)',
-        },
+      },
+      animation: {
+        'float':              'float 8s ease-in-out infinite',
+        'spin-slow':          'spin 10s linear infinite',
+        'spin-slow-reverse':  'spin 15s linear infinite reverse',
+        'ping-slow':          'ping 3s cubic-bezier(0, 0, 0.2, 1) infinite',
       },
     },
   },

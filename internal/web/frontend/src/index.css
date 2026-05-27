@@ -1,3 +1,9 @@
+@import '@fontsource/space-grotesk/400.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
@@ -20,36 +26,78 @@
   }
 
   body {
-    background-color: #0b0e18;
-    color: #e2e8f0;
+    background-color: #030304;
+    color: #FFFFFF;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: rgba(247, 147, 26, 0.25);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: rgba(247, 147, 26, 0.45);
+  }
+}
+
+@layer components {
+  /* Elevated surface card — dark matter bg with subtle orange hover */
+  .card {
+    @apply bg-[#0F1115] border border-white/10 rounded-2xl transition-all duration-300;
+  }
+
+  /* Grid pattern for backgrounds — blockchain network visual */
+  .bg-grid-pattern {
+    background-size: 50px 50px;
+    background-image:
+      linear-gradient(to right, rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  /* Gradient text — Bitcoin orange → gold */
+  .gradient-text {
+    @apply bg-gradient-to-r from-[#F7931A] to-[#FFD600] bg-clip-text text-transparent;
+  }
+
+  /* Primary action button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-gradient-to-r from-[#EA580C] to-[#F7931A]
+           text-white font-semibold rounded-full px-6 py-2.5
+           shadow-[0_0_20px_-5px_rgba(234,88,12,0.5)]
+           transition-all duration-300
+           hover:scale-105 hover:shadow-[0_0_30px_-5px_rgba(247,147,26,0.6)];
+  }
+
+  /* Outline button */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2
+           border-2 border-white/20 text-white rounded-full px-6 py-2.5
+           transition-all duration-300
+           hover:border-white hover:bg-white/10;
+  }
+
+  /* Icon in glowing container */
+  .icon-node {
+    @apply bg-[#EA580C]/20 border border-[#EA580C]/50 rounded-lg p-3
+           transition-all duration-300
+           hover:shadow-[0_0_20px_rgba(234,88,12,0.4)];
   }
 }
 
 @layer utilities {
-  /* Score gauge ring */
+  /* Score gauge SVG ring */
   .score-ring circle {
     fill: none;
     stroke-width: 8;
   }
   .score-ring circle:first-child {
-    stroke: rgba(255,255,255,0.05);
+    stroke: rgba(255, 255, 255, 0.05);
   }
   .score-ring circle:nth-child(2) {
     stroke-linecap: round;

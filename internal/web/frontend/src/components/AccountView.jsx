@@ -26,96 +26,96 @@ export default function AccountView() {
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: '240px 1fr' }}>
       {/* Profile card */}
-      <div className="card p-5 h-fit text-center">
+      <div className="card p-5 h-fit text-center hover:border-[#F7931A]/20 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)] transition-all duration-300">
         <div className="relative w-20 h-20 mx-auto mb-4">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-2xl font-bold text-white border-2 border-blue-400/30">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-2xl font-bold text-black border-2 border-[#F7931A]/40 shadow-[0_0_20px_rgba(247,147,26,0.4)]">
             J
           </div>
-          <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#151d2e] shadow-[0_0_6px_#34d399]" />
+          <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#0F1115] shadow-[0_0_8px_#34d399]" />
         </div>
 
-        <h3 className="text-sm font-bold text-zinc-100">{user.fullName}</h3>
-        <p className="text-[11px] text-zinc-500 font-mono mt-0.5">@{user.username}</p>
+        <h3 className="font-heading text-sm font-bold text-white">{user.fullName}</h3>
+        <p className="text-[11px] text-[#94A3B8] font-mono mt-0.5">@{user.username}</p>
 
-        <span className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400">
+        <span className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
           <ShieldCheck className="w-3 h-3" /> {user.role}
         </span>
 
         <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
-          <p className="text-[10px] text-zinc-600 uppercase font-bold tracking-wide mb-2">Appartenance</p>
+          <p className="font-mono text-[10px] text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Appartenance</p>
           <Row label="Organisation" value={user.organization} />
-          <Row label="Session IP" value={<code className="text-[10px] text-zinc-400">192.168.1.100</code>} />
-          <Row label="Status SSO" value={<span className="text-[10px] text-zinc-600">Désactivé</span>} />
+          <Row label="Session IP" value={<code className="font-mono text-[10px] text-[#94A3B8]">192.168.1.100</code>} />
+          <Row label="Status SSO" value={<span className="font-mono text-[10px] text-[#94A3B8]/40">Désactivé</span>} />
         </div>
       </div>
 
       {/* Forms */}
       <form onSubmit={handleSave} className="space-y-4">
         {/* Account info */}
-        <SCard icon={<UserSquare className="w-4 h-4 text-blue-400" />} title="Informations du compte">
+        <SCard icon={<UserSquare className="w-4 h-4 text-[#F7931A]" />} title="Informations du compte">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nom complet" value={user.fullName} onChange={v => setUser(p => ({ ...p, fullName: v }))} />
-            <Field label="Adresse email" type="email" value={user.email} onChange={v => setUser(p => ({ ...p, email: v }))} />
-            <Field label="Nom d'utilisateur" value={user.username} onChange={v => setUser(p => ({ ...p, username: v }))} />
-            <Field label="Organisation" value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
+            <Field label="Nom complet"        value={user.fullName}     onChange={v => setUser(p => ({ ...p, fullName: v }))} />
+            <Field label="Adresse email"      type="email" value={user.email}     onChange={v => setUser(p => ({ ...p, email: v }))} />
+            <Field label="Nom d'utilisateur"  value={user.username}     onChange={v => setUser(p => ({ ...p, username: v }))} />
+            <Field label="Organisation"       value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
           </div>
         </SCard>
 
         {/* Security */}
-        <SCard icon={<Lock className="w-4 h-4 text-blue-400" />} title="Sécurité">
+        <SCard icon={<Lock className="w-4 h-4 text-[#F7931A]" />} title="Sécurité">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <Field label="Nouveau mot de passe" type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+            <Field label="Nouveau mot de passe"    type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
             <Field label="Confirmer le mot de passe" type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
           </div>
-          <div className="flex items-center justify-between p-3 rounded-lg bg-[#0d1120] border border-white/[0.06]">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
             <div>
-              <p className="text-xs font-semibold text-zinc-100">Validation Double Facteur (2FA / TOTP)</p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
+              <p className="text-xs font-semibold text-white">Validation Double Facteur (2FA / TOTP)</p>
+              <p className="text-[11px] text-[#94A3B8] mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
             </div>
             <ToggleSwitch checked={mfa} onChange={setMfa} />
           </div>
         </SCard>
 
         {/* Notifications */}
-        <SCard icon={<Bell className="w-4 h-4 text-blue-400" />} title="Notifications">
-          <p className="text-xs text-zinc-500 mb-3">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
+        <SCard icon={<Bell className="w-4 h-4 text-[#F7931A]" />} title="Notifications">
+          <p className="text-xs text-[#94A3B8] mb-3">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
           <div className="space-y-2.5 mb-4">
             {[
-              { key: 'cveAlerts', label: 'Alertes sur les failles de sécurité (CVE)' },
+              { key: 'cveAlerts',     label: 'Alertes sur les failles de sécurité (CVE)' },
               { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
-              { key: 'deployments', label: 'Déploiements et Rollouts pivots effectués' },
-              { key: 'secretLeaks', label: 'Fuites de secrets détectées (SecOps)' },
+              { key: 'deployments',   label: 'Déploiements et Rollouts pivots effectués' },
+              { key: 'secretLeaks',   label: 'Fuites de secrets détectées (SecOps)' },
             ].map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+              <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={notif[key]}
                   onChange={e => setNotif(p => ({ ...p, [key]: e.target.checked }))}
-                  className="accent-blue-500 w-3.5 h-3.5"
+                  className="accent-[#F7931A] w-3.5 h-3.5"
                 />
-                <span className="text-xs text-zinc-200">{label}</span>
+                <span className="text-xs text-[#94A3B8] group-hover:text-white transition-colors">{label}</span>
               </label>
             ))}
           </div>
 
-          <div className="p-3 rounded-lg bg-[#0d1120] border border-white/[0.06] space-y-2">
-            <label className="flex items-start gap-2.5 cursor-pointer">
+          <div className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-2">
+            <label className="flex items-start gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={notif.enableThreshold}
                 onChange={e => setNotif(p => ({ ...p, enableThreshold: e.target.checked }))}
-                className="accent-blue-500 w-3.5 h-3.5 mt-0.5"
+                className="accent-[#F7931A] w-3.5 h-3.5 mt-0.5"
               />
               <div>
-                <p className="text-xs font-semibold text-zinc-200">Filtrer par niveau de criticité minimum</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
+                <p className="text-xs font-semibold text-white group-hover:text-[#F7931A] transition-colors">Filtrer par niveau de criticité minimum</p>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
               </div>
             </label>
             {notif.enableThreshold && (
               <select
                 value={notif.minSeverity}
                 onChange={e => setNotif(p => ({ ...p, minSeverity: e.target.value }))}
-                className="w-full mt-1 px-3 py-1.5 text-xs rounded-lg bg-[#151d2e] border border-white/[0.08] text-zinc-200 focus:outline-none focus:border-blue-500/50"
+                className="w-full mt-1 px-3 py-1.5 text-xs rounded-xl bg-[#0F1115] border border-white/[0.08] text-white focus:outline-none focus:border-[#F7931A]/40 font-mono cursor-pointer"
               >
                 <option value="CRITICAL">CRITICAL — alertes critiques uniquement</option>
                 <option value="HIGH">HIGH — critique et haute gravité</option>
@@ -127,10 +127,10 @@ export default function AccountView() {
         </SCard>
 
         <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
-          {status && <p className="text-xs text-emerald-400 font-medium">{status}</p>}
+          {status && <p className="text-xs text-emerald-400 font-mono font-medium">{status}</p>}
           <button
             type="submit"
-            className="px-5 py-2 text-xs font-semibold rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 transition-colors"
+            className="px-5 py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
           >
             Enregistrer les préférences
           </button>
@@ -143,8 +143,8 @@ export default function AccountView() {
 function Row({ label, value }) {
   return (
     <div className="flex justify-between text-xs gap-2">
-      <span className="text-zinc-500">{label} :</span>
-      <span className="text-zinc-300 text-right">{value}</span>
+      <span className="text-[#94A3B8]/60">{label} :</span>
+      <span className="text-[#94A3B8] text-right">{value}</span>
     </div>
   );
 }
@@ -154,7 +154,7 @@ function SCard({ icon, title, children }) {
     <div className="card p-4">
       <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
         {icon}
-        <h3 className="text-xs font-semibold text-zinc-100">{title}</h3>
+        <h3 className="font-heading text-xs font-semibold text-white">{title}</h3>
       </div>
       {children}
     </div>
@@ -164,13 +164,13 @@ function SCard({ icon, title, children }) {
 function Field({ label, type = 'text', value, onChange, placeholder }) {
   return (
     <div className="space-y-1">
-      <label className="text-[11px] font-semibold text-zinc-500">{label}</label>
+      <label className="font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-wider">{label}</label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-1.5 text-xs rounded-lg bg-[#0d1120] border border-white/[0.08] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+        className="w-full px-3 py-1.5 text-xs rounded-xl bg-[#0A0C10] border border-white/[0.08] text-white placeholder-[#94A3B8]/30 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
       />
     </div>
   );
@@ -184,8 +184,10 @@ function ToggleSwitch({ checked, onChange }) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0',
-        checked ? 'bg-blue-500' : 'bg-zinc-700'
+        'relative w-10 h-5 rounded-full transition-all duration-300 shrink-0',
+        checked
+          ? 'bg-[#F7931A] shadow-[0_0_12px_rgba(247,147,26,0.5)]'
+          : 'bg-[#94A3B8]/20'
       )}
     >
       <span className={cn(

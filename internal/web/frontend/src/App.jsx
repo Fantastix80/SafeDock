@@ -32,7 +32,6 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [config, setConfig] = useState(null);
   
-  const [theme, setTheme] = useState('dark');
   const [selectedContainerId, setSelectedContainerId] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRolloutLoading, setIsRolloutLoading] = useState(false);
@@ -152,10 +151,7 @@ export default function App() {
 
   // Load theme and initial data on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('safedock-theme') || 'dark';
-    setTheme(savedTheme);
-    applyThemeClass(savedTheme);
-
+    document.documentElement.classList.add('dark');
     fetchAllData();
 
     // Listen to popstate event for HTML5 History routing
@@ -175,21 +171,6 @@ export default function App() {
       clearInterval(interval);
     };
   }, []);
-
-  const applyThemeClass = (targetTheme) => {
-    const html = document.documentElement;
-    if (targetTheme === 'dark') {
-      html.classList.add('dark');
-    } else {
-      html.classList.remove('dark');
-    }
-  };
-
-  const handleToggleTheme = (nextTheme) => {
-    setTheme(nextTheme);
-    applyThemeClass(nextTheme);
-    localStorage.setItem('safedock-theme', nextTheme);
-  };
 
   // Asynchronous API Fetchers
   const fetchAllData = () => {
@@ -461,7 +442,7 @@ export default function App() {
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0b0e18]">
+    <div className="flex h-screen overflow-hidden bg-[#030304]">
       <Sidebar
         activePage={activePage}
         onNavigate={handleNavigate}
@@ -474,10 +455,6 @@ export default function App() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header
           activePage={activePage}
-          theme={theme}
-          onToggleTheme={handleToggleTheme}
-          onRefresh={handleRefreshAll}
-          isRefreshing={isRefreshing}
           onNavigate={handleNavigate}
         />
 
