@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { UserSquare, Lock, Bell, ShieldCheck } from 'lucide-react';
+import { UserSquare, Lock, Bell, ShieldCheck, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+const TABS = [
+  { id: 'infos',         label: 'Infos',         icon: UserSquare },
+  { id: 'securite',      label: 'Sécurité',       icon: Lock },
+  { id: 'notifications', label: 'Notifications',  icon: Bell },
+];
+
 export default function AccountView() {
+  const [activeTab, setActiveTab] = useState('infos');
   const [user, setUser] = useState({
     username: 'Hell0W0rld', email: 'secops-admin@safedock.local',
     fullName: 'Jean SecOps', role: 'Administrateur Principal', organization: 'SafeDock Corp'
@@ -44,119 +51,140 @@ export default function AccountView() {
         <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
           <p className="font-mono text-[10px] text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Appartenance</p>
           <Row label="Organisation" value={user.organization} />
-          <Row label="Session IP" value={<code className="font-mono text-[10px] text-[#94A3B8]">192.168.1.100</code>} />
-          <Row label="Status SSO" value={<span className="font-mono text-[10px] text-[#94A3B8]/40">Désactivé</span>} />
+          <Row label="Session IP"   value={<code className="font-mono text-[10px] text-[#94A3B8]">192.168.1.100</code>} />
+          <Row label="Status SSO"   value={<span className="font-mono text-[10px] text-[#94A3B8]/40">Désactivé</span>} />
         </div>
       </div>
 
-      {/* Forms */}
-      <form onSubmit={handleSave} className="space-y-4">
-        {/* Account info */}
-        <SCard icon={<UserSquare className="w-4 h-4 text-[#F7931A]" />} title="Informations du compte">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Nom complet"        value={user.fullName}     onChange={v => setUser(p => ({ ...p, fullName: v }))} />
-            <Field label="Adresse email"      type="email" value={user.email}     onChange={v => setUser(p => ({ ...p, email: v }))} />
-            <Field label="Nom d'utilisateur"  value={user.username}     onChange={v => setUser(p => ({ ...p, username: v }))} />
-            <Field label="Organisation"       value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
-          </div>
-        </SCard>
-
-        {/* Security */}
-        <SCard icon={<Lock className="w-4 h-4 text-[#F7931A]" />} title="Sécurité">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <Field label="Nouveau mot de passe"    type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
-            <Field label="Confirmer le mot de passe" type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
-            <div>
-              <p className="text-xs font-semibold text-white">Validation Double Facteur (2FA / TOTP)</p>
-              <p className="text-[11px] text-[#94A3B8] mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
-            </div>
-            <ToggleSwitch checked={mfa} onChange={setMfa} />
-          </div>
-        </SCard>
-
-        {/* Notifications */}
-        <SCard icon={<Bell className="w-4 h-4 text-[#F7931A]" />} title="Notifications">
-          <p className="text-xs text-[#94A3B8] mb-3">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
-          <div className="space-y-2.5 mb-4">
-            {[
-              { key: 'cveAlerts',     label: 'Alertes sur les failles de sécurité (CVE)' },
-              { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
-              { key: 'deployments',   label: 'Déploiements et Rollouts pivots effectués' },
-              { key: 'secretLeaks',   label: 'Fuites de secrets détectées (SecOps)' },
-            ].map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={notif[key]}
-                  onChange={e => setNotif(p => ({ ...p, [key]: e.target.checked }))}
-                  className="accent-[#F7931A] w-3.5 h-3.5"
-                />
-                <span className="text-xs text-[#94A3B8] group-hover:text-white transition-colors">{label}</span>
-              </label>
-            ))}
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-2">
-            <label className="flex items-start gap-2.5 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={notif.enableThreshold}
-                onChange={e => setNotif(p => ({ ...p, enableThreshold: e.target.checked }))}
-                className="accent-[#F7931A] w-3.5 h-3.5 mt-0.5"
-              />
-              <div>
-                <p className="text-xs font-semibold text-white group-hover:text-[#F7931A] transition-colors">Filtrer par niveau de criticité minimum</p>
-                <p className="text-[11px] text-[#94A3B8] mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
-              </div>
-            </label>
-            {notif.enableThreshold && (
-              <select
-                value={notif.minSeverity}
-                onChange={e => setNotif(p => ({ ...p, minSeverity: e.target.value }))}
-                className="w-full mt-1 px-3 py-1.5 text-xs rounded-xl bg-[#0F1115] border border-white/[0.08] text-white focus:outline-none focus:border-[#F7931A]/40 font-mono cursor-pointer"
-              >
-                <option value="CRITICAL">CRITICAL — alertes critiques uniquement</option>
-                <option value="HIGH">HIGH — critique et haute gravité</option>
-                <option value="MEDIUM">MEDIUM — critique, haute et moyenne</option>
-                <option value="LOW">LOW — toutes les alertes</option>
-              </select>
-            )}
-          </div>
-        </SCard>
-
-        <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
-          {status && <p className="text-xs text-emerald-400 font-mono font-medium">{status}</p>}
-          <button
-            type="submit"
-            className="px-5 py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
-          >
-            Enregistrer les préférences
-          </button>
+      {/* Tabbed main panel */}
+      <div className="card flex flex-col overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-white/[0.06] px-2 pt-2 gap-1 shrink-0">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-2 rounded-t-xl text-xs font-medium transition-all duration-200 font-mono',
+                activeTab === id
+                  ? 'bg-[#F7931A]/10 text-[#F7931A] border border-b-transparent border-[#F7931A]/20'
+                  : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
+              )}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              {label}
+            </button>
+          ))}
         </div>
-      </form>
+
+        {/* Tab content */}
+        <form onSubmit={handleSave} className="flex-1 p-5 space-y-4">
+
+          {/* ── Infos ── */}
+          {activeTab === 'infos' && (
+            <div className="space-y-4">
+              <p className="text-xs text-[#94A3B8] font-mono">Identité et appartenance du compte SecOps.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nom complet"         value={user.fullName}     onChange={v => setUser(p => ({ ...p, fullName: v }))} />
+                <Field label="Adresse email"        type="email" value={user.email}     onChange={v => setUser(p => ({ ...p, email: v }))} />
+                <Field label="Nom d'utilisateur"    value={user.username}     onChange={v => setUser(p => ({ ...p, username: v }))} />
+                <Field label="Organisation"         value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Sécurité ── */}
+          {activeTab === 'securite' && (
+            <div className="space-y-3">
+              <p className="text-xs text-[#94A3B8] font-mono">Mots de passe et authentification multi-facteurs.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nouveau mot de passe"       type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+                <Field label="Confirmer le mot de passe"  type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
+                <div>
+                  <p className="text-xs font-semibold text-white">Validation Double Facteur (2FA / TOTP)</p>
+                  <p className="text-[11px] text-[#94A3B8] mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
+                </div>
+                <ToggleSwitch checked={mfa} onChange={setMfa} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Notifications ── */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-4">
+              <p className="text-xs text-[#94A3B8] font-mono">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
+              <div className="space-y-2.5">
+                {[
+                  { key: 'cveAlerts',     label: 'Alertes sur les failles de sécurité (CVE)' },
+                  { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
+                  { key: 'deployments',   label: 'Déploiements et Rollouts pivots effectués' },
+                  { key: 'secretLeaks',   label: 'Fuites de secrets détectées (SecOps)' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-2.5 cursor-pointer group select-none">
+                    <Checkbox
+                      checked={notif[key]}
+                      onChange={v => setNotif(p => ({ ...p, [key]: v }))}
+                    />
+                    <span className="text-xs text-[#94A3B8] group-hover:text-white transition-colors">{label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-2">
+                <label className="flex items-start gap-2.5 cursor-pointer group select-none">
+                  <Checkbox
+                    checked={notif.enableThreshold}
+                    onChange={v => setNotif(p => ({ ...p, enableThreshold: v }))}
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-white group-hover:text-[#F7931A] transition-colors">
+                      Filtrer par niveau de criticité minimum
+                    </p>
+                    <p className="text-[11px] text-[#94A3B8] mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
+                  </div>
+                </label>
+                {notif.enableThreshold && (
+                  <select
+                    value={notif.minSeverity}
+                    onChange={e => setNotif(p => ({ ...p, minSeverity: e.target.value }))}
+                    className="w-full mt-1 px-3 py-1.5 text-xs rounded-xl bg-[#0F1115] border border-white/[0.08] text-white focus:outline-none focus:border-[#F7931A]/40 font-mono cursor-pointer"
+                  >
+                    <option value="CRITICAL">CRITICAL</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="LOW">LOW</option>
+                  </select>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Save footer */}
+          <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
+            {status && <p className="text-xs text-emerald-400 font-mono font-medium">{status}</p>}
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
+            >
+              Enregistrer les préférences
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
+
+/* ─── Sub-components ─── */
 
 function Row({ label, value }) {
   return (
     <div className="flex justify-between text-xs gap-2">
       <span className="text-[#94A3B8]/60">{label} :</span>
       <span className="text-[#94A3B8] text-right">{value}</span>
-    </div>
-  );
-}
-
-function SCard({ icon, title, children }) {
-  return (
-    <div className="card p-4">
-      <div className="flex items-center gap-2 pb-3 mb-3 border-b border-white/[0.06]">
-        {icon}
-        <h3 className="font-heading text-xs font-semibold text-white">{title}</h3>
-      </div>
-      {children}
     </div>
   );
 }
@@ -173,6 +201,25 @@ function Field({ label, type = 'text', value, onChange, placeholder }) {
         className="w-full px-3 py-1.5 text-xs rounded-xl bg-[#0A0C10] border border-white/[0.08] text-white placeholder-[#94A3B8]/30 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
       />
     </div>
+  );
+}
+
+function Checkbox({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all duration-150 border',
+        checked
+          ? 'bg-[#F7931A] border-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.4)]'
+          : 'bg-transparent border-white/20 hover:border-[#F7931A]/40'
+      )}
+    >
+      {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+    </button>
   );
 }
 

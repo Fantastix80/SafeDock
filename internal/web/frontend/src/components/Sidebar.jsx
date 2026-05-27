@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard, Boxes, ShieldCheck, Server, Newspaper,
-  Bell, Lock, Settings, ChevronsLeft, ChevronsRight, RefreshCw
+  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { id: 'agents',        label: 'Agents',        icon: Server },
   { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'permissions',   label: 'Permissions',   icon: Lock },
 ];
 
 export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing }) {
@@ -20,7 +19,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
     <aside
       className={cn(
         'flex flex-col h-screen shrink-0 border-r border-white/[0.06] transition-all duration-300',
-        'bg-[#0A0C10] relative overflow-hidden',
+        'bg-[#0A0C10] relative',
         isCollapsed ? 'w-[64px]' : 'w-[220px]'
       )}
     >
@@ -29,25 +28,25 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
       {/* Logo row */}
       <div className={cn(
-        'flex items-center h-14 border-b border-white/[0.06] relative shrink-0',
-        isCollapsed ? 'justify-center px-0' : 'px-4 gap-2.5'
+        'flex items-center h-16 border-b border-white/[0.06] px-3 shrink-0 gap-2',
+        isCollapsed && 'justify-center'
       )}>
-        <SafeDockLogo />
+        {!isCollapsed && <SafeDockLogo />}
         {!isCollapsed && (
-          <span className="font-heading text-sm font-bold tracking-wide text-white">SafeDock</span>
+          <span className="font-heading text-base font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
         )}
         <button
           onClick={onToggleCollapse}
           title={isCollapsed ? 'Déplier' : 'Replier'}
           type="button"
           className={cn(
-            'absolute -right-3 top-1/2 -translate-y-1/2 z-10',
-            'w-6 h-6 rounded-full flex items-center justify-center',
-            'bg-[#0F1115] border border-white/[0.15] text-[#94A3B8]',
-            'hover:text-white hover:border-[#F7931A]/60 hover:shadow-[0_0_12px_rgba(247,147,26,0.4)] transition-all duration-300'
+            'flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-200 shrink-0',
+            'text-[#94A3B8] hover:text-white bg-white/[0.03] hover:bg-white/[0.06]',
+            'border border-white/[0.08] hover:border-[#F7931A]/40',
+            isCollapsed ? 'mx-auto' : 'ml-auto'
           )}
         >
-          {isCollapsed ? <ChevronsRight className="w-3 h-3" /> : <ChevronsLeft className="w-3 h-3" />}
+          {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
         </button>
       </div>
 
@@ -63,8 +62,8 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
               aria-current={active ? 'page' : undefined}
               title={isCollapsed ? label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-xl px-2.5 py-2 transition-all duration-200',
-                'text-xs font-mono font-medium tracking-wide',
+                'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition-all duration-200',
+                'text-sm font-mono font-medium',
                 active
                   ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
                   : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
@@ -90,8 +89,8 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
           disabled={isRefreshing}
           title={isCollapsed ? 'Audit Global' : undefined}
           className={cn(
-            'w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2',
-            'text-xs font-mono font-semibold tracking-wide transition-all duration-300',
+            'w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2.5',
+            'text-sm font-mono font-semibold transition-all duration-300',
             'bg-gradient-to-r from-[#EA580C]/15 to-[#F7931A]/15 text-[#F7931A]',
             'border border-[#F7931A]/20 hover:border-[#F7931A]/50',
             'hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.4)]',
@@ -99,7 +98,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
             isCollapsed && 'justify-center'
           )}
         >
-          <RefreshCw className={cn('w-[16px] h-[16px] shrink-0', isRefreshing && 'animate-spin')} />
+          <RefreshCw className={cn('w-[18px] h-[18px] shrink-0', isRefreshing && 'animate-spin')} />
           {!isCollapsed && <span>Audit Global</span>}
         </button>
 
@@ -110,8 +109,8 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
           aria-current={activePage === 'settings' ? 'page' : undefined}
           title={isCollapsed ? 'Paramètres' : undefined}
           className={cn(
-            'w-full flex items-center gap-3 rounded-xl px-2.5 py-2',
-            'text-xs font-mono font-medium tracking-wide transition-all duration-200',
+            'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5',
+            'text-sm font-mono font-medium transition-all duration-200',
             activePage === 'settings'
               ? 'bg-[#F7931A]/10 text-[#F7931A]'
               : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
@@ -134,18 +133,21 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
 function SafeDockLogo() {
   return (
-    <svg viewBox="0 0 40 40" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M20 3L33 9V21C33 29 20 35 20 35C20 35 7 29 7 21V9Z"
-        stroke="url(#sdlg1)" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M20 14L27 17L20 20L13 17Z" fill="url(#sdlg2)" opacity="0.9" />
-      <path d="M13 17L20 20V28L13 25Z" fill="#EA580C" opacity="0.75" />
-      <path d="M20 20L27 17V25L20 28Z" fill="#F7931A" />
+    <svg viewBox="0 0 40 40" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M20 3L33 9V21C33 29 20 35 20 35C20 35 7 29 7 21V9Z"
+        stroke="url(#sdlg1)" strokeWidth="2.5" strokeLinejoin="round"
+      />
+      {/* Cube — shifted up 2px for visual centering inside shield */}
+      <path d="M20 12L27 15L20 18L13 15Z" fill="url(#sdlg2)" opacity="0.9" />
+      <path d="M13 15L20 18V26L13 23Z" fill="#EA580C" opacity="0.75" />
+      <path d="M20 18L27 15V23L20 26Z" fill="#F7931A" />
       <defs>
         <linearGradient id="sdlg1" x1="7" y1="3" x2="33" y2="35" gradientUnits="userSpaceOnUse">
           <stop stopColor="#F7931A" />
           <stop offset="1" stopColor="#FFD600" />
         </linearGradient>
-        <linearGradient id="sdlg2" x1="13" y1="14" x2="27" y2="20" gradientUnits="userSpaceOnUse">
+        <linearGradient id="sdlg2" x1="13" y1="12" x2="27" y2="18" gradientUnits="userSpaceOnUse">
           <stop stopColor="#FFD600" />
           <stop offset="1" stopColor="#F7931A" />
         </linearGradient>

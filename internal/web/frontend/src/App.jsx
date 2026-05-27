@@ -522,6 +522,13 @@ export default function App() {
               onSaveGlobalSettings={handleSaveGlobalSettings}
               onAddRegistry={handleAddRegistry}
               onDeleteRegistry={handleDeleteRegistry}
+              simulatedUsers={simulatedUsers}
+              setSimulatedUsers={setSimulatedUsers}
+              activeUserProfile={activeUserProfile}
+              setActiveUserProfile={(prof) => {
+                setActiveUserProfile(prof);
+                localStorage.setItem('safedock-active-user', JSON.stringify(prof));
+              }}
             />
           )}
 
