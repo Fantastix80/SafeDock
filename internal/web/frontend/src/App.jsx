@@ -460,8 +460,8 @@ export default function App() {
         />
 
         {/* View Router */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-[1400px] mx-auto w-full">
+        <main className="flex-1 overflow-y-auto p-8">
+          <div className="w-full">
           {activePage === 'dashboard' && (
             <DashboardView
               containers={scopedContainers}
