@@ -241,8 +241,11 @@ function ToggleSwitch({ checked, onChange }) {
       )}
     >
       <span
-        className="absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all duration-200"
-        style={{ left: checked ? '27px' : '3px' }}
+        className={cn(
+          'absolute top-1/2 -translate-y-1/2 bg-white rounded-full shadow-sm transition-[left] duration-200',
+          'w-[1.125rem] h-[1.125rem]',
+          checked ? 'left-[calc(100%-1.3125rem)]' : 'left-[0.1875rem]'
+        )}
       />
     </button>
   );
