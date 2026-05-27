@@ -14,11 +14,12 @@ import ActionsView from './components/ActionsView';
 import AgentsView from './components/AgentsView';
 import ContainerDetailView from './components/ContainerDetailView';
 import PermissionsView from './components/PermissionsView';
+import AuditView from './components/AuditView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions'];
+    const validPages = ['dashboard', 'containers', 'audit', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
@@ -478,6 +479,10 @@ export default function App() {
               onSelectContainer={handleSelectContainer}
               onNavigate={handleNavigate}
             />
+          )}
+
+          {activePage === 'audit' && (
+            <AuditView />
           )}
 
           {activePage === 'actions' && (

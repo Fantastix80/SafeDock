@@ -1,13 +1,14 @@
 import React from 'react';
 import {
   LayoutDashboard, Boxes, ShieldCheck, Server, Newspaper,
-  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw
+  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw, ScanSearch
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const NAV_ITEMS = [
   { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
   { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
+  { id: 'audit',         label: 'Audit',         icon: ScanSearch },
   { id: 'actions',       label: 'Actions',       icon: ShieldCheck },
   { id: 'agents',        label: 'Agents',        icon: Server },
   { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
@@ -26,15 +27,16 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
       {/* Ambient orange glow top */}
       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-[#F7931A] opacity-[0.05] blur-[70px] pointer-events-none" />
 
-      {/* Logo row */}
+      {/* Logo row — logo always centered, toggle button absolutely positioned */}
       <div className={cn(
-        'flex items-center h-16 border-b border-white/[0.06] shrink-0',
-        isCollapsed ? 'justify-center gap-1.5 px-0' : 'px-3 gap-2'
+        'border-b border-white/[0.06] shrink-0',
+        isCollapsed
+          ? 'relative flex items-center justify-center h-16'
+          : 'flex items-center h-16 px-3 gap-2'
       )}>
-        {/* Logo always visible — smaller when collapsed */}
-        <SafeDockLogo size={isCollapsed ? 26 : 38} />
+        <SafeDockLogo size={isCollapsed ? 30 : 38} />
         {!isCollapsed && (
-          <span className="font-heading text-lg font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
+          <span className="font-heading text-xl font-bold tracking-wide text-white flex-1 truncate">SafeDock</span>
         )}
         <button
           onClick={onToggleCollapse}
@@ -44,10 +46,15 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
             'flex items-center justify-center rounded-lg transition-all duration-200 shrink-0',
             'text-[#94A3B8] hover:text-white bg-white/[0.03] hover:bg-white/[0.06]',
             'border border-white/[0.08] hover:border-[#F7931A]/40',
-            isCollapsed ? 'w-6 h-6' : 'w-7 h-7 ml-auto'
+            isCollapsed
+              ? 'absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5'
+              : 'w-7 h-7 ml-auto'
           )}
         >
-          {isCollapsed ? <ChevronsRight className="w-3.5 h-3.5" /> : <ChevronsLeft className="w-4 h-4" />}
+          {isCollapsed
+            ? <ChevronsRight className="w-3 h-3" />
+            : <ChevronsLeft className="w-4 h-4" />
+          }
         </button>
       </div>
 
@@ -64,7 +71,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
               title={isCollapsed ? label : undefined}
               className={cn(
                 'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition-all duration-200',
-                'text-sm font-mono font-medium',
+                'text-base font-mono font-medium',
                 active
                   ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
                   : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
@@ -83,7 +90,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
       {/* Bottom section */}
       <div className="px-2 pb-3 space-y-1 border-t border-white/[0.06] pt-3 shrink-0">
-        {/* Global audit */}
+        {/* Global audit button */}
         <button
           type="button"
           onClick={onRefresh}
@@ -91,7 +98,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
           title={isCollapsed ? 'Audit Global' : undefined}
           className={cn(
             'w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2.5',
-            'text-sm font-mono font-semibold transition-all duration-300',
+            'text-base font-mono font-semibold transition-all duration-300',
             'bg-gradient-to-r from-[#EA580C]/15 to-[#F7931A]/15 text-[#F7931A]',
             'border border-[#F7931A]/20 hover:border-[#F7931A]/50',
             'hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.4)]',
@@ -111,7 +118,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
           title={isCollapsed ? 'Paramètres' : undefined}
           className={cn(
             'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5',
-            'text-sm font-mono font-medium transition-all duration-200',
+            'text-base font-mono font-medium transition-all duration-200',
             activePage === 'settings'
               ? 'bg-[#F7931A]/10 text-[#F7931A]'
               : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]',
@@ -123,7 +130,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
         </button>
 
         {!isCollapsed && (
-          <p className="text-[10px] text-[#94A3B8]/30 px-2.5 pt-1 font-mono tracking-wider">
+          <p className="text-xs text-[#94A3B8]/30 px-2.5 pt-1 font-mono tracking-wider">
             SafeDock v1.0.0
           </p>
         )}
@@ -139,7 +146,6 @@ function SafeDockLogo({ size = 36 }) {
         d="M20 3L33 9V21C33 29 20 35 20 35C20 35 7 29 7 21V9Z"
         stroke="url(#sdlg1)" strokeWidth="2.5" strokeLinejoin="round"
       />
-      {/* Cube — shifted up 2px for visual centering inside shield */}
       <path d="M20 12L27 15L20 18L13 15Z" fill="url(#sdlg2)" opacity="0.9" />
       <path d="M13 15L20 18V26L13 23Z" fill="#EA580C" opacity="0.75" />
       <path d="M20 18L27 15V23L20 26Z" fill="#F7931A" />

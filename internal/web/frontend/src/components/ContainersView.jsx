@@ -52,7 +52,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
   const safePage = Math.min(page, totalPages);
   const slice = sorted.slice((safePage - 1) * perPage, safePage * perPage);
 
-  const thBase = "px-4 py-3 text-left font-mono text-[10px] font-medium text-[#94A3B8]/60 uppercase tracking-widest select-none";
+  const thBase = "px-4 py-3 text-left font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest select-none";
   const thSort = cn(thBase, "cursor-pointer hover:text-[#94A3B8] transition-colors");
 
   const tagColor = (tag) => {
@@ -70,20 +70,20 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
           Inventaire des conteneurs
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]/50 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]/50 pointer-events-none" />
           <input
             type="text"
             placeholder="Rechercher..."
             value={searchTerm}
             onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
-            className="w-56 pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#0F1115] border border-white/[0.08] text-white placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
+            className="w-64 pl-9 pr-3 py-2 text-sm rounded-xl bg-[#0F1115] border border-white/[0.08] text-white placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
           />
         </div>
       </div>
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06]">
                 <th className={thSort} onClick={() => handleSort('score')}>
@@ -139,16 +139,16 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                     </td>
                     <td className="px-4 py-3 font-heading font-semibold text-white group-hover:text-white">{c.name}</td>
                     <td className="px-4 py-3 text-[#94A3B8]">
-                      <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                        <Server className="w-3 h-3 text-[#94A3B8]/40" />
+                      <span className="flex items-center gap-1.5 font-mono text-xs">
+                        <Server className="w-3.5 h-3.5 text-[#94A3B8]/40" />
                         {c.host_name}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-[#94A3B8]/70 text-[11px]">{c.image_name}:{c.image_tag}</td>
+                    <td className="px-4 py-3 font-mono text-[#94A3B8]/70 text-xs">{c.image_name}:{c.image_tag}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
                         {(c.tags || []).map((t, i) => (
-                          <span key={i} className={cn('px-1.5 py-0.5 rounded-md font-mono text-[10px] font-medium', tagColor(t))}>
+                          <span key={i} className={cn('px-2 py-0.5 rounded-md font-mono text-xs font-medium', tagColor(t))}>
                             {t}
                           </span>
                         ))}
@@ -164,7 +164,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                     </td>
                     <td className="px-4 py-3 text-center">
                       {c.secret_leaks && c.secret_leaks.length > 0
-                        ? <span className="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/20">
+                        ? <span className="px-1.5 py-0.5 rounded-md font-mono text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/20">
                             {c.secret_leaks.length} FUITE{c.secret_leaks.length > 1 ? 'S' : ''}
                           </span>
                         : <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
@@ -199,7 +199,7 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06] gap-4 flex-wrap">
-          <div className="flex items-center gap-3 font-mono text-xs text-[#94A3B8]">
+          <div className="flex items-center gap-3 font-mono text-sm text-[#94A3B8]">
             <span>
               {total > 0 ? (safePage - 1) * perPage + 1 : 0}–{Math.min(safePage * perPage, total)} sur {total}
             </span>

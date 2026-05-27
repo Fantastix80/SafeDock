@@ -13,6 +13,7 @@ const PAGE_META = {
   agents:                { title: 'Agents SecOps',             desc: 'Gestion des agents de surveillance distribués' },
   permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
   'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
+  'audit':               { title: 'Audit d\'Image',            desc: 'Analysez n\'importe quelle image Docker avant déploiement' },
   '404':                 { title: 'Ressource introuvable',     desc: "La page demandée n'existe pas" },
 };
 
@@ -39,8 +40,8 @@ export default function Header({ activePage, onNavigate }) {
       {/* Page title */}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">
-          <h1 className="font-heading text-sm font-semibold text-white truncate">{meta.title}</h1>
-          <span className="hidden sm:block text-xs text-[#94A3B8] truncate">{meta.desc}</span>
+          <h1 className="font-heading text-base font-semibold text-white truncate">{meta.title}</h1>
+          <span className="hidden sm:block text-sm text-[#94A3B8] truncate">{meta.desc}</span>
         </div>
       </div>
 
@@ -75,8 +76,8 @@ export default function Header({ activePage, onNavigate }) {
           H
         </div>
         <div className="hidden sm:block text-left">
-          <p className="font-heading text-xs font-semibold text-white leading-tight">Hell0W0rld</p>
-          <p className="text-[10px] text-[#94A3B8] leading-tight font-mono">SecOps Admin</p>
+          <p className="font-heading text-sm font-semibold text-white leading-tight">Hell0W0rld</p>
+          <p className="text-xs text-[#94A3B8] leading-tight font-mono">SecOps Admin</p>
         </div>
       </button>
     </header>

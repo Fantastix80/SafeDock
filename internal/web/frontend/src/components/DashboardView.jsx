@@ -22,9 +22,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   const cveCounts = { critical: 0, high: 0, medium: 0, low: 0 };
   containers.forEach(c => {
     cveCounts.critical += c.cve_critical || 0;
-    cveCounts.high += c.cve_high || 0;
-    cveCounts.medium += c.cve_medium || 0;
-    cveCounts.low += c.cve_low || 0;
+    cveCounts.high     += c.cve_high     || 0;
+    cveCounts.medium   += c.cve_medium   || 0;
+    cveCounts.low      += c.cve_low      || 0;
   });
 
   const formatDate = (iso) => {
@@ -276,13 +276,13 @@ function CveChart({ counts }) {
     { label: 'Basse',    value: counts.low,       color: '#FFD600', glow: 'rgba(255,214,0,0.25)' },
   ];
   const maxVal = Math.max(...bars.map(b => b.value), 5);
-  const chartH = 140, barW = 52, gap = 50, paddingLeft = 32, paddingBottom = 24, paddingTop = 16;
+  const chartH = 200, barW = 64, gap = 56, paddingLeft = 32, paddingBottom = 28, paddingTop = 20;
   const chartW = paddingLeft + bars.length * (barW + gap);
   const drawH = chartH - paddingBottom - paddingTop;
   const baseline = chartH - paddingBottom;
 
   return (
-    <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height="100%" style={{ maxHeight: '140px' }}>
+    <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height="100%" style={{ maxHeight: '200px' }}>
       {[1, 2, 3].map(i => {
         const y = baseline - (i / 3) * drawH;
         return (
