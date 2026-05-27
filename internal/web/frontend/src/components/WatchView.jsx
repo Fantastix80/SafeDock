@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Newspaper, Wrench, Radio } from 'lucide-react';
 import { cn } from '../lib/utils';
 

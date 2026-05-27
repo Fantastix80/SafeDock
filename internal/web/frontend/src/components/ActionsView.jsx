@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { CloudDownload, Bug, Settings2, CheckCircle2, TriangleAlert, RotateCw, Eye, Zap, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 

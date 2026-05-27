@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Settings2, TriangleAlert } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 

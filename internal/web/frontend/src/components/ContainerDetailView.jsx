@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Bug, ListChecks, RefreshCw, RotateCw, Settings2,
   CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown

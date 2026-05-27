@@ -20,7 +20,15 @@
     padding: 0;
   }
 
-  html, body, #root {
+  html {
+    height: 100%;
+    /* Fluid typography — scales from 13px (≤1024px) to 15px (≥1920px)
+       so text is never too tiny on big screens nor too big on small ones.
+       All Tailwind rem/em values (text-xs, text-sm, text-base…) scale with this. */
+    font-size: clamp(13px, 0.2vw + 10.9px, 15px);
+  }
+
+  body, #root {
     height: 100%;
     font-family: 'Inter', system-ui, sans-serif;
   }

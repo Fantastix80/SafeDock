@@ -7,12 +7,6 @@ export default {
   ],
   theme: {
     extend: {
-      fontSize: {
-        /* Bump default Tailwind sizes up by ~1-2px site-wide */
-        'xs':   ['13px', { lineHeight: '1.5' }],
-        'sm':   ['15px', { lineHeight: '1.6' }],
-        'base': ['16px', { lineHeight: '1.6' }],
-      },
       fontFamily: {
         heading: ['Space Grotesk', 'system-ui', 'sans-serif'],
         body: ['Inter', 'system-ui', 'sans-serif'],

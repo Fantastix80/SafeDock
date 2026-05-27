@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Lock, UserPlus, Filter, Info, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
