@@ -8,8 +8,8 @@ WORKDIR /app/internal/web/frontend
 # Copie des manifestes de dépendances en premier (cache Docker optimisé)
 COPY internal/web/frontend/package*.json ./
 
-# Installation des dépendances npm sans scripts post-install non nécessaires
-RUN npm ci --no-audit --prefer-offline || npm ci --no-audit
+# Installation des dépendances npm
+RUN npm install --no-audit
 
 # Copie du reste des sources frontend
 COPY internal/web/frontend/ ./
