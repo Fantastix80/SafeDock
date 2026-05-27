@@ -1,4 +1,23 @@
 # ==========================================
+# STAGE 0 : Build du frontend React/Vite
+# ==========================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/internal/web/frontend
+
+# Copie des manifestes de dépendances en premier (cache Docker optimisé)
+COPY internal/web/frontend/package*.json ./
+
+# Installation des dépendances npm sans scripts post-install non nécessaires
+RUN npm ci --no-audit --prefer-offline || npm ci --no-audit
+
+# Copie du reste des sources frontend
+COPY internal/web/frontend/ ./
+
+# Build Vite → output dans ../static (= internal/web/static, configuré dans vite.config.js)
+RUN npm run build
+
+# ==========================================
 # STAGE 1 : Build du binaire Go
 # ==========================================
 FROM golang:1.23-alpine AS builder
@@ -10,6 +29,9 @@ WORKDIR /app
 
 # Copie de tout le code source
 COPY . .
+
+# Injection des assets frontend fraîchement buildés dans le répertoire embed Go
+COPY --from=frontend-builder /app/internal/web/static/ ./internal/web/static/
 
 # Résolution des dépendances et téléchargement (avec tous les fichiers .go présents)
 RUN go mod tidy
