@@ -81,6 +81,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
               className={cn(
                 'w-full flex items-center rounded-xl px-2.5 py-2.5 transition-all duration-200',
                 'text-base font-mono font-medium',
+                isCollapsed && 'justify-center',
                 active
                   ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
                   : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'

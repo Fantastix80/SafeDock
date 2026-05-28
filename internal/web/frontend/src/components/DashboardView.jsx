@@ -48,21 +48,21 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       {/* KPI Row */}
       <div className="grid grid-cols-3 gap-4">
         <KpiCard
-          icon={<Boxes className="w-6 h-6" />}
+          icon={<Boxes className="w-5 h-5" />}
           iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
           value={stats.total}
           label="Conteneurs audités"
           glow="shadow-[0_0_40px_-15px_rgba(247,147,26,0.15)]"
         />
         <KpiCard
-          icon={<TriangleAlert className="w-6 h-6" />}
+          icon={<TriangleAlert className="w-5 h-5" />}
           iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
           value={stats.warnings}
           label="Alertes critiques"
           glow={stats.warnings > 0 ? 'shadow-[0_0_40px_-15px_rgba(239,68,68,0.2)]' : ''}
         />
         <KpiCard
-          icon={<CloudDownload className="w-6 h-6" />}
+          icon={<CloudDownload className="w-5 h-5" />}
           iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
           value={stats.updatesAvailable}
           label="Mises à jour disponibles"
@@ -71,7 +71,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       </div>
 
       {/* Analytics Row */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: '300px 1fr 300px' }}>
+      <div className="grid grid-cols-3 gap-4">
         {/* Score Gauge */}
         <div className="card p-6 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
           <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
@@ -242,13 +242,13 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
 function KpiCard({ icon, iconClass, value, label, glow }) {
   return (
-    <div className={cn('card px-6 py-5 flex items-center gap-5 hover:border-white/[0.15] transition-all duration-300', glow)}>
-      <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shrink-0', iconClass)}>
+    <div className={cn('card px-4 py-4 flex items-center gap-3 hover:border-white/[0.15] transition-all duration-300', glow)}>
+      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconClass)}>
         {icon}
       </div>
       <div>
-        <p className="font-heading text-4xl font-bold text-white leading-none">{value}</p>
-        <p className="text-sm text-[#94A3B8] mt-2 font-mono">{label}</p>
+        <p className="font-heading text-2xl font-bold text-white leading-none">{value}</p>
+        <p className="text-sm text-[#94A3B8] mt-1 font-mono">{label}</p>
       </div>
     </div>
   );
