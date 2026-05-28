@@ -45,33 +45,32 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
   return (
     <div className="space-y-6">
-      {/* KPI Row */}
-      <div className="grid grid-cols-3 gap-4">
-        <KpiCard
-          icon={<Boxes className="w-5 h-5" />}
+      {/* KPI Strip */}
+      <div className="card px-6 py-4 flex items-center">
+        <KpiStat
+          icon={<Boxes className="w-4 h-4" />}
           iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
           value={stats.total}
           label="Conteneurs audités"
-          glow="shadow-[0_0_40px_-15px_rgba(247,147,26,0.15)]"
         />
-        <KpiCard
-          icon={<TriangleAlert className="w-5 h-5" />}
+        <div className="mx-6 h-8 w-px bg-white/[0.06] shrink-0" />
+        <KpiStat
+          icon={<TriangleAlert className="w-4 h-4" />}
           iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
           value={stats.warnings}
           label="Alertes critiques"
-          glow={stats.warnings > 0 ? 'shadow-[0_0_40px_-15px_rgba(239,68,68,0.2)]' : ''}
         />
-        <KpiCard
-          icon={<CloudDownload className="w-5 h-5" />}
+        <div className="mx-6 h-8 w-px bg-white/[0.06] shrink-0" />
+        <KpiStat
+          icon={<CloudDownload className="w-4 h-4" />}
           iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
           value={stats.updatesAvailable}
           label="Mises à jour disponibles"
-          glow=""
         />
       </div>
 
       {/* Analytics Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '300px 1fr 300px' }}>
         {/* Score Gauge */}
         <div className="card p-6 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
           <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
@@ -240,15 +239,15 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   );
 }
 
-function KpiCard({ icon, iconClass, value, label, glow }) {
+function KpiStat({ icon, iconClass, value, label }) {
   return (
-    <div className={cn('card px-4 py-4 flex items-center gap-3 hover:border-white/[0.15] transition-all duration-300', glow)}>
-      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconClass)}>
+    <div className="flex items-center gap-3 flex-1">
+      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', iconClass)}>
         {icon}
       </div>
       <div>
-        <p className="font-heading text-2xl font-bold text-white leading-none">{value}</p>
-        <p className="text-sm text-[#94A3B8] mt-1 font-mono">{label}</p>
+        <p className="font-heading text-xl font-bold text-white leading-none">{value}</p>
+        <p className="text-xs text-[#94A3B8] mt-0.5 font-mono">{label}</p>
       </div>
     </div>
   );
