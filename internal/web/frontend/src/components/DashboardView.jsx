@@ -53,7 +53,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       actions.push({ ...SEV.MAJ, id: c.id, name: c.name, desc: 'Mise à jour de l\'image disponible', icon: CloudDownload });
   });
   actions.sort((a, b) => a.rank - b.rank);
-  const topActions = actions.slice(0, 6);
+  const topActions = actions.slice(0, 3);
 
   const formatDate = (iso) => {
     if (!iso) return '-';
@@ -137,9 +137,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       </div>
 
       {/* ============ CVE + Actions prioritaires ============ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* CVE — exposition aux vulnérabilités (détermine la hauteur de ligne) */}
+        {/* CVE — exposition aux vulnérabilités */}
         <div className="card p-6 lg:col-span-2 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -164,8 +164,8 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           </div>
         </div>
 
-        {/* Actions prioritaires — s'étire pour matcher la hauteur de la carte CVE */}
-        <div className="card p-6 flex flex-col overflow-hidden self-stretch">
+        {/* Actions prioritaires */}
+        <div className="card p-6 flex flex-col overflow-hidden">
           <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
             <Zap className="w-4 h-4 text-[#F7931A]" />
             <p className="font-heading text-base font-semibold text-white">Actions prioritaires</p>
