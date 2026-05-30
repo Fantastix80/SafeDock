@@ -137,9 +137,9 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
       </div>
 
       {/* ============ CVE + Actions prioritaires ============ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
-        {/* CVE — exposition aux vulnérabilités */}
+        {/* CVE — exposition aux vulnérabilités (détermine la hauteur de ligne) */}
         <div className="card p-6 lg:col-span-2 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -159,13 +159,13 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           <SeverityBar counts={cveCounts} total={cveTotal} />
 
           {/* Bar chart */}
-          <div className="h-[180px] mt-2">
+          <div className="h-[200px] mt-2">
             <CveChart counts={cveCounts} />
           </div>
         </div>
 
-        {/* Actions prioritaires — données réelles */}
-        <div className="card p-6 flex flex-col overflow-hidden">
+        {/* Actions prioritaires — s'étire pour matcher la hauteur de la carte CVE */}
+        <div className="card p-6 flex flex-col overflow-hidden self-stretch">
           <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
             <Zap className="w-4 h-4 text-[#F7931A]" />
             <p className="font-heading text-base font-semibold text-white">Actions prioritaires</p>
