@@ -159,7 +159,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
           <SeverityBar counts={cveCounts} total={cveTotal} />
 
           {/* Bar chart */}
-          <div className="flex-1 min-h-[180px] mt-2">
+          <div className="h-[180px] mt-2">
             <CveChart counts={cveCounts} />
           </div>
         </div>
@@ -381,10 +381,10 @@ function ActionRow({ action, onClick }) {
 
 function CveChart({ counts }) {
   const bars = [
-    { label: 'Critique', value: counts.critical, color: '#ef444499' },
-    { label: 'Haute',    value: counts.high,     color: '#F7931A99' },
-    { label: 'Moyenne',  value: counts.medium,   color: '#fbbf2499' },
-    { label: 'Basse',    value: counts.low,       color: '#FFD60099' },
+    { label: 'Critique', value: counts.critical, color: '#ef4444' },
+    { label: 'Haute',    value: counts.high,     color: '#F7931A' },
+    { label: 'Moyenne',  value: counts.medium,   color: '#fbbf24' },
+    { label: 'Basse',    value: counts.low,       color: '#FFD600' },
   ];
   const maxVal = Math.max(...bars.map(b => b.value), 5);
   const chartH = 200, barW = 64, gap = 56, paddingLeft = 32, paddingBottom = 28, paddingTop = 20;
