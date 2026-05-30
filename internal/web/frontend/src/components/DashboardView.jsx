@@ -45,85 +45,94 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
   return (
     <div className="space-y-6">
-      {/* KPI Strip */}
-      <div className="card px-6 py-4 flex items-center">
-        <KpiStat
-          icon={<Boxes className="w-4 h-4" />}
-          iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
-          value={stats.total}
-          label="Conteneurs audités"
-        />
-        <div className="mx-6 h-8 w-px bg-white/[0.06] shrink-0" />
-        <KpiStat
-          icon={<TriangleAlert className="w-4 h-4" />}
-          iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
-          value={stats.warnings}
-          label="Alertes critiques"
-        />
-        <div className="mx-6 h-8 w-px bg-white/[0.06] shrink-0" />
-        <KpiStat
-          icon={<CloudDownload className="w-4 h-4" />}
-          iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
-          value={stats.updatesAvailable}
-          label="Mises à jour disponibles"
-        />
-      </div>
+      {/* Analytics + KPI section */}
+      <div className="flex gap-4 items-start">
 
-      {/* Analytics Row */}
-      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '300px 1fr 300px' }}>
-        {/* Score Gauge */}
-        <div className="card p-6 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
-          <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
-          <div className="relative w-36 h-36">
-            <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="44" />
-              <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn('font-heading text-4xl font-extrabold', gradeColor(stats.globalScore))}>
-                {stats.globalGrade}
-              </span>
-              <span className="text-xs text-[#94A3B8] mt-0.5 font-mono">{stats.globalScore}/100</span>
+        {/* LEFT — Score+Chart en haut, Actions en bas */}
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
+
+          {/* Score + Chart côte à côte */}
+          <div className="flex gap-4">
+            {/* Score Gauge */}
+            <div className="card p-6 w-[260px] shrink-0 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
+              <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
+              <div className="relative w-36 h-36">
+                <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="44" />
+                  <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={cn('font-heading text-4xl font-extrabold', gradeColor(stats.globalScore))}>
+                    {stats.globalGrade}
+                  </span>
+                  <span className="text-xs text-[#94A3B8] mt-0.5 font-mono">{stats.globalScore}/100</span>
+                </div>
+              </div>
+              <div>
+                <p className={cn('font-heading text-base font-bold', gradeColor(stats.globalScore))}>
+                  {gradeLabel(stats.globalGrade)}
+                </p>
+                <p className="text-sm text-[#94A3B8] mt-0.5">Posture globale du parc</p>
+              </div>
+            </div>
+
+            {/* CVE Chart */}
+            <div className="card p-6 flex-1 min-w-0">
+              <div className="mb-4">
+                <p className="font-heading text-base font-semibold text-white">Gravité des Failles (CVE)</p>
+                <p className="text-sm text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
+              </div>
+              <CveChart counts={cveCounts} />
             </div>
           </div>
-          <div>
-            <p className={cn('font-heading text-base font-bold', gradeColor(stats.globalScore))}>
-              {gradeLabel(stats.globalGrade)}
-            </p>
-            <p className="text-sm text-[#94A3B8] mt-0.5">Posture globale du parc</p>
+
+          {/* Actions Recommandées — pleine largeur, bouton à droite */}
+          <div className="card p-6 flex items-center gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                <Zap className="w-4 h-4 text-[#F7931A]" />
+                <p className="font-heading text-base font-semibold text-white">Actions recommandées</p>
+              </div>
+              <div className="space-y-2.5">
+                <ActionItem badge="CRITICAL" badgeClass="bg-red-500/15 text-red-400 border border-red-500/20" name="target-vuln"   desc="Faille critique sans patch." />
+                <ActionItem badge="SECURITY" badgeClass="bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20" name="docker-proxy" desc="Tag latest non-épinglé." />
+                <ActionItem badge="UPDATE"   badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" name="safedock-app" desc="Mise à jour en attente." />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('actions')}
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200 whitespace-nowrap"
+            >
+              Gérer les actions ({stats.warnings + stats.updatesAvailable})
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* CVE Chart */}
-        <div className="card p-6">
-          <div className="mb-4">
-            <p className="font-heading text-base font-semibold text-white">Gravité des Failles (CVE)</p>
-            <p className="text-sm text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
-          </div>
-          <CveChart counts={cveCounts} />
-        </div>
-
-        {/* Recommended Actions */}
-        <div className="card p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
-              <Zap className="w-4 h-4 text-[#F7931A]" />
-              <p className="font-heading text-base font-semibold text-white">Actions recommandées</p>
-            </div>
-            <div className="space-y-3">
-              <ActionItem badge="CRITICAL" badgeClass="bg-red-500/15 text-red-400 border border-red-500/20" name="target-vuln"   desc="Faille critique sans patch." />
-              <ActionItem badge="SECURITY" badgeClass="bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20" name="docker-proxy" desc="Tag latest non-épinglé." />
-              <ActionItem badge="UPDATE"   badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" name="safedock-app" desc="Mise à jour en attente." />
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('actions')}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200"
-          >
-            Gérer les actions ({stats.warnings + stats.updatesAvailable})
-            <ArrowRight className="w-4 h-4" />
-          </button>
+        {/* RIGHT — KPI cards empilées */}
+        <div className="w-[200px] shrink-0 flex flex-col gap-4">
+          <KpiCard
+            icon={<Boxes className="w-4 h-4" />}
+            iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
+            value={stats.total}
+            label="Conteneurs audités"
+            glow="shadow-[0_0_30px_-12px_rgba(247,147,26,0.2)]"
+          />
+          <KpiCard
+            icon={<TriangleAlert className="w-4 h-4" />}
+            iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
+            value={stats.warnings}
+            label="Alertes critiques"
+            glow={stats.warnings > 0 ? 'shadow-[0_0_30px_-12px_rgba(239,68,68,0.2)]' : ''}
+          />
+          <KpiCard
+            icon={<CloudDownload className="w-4 h-4" />}
+            iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
+            value={stats.updatesAvailable}
+            label="Mises à jour"
+            glow=""
+          />
         </div>
       </div>
 
@@ -239,15 +248,15 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   );
 }
 
-function KpiStat({ icon, iconClass, value, label }) {
+function KpiCard({ icon, iconClass, value, label, glow }) {
   return (
-    <div className="flex items-center gap-3 flex-1">
+    <div className={cn('card px-4 py-3.5 flex items-center gap-3 hover:border-white/[0.15] transition-all duration-300', glow)}>
       <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', iconClass)}>
         {icon}
       </div>
-      <div>
+      <div className="min-w-0">
         <p className="font-heading text-xl font-bold text-white leading-none">{value}</p>
-        <p className="text-xs text-[#94A3B8] mt-0.5 font-mono">{label}</p>
+        <p className="text-xs text-[#94A3B8] mt-0.5 font-mono leading-tight">{label}</p>
       </div>
     </div>
   );
