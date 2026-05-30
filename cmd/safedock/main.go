@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/safedock/safedock/internal/api"
+	"github.com/safedock/safedock/internal/cleanup"
 	"github.com/safedock/safedock/internal/config"
 	"github.com/safedock/safedock/internal/db"
 	"github.com/safedock/safedock/internal/docker"
@@ -77,7 +78,19 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// 4. Lancement du serveur API REST & Dashboard Web
+	// 4. Démarrage du nettoyage automatique des images Docker inutilisées.
+	// Les scans trivy/grype/dockle tirent les images mais ne les suppriment pas.
+	// Le Manager nettoie périodiquement les images non référencées par un conteneur.
+	cleanupManager, err := cleanup.New()
+	if err != nil {
+		// Non bloquant : SafeDock fonctionne sans le nettoyage automatique.
+		log.Printf("⚠️  Nettoyage automatique non disponible : %v\n", err)
+	} else {
+		defer cleanupManager.Close()
+		cleanupManager.StartPeriodicCleanup(ctx)
+	}
+
+	// 5. Lancement du serveur API REST & Dashboard Web
 	server := api.NewServer(cfg)
 
 	fmt.Println("\n==================================================")
