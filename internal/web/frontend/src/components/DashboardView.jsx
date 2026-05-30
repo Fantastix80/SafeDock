@@ -75,11 +75,8 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     <div className="space-y-5">
 
       {/* ============ HERO — Posture de sécurité ============ */}
-      <div className="card relative overflow-hidden p-6 lg:p-7">
-        {/* Ambient glow */}
-        <div className="absolute -top-24 -right-10 w-72 h-72 bg-[#F7931A] opacity-[0.06] blur-[90px] pointer-events-none" />
-
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+      <div className="card p-6 lg:p-7">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
 
           {/* Score gauge + label */}
           <div className="flex items-center gap-5 shrink-0">
@@ -168,7 +165,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         </div>
 
         {/* Actions prioritaires — données réelles */}
-        <div className="card p-6 flex flex-col">
+        <div className="card p-6 flex flex-col overflow-hidden">
           <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
             <Zap className="w-4 h-4 text-[#F7931A]" />
             <p className="font-heading text-base font-semibold text-white">Actions prioritaires</p>
@@ -188,7 +185,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
               <p className="text-xs text-[#94A3B8]">Tous les conteneurs respectent la politique de sécurité.</p>
             </div>
           ) : (
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 space-y-1.5 overflow-hidden">
               {topActions.map((a, i) => (
                 <ActionRow key={`${a.id}-${i}`} action={a} onClick={() => onSelectContainer(a.id)} />
               ))}
@@ -384,10 +381,10 @@ function ActionRow({ action, onClick }) {
 
 function CveChart({ counts }) {
   const bars = [
-    { label: 'Critique', value: counts.critical, color: '#ef4444', glow: 'rgba(239,68,68,0.4)' },
-    { label: 'Haute',    value: counts.high,     color: '#F7931A', glow: 'rgba(247,147,26,0.4)' },
-    { label: 'Moyenne',  value: counts.medium,   color: '#fbbf24', glow: 'rgba(251,191,36,0.3)' },
-    { label: 'Basse',    value: counts.low,       color: '#FFD600', glow: 'rgba(255,214,0,0.25)' },
+    { label: 'Critique', value: counts.critical, color: '#ef444499' },
+    { label: 'Haute',    value: counts.high,     color: '#F7931A99' },
+    { label: 'Moyenne',  value: counts.medium,   color: '#fbbf2499' },
+    { label: 'Basse',    value: counts.low,       color: '#FFD60099' },
   ];
   const maxVal = Math.max(...bars.map(b => b.value), 5);
   const chartH = 200, barW = 64, gap = 56, paddingLeft = 32, paddingBottom = 28, paddingTop = 20;
@@ -416,7 +413,7 @@ function CveChart({ counts }) {
         return (
           <g key={bar.label}>
             {h > 0
-              ? <rect x={x} y={y} width={barW} height={h} rx="5" fill={bar.color} style={{ filter: `drop-shadow(0 2px 10px ${bar.glow})` }} />
+              ? <rect x={x} y={y} width={barW} height={h} rx="5" fill={bar.color} />
               : <rect x={x} y={baseline - 2} width={barW} height={2} rx="1" fill="rgba(255,255,255,0.05)" />
             }
             <text x={x + barW / 2} y={h > 0 ? y - 5 : baseline - 7} fill={h > 0 ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.2)'}
