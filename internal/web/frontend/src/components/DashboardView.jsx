@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
 import {
   Boxes, TriangleAlert, CloudDownload, CheckCircle2, XCircle,
-  ArrowRight, RotateCcw, ListChecks, Clock, Zap
+  ArrowRight, RotateCcw, ListChecks, Clock, Zap, ShieldCheck,
+  Bug, ShieldAlert, Lock, Tag
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg, gradeLabel, gradeStroke } from '../lib/utils';
 
 const CIRCUMFERENCE = 276.46;
+
+// Sévérités d'action — ordre = priorité de tri (0 = plus urgent)
+const SEV = {
+  CRITIQUE: { rank: 0, badge: 'CRITIQUE', cls: 'bg-red-500/15 text-red-400 border-red-500/25', dot: '#ef4444' },
+  ELEVE:    { rank: 1, badge: 'ÉLEVÉ',    cls: 'bg-[#F7931A]/15 text-[#F7931A] border-[#F7931A]/25', dot: '#F7931A' },
+  MOYEN:    { rank: 2, badge: 'MOYEN',    cls: 'bg-amber-400/15 text-amber-300 border-amber-400/25', dot: '#fbbf24' },
+  MAJ:      { rank: 3, badge: 'MÀJ',      cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: '#34d399' },
+};
 
 export default function DashboardView({ containers, auditLogs, stats, onSelectContainer, onRefreshLogs, onNavigate }) {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -18,6 +27,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
   const strokeOffset = CIRCUMFERENCE - (stats.globalScore / 100) * CIRCUMFERENCE;
   const stroke = gradeStroke(stats.globalGrade);
+  const securePct = stats.total > 0 ? Math.round((stats.secure / stats.total) * 100) : 100;
 
   const cveCounts = { critical: 0, high: 0, medium: 0, low: 0 };
   containers.forEach(c => {
@@ -26,6 +36,24 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
     cveCounts.medium   += c.cve_medium   || 0;
     cveCounts.low      += c.cve_low      || 0;
   });
+  const cveTotal = cveCounts.critical + cveCounts.high + cveCounts.medium + cveCounts.low;
+
+  // Actions prioritaires — dérivées des DONNÉES RÉELLES d'audit des conteneurs
+  const actions = [];
+  containers.forEach(c => {
+    if (c.is_privileged)
+      actions.push({ ...SEV.CRITIQUE, id: c.id, name: c.name, desc: 'Conteneur lancé en mode privilégié', icon: ShieldAlert });
+    if (c.secret_leaks && c.secret_leaks.length > 0)
+      actions.push({ ...SEV.CRITIQUE, id: c.id, name: c.name, desc: `${c.secret_leaks.length} secret(s) exposé(s) dans l'image`, icon: Lock });
+    if (c.is_root)
+      actions.push({ ...SEV.ELEVE, id: c.id, name: c.name, desc: 'Processus exécuté en utilisateur root', icon: ShieldAlert });
+    if (!c.tag_pinned)
+      actions.push({ ...SEV.MOYEN, id: c.id, name: c.name, desc: 'Image non épinglée (tag mutable)', icon: Tag });
+    if (c.update_available)
+      actions.push({ ...SEV.MAJ, id: c.id, name: c.name, desc: 'Mise à jour de l\'image disponible', icon: CloudDownload });
+  });
+  actions.sort((a, b) => a.rank - b.rank);
+  const topActions = actions.slice(0, 6);
 
   const formatDate = (iso) => {
     if (!iso) return '-';
@@ -44,99 +72,141 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   };
 
   return (
-    <div className="space-y-6">
-      {/* Analytics + KPI section */}
-      <div className="flex gap-4 items-start">
+    <div className="space-y-5">
 
-        {/* LEFT — Score+Chart en haut, Actions en bas */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
+      {/* ============ HERO — Posture de sécurité ============ */}
+      <div className="card relative overflow-hidden p-6 lg:p-7">
+        {/* Ambient glow */}
+        <div className="absolute -top-24 -right-10 w-72 h-72 bg-[#F7931A] opacity-[0.06] blur-[90px] pointer-events-none" />
 
-          {/* Score + Chart côte à côte */}
-          <div className="flex gap-4">
-            {/* Score Gauge */}
-            <div className="card p-6 w-[260px] shrink-0 flex flex-col items-center justify-center gap-3 text-center hover:border-[#F7931A]/30 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)]">
-              <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Score Global</p>
-              <div className="relative w-36 h-36">
-                <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="44" />
-                  <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={cn('font-heading text-4xl font-extrabold', gradeColor(stats.globalScore))}>
-                    {stats.globalGrade}
-                  </span>
-                  <span className="text-xs text-[#94A3B8] mt-0.5 font-mono">{stats.globalScore}/100</span>
-                </div>
-              </div>
-              <div>
-                <p className={cn('font-heading text-base font-bold', gradeColor(stats.globalScore))}>
-                  {gradeLabel(stats.globalGrade)}
-                </p>
-                <p className="text-sm text-[#94A3B8] mt-0.5">Posture globale du parc</p>
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+
+          {/* Score gauge + label */}
+          <div className="flex items-center gap-5 shrink-0">
+            <div className="relative w-[132px] h-[132px] shrink-0">
+              <svg className="score-ring w-full h-full" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="44" />
+                <circle cx="50" cy="50" r="44" style={{ strokeDashoffset: strokeOffset, stroke }} />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={cn('font-heading text-4xl font-extrabold leading-none', gradeColor(stats.globalScore))}>
+                  {stats.globalGrade}
+                </span>
+                <span className="text-xs text-[#94A3B8] mt-1 font-mono">{stats.globalScore}/100</span>
               </div>
             </div>
 
-            {/* CVE Chart */}
-            <div className="card p-6 flex-1 min-w-0">
-              <div className="mb-4">
-                <p className="font-heading text-base font-semibold text-white">Gravité des Failles (CVE)</p>
-                <p className="text-sm text-[#94A3B8] mt-0.5">Vulnérabilités cumulées détectées sur vos conteneurs</p>
+            <div className="min-w-0">
+              <p className="font-mono text-xs font-medium text-[#94A3B8] uppercase tracking-widest">Posture globale</p>
+              <p className={cn('font-heading text-2xl font-bold mt-1', gradeColor(stats.globalScore))}>
+                {gradeLabel(stats.globalGrade)}
+              </p>
+              <p className="text-sm text-[#94A3B8] mt-0.5">
+                <span className="text-white font-semibold">{stats.secure}</span>/{stats.total} conteneurs sains
+              </p>
+              {/* Posture distribution bar */}
+              <div className="mt-3 w-44 h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${securePct}%` }}
+                />
               </div>
-              <CveChart counts={cveCounts} />
             </div>
           </div>
 
-          {/* Actions Recommandées — pleine largeur, bouton à droite */}
-          <div className="card p-6 flex items-center gap-6">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
-                <Zap className="w-4 h-4 text-[#F7931A]" />
-                <p className="font-heading text-base font-semibold text-white">Actions recommandées</p>
-              </div>
-              <div className="space-y-2.5">
-                <ActionItem badge="CRITICAL" badgeClass="bg-red-500/15 text-red-400 border border-red-500/20" name="target-vuln"   desc="Faille critique sans patch." />
-                <ActionItem badge="SECURITY" badgeClass="bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20" name="docker-proxy" desc="Tag latest non-épinglé." />
-                <ActionItem badge="UPDATE"   badgeClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" name="safedock-app" desc="Mise à jour en attente." />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigate('actions')}
-              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200 whitespace-nowrap"
-            >
-              Gérer les actions ({stats.warnings + stats.updatesAvailable})
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+          {/* Divider */}
+          <div className="hidden lg:block w-px self-stretch bg-white/[0.07]" />
 
-        {/* RIGHT — KPI cards empilées */}
-        <div className="w-[200px] shrink-0 flex flex-col gap-4">
-          <KpiCard
-            icon={<Boxes className="w-4 h-4" />}
-            iconClass="text-[#F7931A] bg-[#F7931A]/15 border border-[#F7931A]/30"
-            value={stats.total}
-            label="Conteneurs audités"
-            glow="shadow-[0_0_30px_-12px_rgba(247,147,26,0.2)]"
-          />
-          <KpiCard
-            icon={<TriangleAlert className="w-4 h-4" />}
-            iconClass="text-red-400 bg-red-400/10 border border-red-400/20"
-            value={stats.warnings}
-            label="Alertes critiques"
-            glow={stats.warnings > 0 ? 'shadow-[0_0_30px_-12px_rgba(239,68,68,0.2)]' : ''}
-          />
-          <KpiCard
-            icon={<CloudDownload className="w-4 h-4" />}
-            iconClass="text-amber-400 bg-amber-400/10 border border-amber-400/20"
-            value={stats.updatesAvailable}
-            label="Mises à jour"
-            glow=""
-          />
+          {/* KPI tiles — intégrées au même panneau (hauteurs cohérentes) */}
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.06] rounded-xl overflow-hidden border border-white/[0.06]">
+            <StatTile
+              icon={<Boxes className="w-3.5 h-3.5" />} iconClass="text-[#F7931A] bg-[#F7931A]/15"
+              label="Conteneurs" value={stats.total} valueClass="text-white"
+            />
+            <StatTile
+              icon={<ShieldCheck className="w-3.5 h-3.5" />} iconClass="text-emerald-400 bg-emerald-400/10"
+              label="Sains" value={stats.secure} valueClass="text-emerald-400"
+            />
+            <StatTile
+              icon={<TriangleAlert className="w-3.5 h-3.5" />} iconClass="text-red-400 bg-red-400/10"
+              label="Alertes" value={stats.warnings} valueClass={stats.warnings > 0 ? 'text-red-400' : 'text-white'}
+            />
+            <StatTile
+              icon={<CloudDownload className="w-3.5 h-3.5" />} iconClass="text-amber-400 bg-amber-400/10"
+              label="Mises à jour" value={stats.updatesAvailable} valueClass={stats.updatesAvailable > 0 ? 'text-amber-400' : 'text-white'}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Container Cards */}
+      {/* ============ CVE + Actions prioritaires ============ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+
+        {/* CVE — exposition aux vulnérabilités */}
+        <div className="card p-6 lg:col-span-2 flex flex-col">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Bug className="w-4 h-4 text-[#F7931A]" />
+                <p className="font-heading text-base font-semibold text-white">Exposition aux vulnérabilités</p>
+              </div>
+              <p className="text-sm text-[#94A3B8] mt-1">Failles CVE cumulées sur l'ensemble du parc audité</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-heading text-2xl font-bold text-white leading-none">{cveTotal}</p>
+              <p className="text-xs text-[#94A3B8] font-mono mt-1">CVE détectées</p>
+            </div>
+          </div>
+
+          {/* Stacked severity bar */}
+          <SeverityBar counts={cveCounts} total={cveTotal} />
+
+          {/* Bar chart */}
+          <div className="flex-1 min-h-[180px] mt-2">
+            <CveChart counts={cveCounts} />
+          </div>
+        </div>
+
+        {/* Actions prioritaires — données réelles */}
+        <div className="card p-6 flex flex-col">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
+            <Zap className="w-4 h-4 text-[#F7931A]" />
+            <p className="font-heading text-base font-semibold text-white">Actions prioritaires</p>
+            {topActions.length > 0 && (
+              <span className="ml-auto font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25">
+                {actions.length}
+              </span>
+            )}
+          </div>
+
+          {topActions.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-2">
+              <div className="w-10 h-10 rounded-full bg-emerald-400/10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              </div>
+              <p className="text-sm text-white font-medium">Aucune action requise</p>
+              <p className="text-xs text-[#94A3B8]">Tous les conteneurs respectent la politique de sécurité.</p>
+            </div>
+          ) : (
+            <div className="flex-1 space-y-1.5">
+              {topActions.map((a, i) => (
+                <ActionRow key={`${a.id}-${i}`} action={a} onClick={() => onSelectContainer(a.id)} />
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onNavigate('actions')}
+            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#F7931A] bg-[#F7931A]/10 hover:bg-[#F7931A]/20 border border-[#F7931A]/20 hover:border-[#F7931A]/40 transition-all duration-200"
+          >
+            Gérer les actions
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ============ Container Cards ============ */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
@@ -185,7 +255,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         )}
       </section>
 
-      {/* Audit Logs */}
+      {/* ============ Audit Logs ============ */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
@@ -248,31 +318,67 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
   );
 }
 
-function KpiCard({ icon, iconClass, value, label, glow }) {
+function StatTile({ icon, iconClass, label, value, valueClass }) {
   return (
-    <div className={cn('card px-4 py-3.5 flex items-center gap-3 hover:border-white/[0.15] transition-all duration-300', glow)}>
-      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', iconClass)}>
-        {icon}
+    <div className="bg-[#0F1115] px-4 py-4 flex flex-col justify-center">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={cn('w-6 h-6 rounded-md flex items-center justify-center shrink-0', iconClass)}>
+          {icon}
+        </span>
+        <span className="text-xs font-mono uppercase tracking-wider text-[#94A3B8] truncate">{label}</span>
       </div>
-      <div className="min-w-0">
-        <p className="font-heading text-xl font-bold text-white leading-none">{value}</p>
-        <p className="text-xs text-[#94A3B8] mt-0.5 font-mono leading-tight">{label}</p>
-      </div>
+      <p className={cn('font-heading text-3xl font-bold leading-none', valueClass)}>{value}</p>
     </div>
   );
 }
 
-function ActionItem({ badge, badgeClass, name, desc }) {
+function SeverityBar({ counts, total }) {
+  const segs = [
+    { value: counts.critical, color: '#ef4444' },
+    { value: counts.high,     color: '#F7931A' },
+    { value: counts.medium,   color: '#fbbf24' },
+    { value: counts.low,      color: '#FFD600' },
+  ];
   return (
-    <div className="flex gap-2.5 text-sm leading-relaxed">
-      <span className={cn('shrink-0 px-1.5 py-0.5 rounded-md font-mono text-xs font-bold h-fit tracking-wide', badgeClass)}>
-        {badge}
-      </span>
-      <div>
-        <span className="font-semibold text-white">{name} : </span>
-        <span className="text-[#94A3B8]">{desc}</span>
-      </div>
+    <div className="flex h-2 w-full rounded-full overflow-hidden bg-white/[0.05]">
+      {total === 0
+        ? <div className="w-full bg-emerald-400/40" />
+        : segs.map((s, i) =>
+            s.value > 0 ? (
+              <div
+                key={i}
+                className="h-full transition-all duration-500"
+                style={{ width: `${(s.value / total) * 100}%`, backgroundColor: s.color }}
+              />
+            ) : null
+          )
+      }
     </div>
+  );
+}
+
+function ActionRow({ action, onClick }) {
+  const Icon = action.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left hover:bg-white/[0.03] transition-colors group"
+    >
+      <span
+        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
+        style={{ backgroundColor: `${action.dot}1f`, borderColor: `${action.dot}40`, color: action.dot }}
+      >
+        <Icon className="w-3.5 h-3.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-white truncate group-hover:text-[#F7931A] transition-colors">{action.name}</p>
+        <p className="text-xs text-[#94A3B8] truncate">{action.desc}</p>
+      </div>
+      <span className={cn('shrink-0 px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold tracking-wide border', action.cls)}>
+        {action.badge}
+      </span>
+    </button>
   );
 }
 
