@@ -20,18 +20,17 @@ const PAGE_META = {
 
 const ROLE_LABELS = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
 
-// initials dérive un monogramme depuis le nom d'utilisateur (ex. "jean.dupont" → "JD").
-function initials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+// personLabel : "Prénom Nom" si disponibles, sinon l'identifiant (e-mail).
+function personLabel(me) {
+  return [me?.first_name, me?.last_name].filter(Boolean).join(' ').trim() || me?.username || 'Utilisateur';
 }
 
-// displayName met une majuscule initiale au nom d'utilisateur pour l'affichage.
-function displayName(name) {
-  if (!name) return 'Utilisateur';
-  return name.charAt(0).toUpperCase() + name.slice(1);
+// personInitials : initiales prénom+nom, sinon les 2 premières lettres de l'identifiant.
+function personInitials(me) {
+  const a = (me?.first_name || '').trim(), b = (me?.last_name || '').trim();
+  if (a && b) return (a[0] + b[0]).toUpperCase();
+  const base = a || b || me?.username || '';
+  return base ? base.slice(0, 2).toUpperCase() : '?';
 }
 
 export default function Header({ activePage, onNavigate, me }) {
@@ -81,10 +80,10 @@ export default function Header({ activePage, onNavigate, me }) {
         )}
       >
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-xs font-bold text-black shrink-0 shadow-[0_0_12px_rgba(247,147,26,0.5)]">
-          {initials((me?.full_name || '').trim() || me?.username)}
+          {personInitials(me)}
         </div>
         <div className="hidden sm:block text-left">
-          <p className="font-heading text-sm font-semibold text-white leading-tight">{(me?.full_name || '').trim() || displayName(me?.username)}</p>
+          <p className="font-heading text-sm font-semibold text-white leading-tight">{personLabel(me)}</p>
           <p className="text-xs text-[#94A3B8] leading-tight font-mono">{ROLE_LABELS[me?.role] || 'Utilisateur'}</p>
         </div>
       </button>

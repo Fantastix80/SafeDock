@@ -125,8 +125,8 @@ export default function LoginView({ onSuccess }) {
           {phase === 'password' && (
             <form onSubmit={submitPassword}>
               <Header icon={ShieldCheck} title="Authentification" />
-              <Label>Nom d'utilisateur</Label>
-              <InputWithIcon icon={UserIcon} value={username} onChange={setUsername} autoFocus placeholder="admin" />
+              <Label>Adresse e-mail</Label>
+              <InputWithIcon icon={UserIcon} value={username} onChange={setUsername} autoFocus placeholder="vous@entreprise.com" />
               <div className="mt-3"><Label>Mot de passe</Label></div>
               <InputWithIcon icon={Lock} type="password" value={password} onChange={setPassword} placeholder="••••••••••••" />
               {error && <ErrorMsg>{error}</ErrorMsg>}

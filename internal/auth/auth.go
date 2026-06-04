@@ -312,14 +312,14 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		FullName string `json:"full_name"`
-		Email    string `json:"email"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes)).Decode(&req); err != nil {
 		http.Error(w, "Format JSON invalide", http.StatusBadRequest)
 		return
 	}
-	if err := db.SetUserProfile(claims.UserID, strings.TrimSpace(req.FullName), strings.TrimSpace(req.Email)); err != nil {
+	if err := db.SetUserProfile(claims.UserID, strings.TrimSpace(req.FirstName), strings.TrimSpace(req.LastName)); err != nil {
 		http.Error(w, "Impossible de mettre à jour le profil", http.StatusInternalServerError)
 		return
 	}
@@ -327,7 +327,7 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	db.WriteSecurityAudit(claims.UserID, user.Username, "profile.update", "", "")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"ok": true, "full_name": user.FullName, "email": user.Email,
+		"ok": true, "first_name": user.FirstName, "last_name": user.LastName,
 	})
 }
 
@@ -355,9 +355,10 @@ func HandleSession(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"authenticated":        true,
 		"user_id":              user.ID,
-		"username":             user.Username,
-		"full_name":            user.FullName,
-		"email":                user.Email,
+		"username":             user.Username, // = adresse e-mail (identifiant)
+		"email":                user.Username,
+		"first_name":           user.FirstName,
+		"last_name":            user.LastName,
 		"role":                 user.Role,
 		"must_change_password": user.MustChangePassword,
 		"scope_all":            user.ScopeAll,

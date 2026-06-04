@@ -250,8 +250,8 @@ func runMigrations(db *sql.DB) error {
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL DEFAULT '',
 		role TEXT NOT NULL DEFAULT 'viewer',
-		full_name TEXT NOT NULL DEFAULT '',
-		email TEXT NOT NULL DEFAULT '',
+		first_name TEXT NOT NULL DEFAULT '',
+		last_name TEXT NOT NULL DEFAULT '',
 		totp_secret TEXT NOT NULL DEFAULT '',
 		totp_enabled INTEGER NOT NULL DEFAULT 0,
 		must_change_password INTEGER NOT NULL DEFAULT 0,
@@ -345,6 +345,10 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE mfa_backup_codes ADD COLUMN user_id INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN full_name TEXT NOT NULL DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';")
+	// Modèle d'identité entreprise : identifiant = e-mail (colonne username),
+	// identité affichée scindée en prénom + nom.
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT '';")
 
 	return nil
 }
@@ -1338,10 +1342,10 @@ const (
 // User est la vue publique d'un compte (sans secret ni hash).
 type User struct {
 	ID                 int    `json:"id"`
-	Username           string `json:"username"`
+	Username           string `json:"username"` // identifiant de connexion = adresse e-mail
 	Role               string `json:"role"`
-	FullName           string `json:"full_name"`
-	Email              string `json:"email"`
+	FirstName          string `json:"first_name"`
+	LastName           string `json:"last_name"`
 	TOTPEnabled        bool   `json:"totp_enabled"`
 	MustChangePassword bool   `json:"must_change_password"`
 	ScopeAll           bool   `json:"scope_all"`
@@ -1400,7 +1404,7 @@ func GetUserAuth(username string) (UserAuth, error) {
 func scanUserRow(rowScan func(...any) error) (User, error) {
 	var u User
 	var totpEn, mustChange, scopeAll int
-	if err := rowScan(&u.ID, &u.Username, &u.Role, &u.FullName, &u.Email, &totpEn, &mustChange, &scopeAll, &u.CreatedAt); err != nil {
+	if err := rowScan(&u.ID, &u.Username, &u.Role, &u.FirstName, &u.LastName, &totpEn, &mustChange, &scopeAll, &u.CreatedAt); err != nil {
 		return u, err
 	}
 	u.TOTPEnabled = totpEn == 1
@@ -1418,7 +1422,7 @@ func GetUserByID(id int) (User, error) {
 		return User{}, fmt.Errorf("base de données non initialisée")
 	}
 	row := db.QueryRow(
-		`SELECT id, username, role, full_name, email, totp_enabled, must_change_password, scope_all, created_at
+		`SELECT id, username, role, first_name, last_name, totp_enabled, must_change_password, scope_all, created_at
 		 FROM users WHERE id = ?;`, id)
 	return scanUserRow(row.Scan)
 }
@@ -1430,7 +1434,7 @@ func ListUsers() ([]User, error) {
 		return nil, fmt.Errorf("base de données non initialisée")
 	}
 	rows, err := db.Query(
-		`SELECT id, username, role, full_name, email, totp_enabled, must_change_password, scope_all, created_at
+		`SELECT id, username, role, first_name, last_name, totp_enabled, must_change_password, scope_all, created_at
 		 FROM users ORDER BY id ASC;`)
 	if err != nil {
 		return nil, err
@@ -1458,16 +1462,17 @@ func CountAdmins() (int, error) {
 	return n, err
 }
 
-// CreateUser crée un compte. mustChange impose un changement de mot de passe au 1er login.
-func CreateUser(username, passwordHash, role, fullName, email string, scopeAll, mustChange bool) (int64, error) {
+// CreateUser crée un compte. L'username sert d'identifiant de connexion (= adresse
+// e-mail en entreprise). mustChange impose un changement de mot de passe au 1er login.
+func CreateUser(username, passwordHash, role, firstName, lastName string, scopeAll, mustChange bool) (int64, error) {
 	db := GetDB()
 	if db == nil {
 		return 0, fmt.Errorf("base de données non initialisée")
 	}
 	res, err := db.Exec(
-		`INSERT INTO users (username, password_hash, role, full_name, email, scope_all, must_change_password)
+		`INSERT INTO users (username, password_hash, role, first_name, last_name, scope_all, must_change_password)
 		 VALUES (?, ?, ?, ?, ?, ?, ?);`,
-		username, passwordHash, role, fullName, email, boolToInt(scopeAll), boolToInt(mustChange),
+		username, passwordHash, role, firstName, lastName, boolToInt(scopeAll), boolToInt(mustChange),
 	)
 	if err != nil {
 		return 0, err
@@ -1475,13 +1480,13 @@ func CreateUser(username, passwordHash, role, fullName, email string, scopeAll, 
 	return res.LastInsertId()
 }
 
-// SetUserProfile met à jour l'identité affichée d'un compte (nom complet + email).
-func SetUserProfile(id int, fullName, email string) error {
+// SetUserProfile met à jour l'identité affichée d'un compte (prénom + nom).
+func SetUserProfile(id int, firstName, lastName string) error {
 	db := GetDB()
 	if db == nil {
 		return fmt.Errorf("base de données non initialisée")
 	}
-	_, err := db.Exec("UPDATE users SET full_name = ?, email = ? WHERE id = ?;", fullName, email, id)
+	_, err := db.Exec("UPDATE users SET first_name = ?, last_name = ? WHERE id = ?;", firstName, lastName, id)
 	return err
 }
 

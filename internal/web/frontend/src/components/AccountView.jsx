@@ -10,25 +10,26 @@ const TABS = [
 
 const ROLE_LABEL = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
 
-function monogram(name, username) {
-  const base = (name || '').trim() || username || '';
+function monogram(firstName, lastName, email) {
+  const a = (firstName || '').trim(), b = (lastName || '').trim();
+  if (a && b) return (a[0] + b[0]).toUpperCase();
+  const base = a || b || email || '';
   if (!base) return '?';
-  const parts = base.trim().split(/[\s._-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
 }
 
 export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
   const [activeTab, setActiveTab] = useState('infos');
-  const [fullName, setFullName] = useState(me?.full_name || '');
-  const [email, setEmail] = useState(me?.email || '');
+  const [firstName, setFirstName] = useState(me?.first_name || '');
+  const [lastName, setLastName] = useState(me?.last_name || '');
   const [profileStatus, setProfileStatus] = useState({ text: '', type: '' });
-  const username = me?.username || '';
+  const email = me?.username || '';                 // identifiant = adresse e-mail (non modifiable)
+  const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || email;
   const roleLabel = ROLE_LABEL[me?.role] || me?.role || '';
 
   const saveProfile = async () => {
     try {
-      await onUpdateProfile(fullName, email);
+      await onUpdateProfile(firstName, lastName);
       setProfileStatus({ text: 'Profil mis à jour.', type: 'ok' });
       setTimeout(() => setProfileStatus({ text: '', type: '' }), 4000);
     } catch (err) {
@@ -75,13 +76,13 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
       <div className="card p-5 h-fit text-center hover:border-[#F7931A]/20 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)] transition-all duration-300">
         <div className="relative w-20 h-20 mx-auto mb-4">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-2xl font-bold text-black border-2 border-[#F7931A]/40 shadow-[0_0_20px_rgba(247,147,26,0.4)]">
-            {monogram(fullName, username)}
+            {monogram(firstName, lastName, email)}
           </div>
           <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#0F1115] shadow-[0_0_8px_#34d399]" />
         </div>
 
-        <h3 className="font-heading text-sm font-bold text-white">{fullName.trim() || username}</h3>
-        <p className="text-xs text-[#94A3B8] font-mono mt-0.5">@{username}</p>
+        <h3 className="font-heading text-sm font-bold text-white">{displayName}</h3>
+        <p className="text-xs text-[#94A3B8] font-mono mt-0.5">{email}</p>
 
         <span className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
           <ShieldCheck className="w-3 h-3" /> {roleLabel}
@@ -89,9 +90,9 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
 
         <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
           <p className="font-mono text-xs text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Compte</p>
-          <Row label="Email" value={<span className="font-mono text-xs text-[#94A3B8]">{email || '—'}</span>} />
+          <Row label="E-mail" value={<span className="font-mono text-xs text-[#94A3B8]">{email || '—'}</span>} />
           <Row label="Rôle"  value={<span className="font-mono text-xs text-[#94A3B8]">{roleLabel}</span>} />
-          <Row label="MFA"   value={<span className="font-mono text-xs text-emerald-400">Obligatoire · actif</span>} />
+          <Row label="MFA"   value={<span className="font-mono text-xs text-emerald-400">Actif</span>} />
         </div>
       </div>
 
@@ -123,13 +124,13 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
           {/* ── Infos ── */}
           {activeTab === 'infos' && (
             <div className="space-y-4">
-              <p className="text-sm text-[#94A3B8] font-mono">Identité affichée de votre compte. Le nom d'utilisateur n'est pas modifiable.</p>
+              <p className="text-sm text-[#94A3B8] font-mono">Votre identité affichée. L'adresse e-mail sert d'identifiant de connexion et n'est pas modifiable (contactez un administrateur).</p>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Nom complet"      value={fullName} onChange={setFullName} placeholder="Prénom Nom" />
-                <Field label="Adresse email"    type="email" value={email} onChange={setEmail} placeholder="prenom@domaine.com" />
-                <div className="space-y-1">
-                  <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Nom d'utilisateur</label>
-                  <input value={username} disabled
+                <Field label="Prénom" value={firstName} onChange={setFirstName} placeholder="Prénom" />
+                <Field label="Nom"    value={lastName}  onChange={setLastName}  placeholder="Nom" />
+                <div className="space-y-1 col-span-2">
+                  <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Adresse e-mail (identifiant)</label>
+                  <input value={email} disabled
                     className="w-full px-3 py-2 text-sm rounded-xl bg-[#0A0C10]/60 border border-white/[0.06] text-[#94A3B8]/60 font-mono cursor-not-allowed" />
                 </div>
               </div>

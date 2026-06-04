@@ -13,7 +13,7 @@ export default function UsersView({
   onCreateUser, onDeleteUser, onSetRole, onResetPassword, onResetMFA, onSetScope,
   onCreateTag, onDeleteTag, audit = [], onRefreshAudit,
 }) {
-  const [nu, setNu] = useState({ username: '', password: '', full_name: '', email: '', role: 'viewer', scope_all: false });
+  const [nu, setNu] = useState({ email: '', password: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
   const [msg, setMsg] = useState('');
   const [tagName, setTagName] = useState('');
   const [scopeEdit, setScopeEdit] = useState(null); // user being edited
@@ -24,7 +24,7 @@ export default function UsersView({
     e.preventDefault();
     try {
       await onCreateUser(nu);
-      setNu({ username: '', password: '', full_name: '', email: '', role: 'viewer', scope_all: false });
+      setNu({ email: '', password: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
       notify('Utilisateur créé.');
     } catch (err) { notify(err.message); }
   };
@@ -56,9 +56,9 @@ export default function UsersView({
           <h3 className="font-heading text-sm font-semibold text-white">Créer un compte</h3>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
-          <Inp label="Nom d'utilisateur" value={nu.username} onChange={v => setNu(p => ({ ...p, username: v }))} />
-          <Inp label="Nom complet" value={nu.full_name} onChange={v => setNu(p => ({ ...p, full_name: v }))} />
-          <Inp label="Email" type="email" value={nu.email} onChange={v => setNu(p => ({ ...p, email: v }))} />
+          <Inp label="Adresse e-mail (identifiant)" type="email" value={nu.email} onChange={v => setNu(p => ({ ...p, email: v }))} />
+          <Inp label="Prénom" value={nu.first_name} onChange={v => setNu(p => ({ ...p, first_name: v }))} />
+          <Inp label="Nom" value={nu.last_name} onChange={v => setNu(p => ({ ...p, last_name: v }))} />
           <Inp label="Mot de passe initial" type="password" value={nu.password} onChange={v => setNu(p => ({ ...p, password: v }))} />
           <div className="space-y-1">
             <Lbl>Rôle</Lbl>
@@ -94,10 +94,10 @@ export default function UsersView({
                 <tr key={u.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                   <td className="px-3 py-2.5">
                     <div className="font-heading font-semibold text-white">
-                      {(u.full_name || '').trim() || u.username}
+                      {[u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username}
                       {u.id === me.user_id && <span className="ml-2 text-[10px] font-mono text-[#F7931A]">(vous)</span>}
                     </div>
-                    <div className="text-xs font-mono text-[#94A3B8]/50">@{u.username}{u.email ? ` · ${u.email}` : ''}</div>
+                    <div className="text-xs font-mono text-[#94A3B8]/50">{u.username}</div>
                   </td>
                   <td className="px-3 py-2.5">
                     <select value={u.role} onChange={e => onSetRole(u.id, e.target.value).then(() => notify('Rôle mis à jour.')).catch(err => notify(err.message))}

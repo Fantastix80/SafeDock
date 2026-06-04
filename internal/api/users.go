@@ -79,20 +79,20 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-			Role     string `json:"role"`
-			FullName string `json:"full_name"`
-			Email    string `json:"email"`
-			ScopeAll bool   `json:"scope_all"`
+			Email     string `json:"email"` // identifiant de connexion
+			Password  string `json:"password"`
+			Role      string `json:"role"`
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			ScopeAll  bool   `json:"scope_all"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Format JSON invalide", http.StatusBadRequest)
 			return
 		}
-		username := strings.TrimSpace(req.Username)
+		username := strings.TrimSpace(req.Email) // l'adresse e-mail sert d'identifiant
 		if username == "" || len(req.Password) < 10 {
-			http.Error(w, "Nom d'utilisateur requis et mot de passe d'au moins 10 caractères", http.StatusBadRequest)
+			http.Error(w, "Adresse e-mail requise et mot de passe d'au moins 10 caractères", http.StatusBadRequest)
 			return
 		}
 		if !db.ValidRole(req.Role) {
@@ -101,8 +101,8 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		// Compte créé avec changement de mot de passe imposé au premier login.
 		if _, err := db.CreateUser(username, crypto.PasswordVerifier(req.Password), req.Role,
-			strings.TrimSpace(req.FullName), strings.TrimSpace(req.Email), req.ScopeAll, true); err != nil {
-			http.Error(w, fmt.Sprintf("Création impossible (nom déjà pris ?) : %v", err), http.StatusConflict)
+			strings.TrimSpace(req.FirstName), strings.TrimSpace(req.LastName), req.ScopeAll, true); err != nil {
+			http.Error(w, fmt.Sprintf("Création impossible (e-mail déjà utilisé ?) : %v", err), http.StatusConflict)
 			return
 		}
 		audit(r, "user.create", username, fmt.Sprintf("rôle=%s, voit-tout=%t", req.Role, req.ScopeAll))

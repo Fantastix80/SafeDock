@@ -206,8 +206,8 @@ export default function App() {
     apiPost('/api/account/password', { current_password, new_password });
 
   // ── Mise à jour du profil (self) : nom complet + email ──
-  const handleUpdateProfile = (full_name, email) =>
-    apiPost('/api/account/profile', { full_name, email }).then(() => checkSession());
+  const handleUpdateProfile = (first_name, last_name) =>
+    apiPost('/api/account/profile', { first_name, last_name }).then(() => checkSession());
 
   // ── Notifications ──
   const handleMarkNotificationsRead = () =>
