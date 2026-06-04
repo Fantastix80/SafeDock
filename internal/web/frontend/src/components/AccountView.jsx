@@ -176,7 +176,7 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
                 {[
                   { key: 'cveAlerts',     label: 'Alertes sur les failles de sécurité (CVE)' },
                   { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
-                  { key: 'deployments',   label: 'Déploiements et Rollouts pivots effectués' },
+                  { key: 'deployments',   label: "Mises à jour d'images effectuées" },
                   { key: 'secretLeaks',   label: 'Fuites de secrets détectées (SecOps)' },
                 ].map(({ key, label }) => (
                   <div

@@ -33,6 +33,14 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
               <EmptyState icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} text="Tous les conteneurs sont à jour." />
             ) : (
               <div className="space-y-2">
+                <div className="flex gap-2.5 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/25 mb-1">
+                  <TriangleAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-200/90 leading-relaxed">
+                    <strong className="text-amber-300">Avant toute mise à jour :</strong> une nouvelle version d'image
+                    peut <strong className="text-amber-300">casser une application qui fonctionnait</strong>.
+                    Sauvegardez le conteneur et ses données (volumes, base de données) pour pouvoir revenir en arrière.
+                  </p>
+                </div>
                 {updatesPending.map(c => (
                   <div key={c.id} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/20 transition-all">
                     <div className="min-w-0">
@@ -42,7 +50,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                       </div>
                       <p className="text-xs font-mono text-[#94A3B8]/70 mt-0.5">{c.image_name}:{c.image_tag}</p>
                       <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Prêt pour pivot sécurisé
+                        <CheckCircle2 className="w-3 h-3" /> Prêt pour une mise à jour sécurisée
                       </p>
                     </div>
                     <button
@@ -50,7 +58,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                       onClick={() => onTriggerRollout(c.id, c.name)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all shrink-0 shadow-[0_0_15px_-5px_rgba(247,147,26,0.3)]"
                     >
-                      <RotateCw className="w-3.5 h-3.5" /> Déployer
+                      <RotateCw className="w-3.5 h-3.5" /> Mettre à jour
                     </button>
                   </div>
                 ))}
@@ -99,7 +107,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
         </div>
 
         {/* Right: Settings */}
-        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="Paramètres pivots">
+        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="Paramètres de mise à jour">
           <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">
             Comportement de mise à jour lors de la détection de versions saines.
           </p>
@@ -124,7 +132,7 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
                   <TriangleAlert className="w-3.5 h-3.5" /> Mode Notification Seul
                 </p>
                 <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  Aucun déploiement automatique. Vous recevrez une alerte pour déployer manuellement.
+                  Aucune mise à jour automatique. Vous recevrez une alerte pour mettre à jour manuellement.
                 </p>
               </div>
             )}

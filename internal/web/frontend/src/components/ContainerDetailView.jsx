@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Bug, ListChecks, RefreshCw, RotateCw, Settings2,
-  CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown, TrendingUp
+  CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown, TrendingUp, TriangleAlert
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 
@@ -176,7 +176,7 @@ export default function ContainerDetailView({
     { id: 'trivy',     label: 'Failles CVE',       icon: Bug },
     { id: 'trend',     label: 'Tendance',          icon: TrendingUp },
     { id: 'dockle',    label: 'Conformité Dockle', icon: ListChecks },
-    { id: 'lifecycle', label: 'Déploiement',       icon: RotateCw },
+    { id: 'lifecycle', label: 'Mise à jour',        icon: RotateCw },
     { id: 'overrides', label: 'Paramètres',        icon: Settings2 },
   ];
 
@@ -468,17 +468,31 @@ export default function ContainerDetailView({
             </div>
           )}
 
-          {/* TAB: Lifecycle */}
+          {/* TAB: Mise à jour de l'image */}
           {tab === 'lifecycle' && (
             <div className="space-y-3">
-              <p className="font-heading text-xs font-semibold text-white mb-1">Opérations de déploiement</p>
+              <p className="font-heading text-xs font-semibold text-white mb-1">Mise à jour de l'image Docker</p>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Le pivotement de cycle de vie remplace le conteneur par sa dernière version saine validée. Opération transactionnelle sans coupure visible.
+                SafeDock récupère la dernière version de l'image, l'analyse en isolement (SecOps), et ne
+                recrée le conteneur sur cette nouvelle image que si les contrôles de sécurité sont validés.
               </p>
+
+              {/* Disclaimer : risque de régression applicative + sauvegardes */}
+              <div className="flex gap-2.5 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/25">
+                <TriangleAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-200/90 leading-relaxed">
+                  <strong className="text-amber-300">Attention :</strong> mettre à jour l'image peut introduire
+                  des changements incompatibles et <strong className="text-amber-300">casser une application
+                  qui fonctionnait</strong> (configuration, schéma de base de données, dépendances…). Avant de
+                  lancer une mise à jour, <strong className="text-amber-300">sauvegardez votre conteneur et vos
+                  données</strong> (volumes, base de données) afin de pouvoir revenir en arrière si nécessaire.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
                 <div>
-                  <p className="text-xs font-semibold text-white">Déclencher le pivot (Rollout)</p>
-                  <p className="font-mono text-xs text-[#94A3B8] mt-0.5">Recherche, validation SecOps et recréation du conteneur.</p>
+                  <p className="text-xs font-semibold text-white">Mettre à jour l'image Docker</p>
+                  <p className="font-mono text-xs text-[#94A3B8] mt-0.5">Recherche de la nouvelle version, validation SecOps puis recréation du conteneur.</p>
                 </div>
                 <button
                   type="button"
@@ -487,7 +501,7 @@ export default function ContainerDetailView({
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)] disabled:opacity-50"
                 >
                   <RotateCw className={cn('w-3.5 h-3.5', isRolloutLoading && 'animate-spin')} />
-                  {isRolloutLoading ? 'En cours...' : 'Lancer le Pivot'}
+                  {isRolloutLoading ? 'Mise à jour...' : "Mettre à jour l'image"}
                 </button>
               </div>
               {rolloutStatusMsg?.text && (

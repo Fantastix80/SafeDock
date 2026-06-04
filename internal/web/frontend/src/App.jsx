@@ -460,7 +460,7 @@ export default function App() {
         fetchAllData();
       })
       .catch(err => {
-        setRolloutStatusMsg({ text: `Déploiement bloqué / Échoué : ${err.message}`, type: 'error' });
+        setRolloutStatusMsg({ text: `Mise à jour bloquée / échouée : ${err.message}`, type: 'error' });
       })
       .finally(() => {
         setIsRolloutLoading(false);

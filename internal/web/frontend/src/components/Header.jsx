@@ -9,7 +9,7 @@ const PAGE_META = {
   account:               { title: 'Mon Compte',                desc: "Identité, sécurité et préférences d'alertes" },
   settings:              { title: 'Configuration',             desc: 'Règles SecOps globales, accès et politiques' },
   'container-settings':  { title: 'Surcharges du conteneur',  desc: 'Seuils de tolérance spécifiques à ce conteneur' },
-  actions:               { title: 'Actions SecOps',            desc: 'Déploiements, rollouts et correctifs à appliquer' },
+  actions:               { title: 'Actions SecOps',            desc: "Mises à jour d'images et correctifs à appliquer" },
   agents:                { title: 'Agents SecOps',             desc: 'Gestion des agents de surveillance distribués' },
   permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
   'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
