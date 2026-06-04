@@ -1,18 +1,11 @@
 import React, { useState } from 'react';
-import { Bell, BellOff, TriangleAlert, CircleAlert, Info, Server } from 'lucide-react';
+import { Bell, BellOff, TriangleAlert, CircleAlert, Info, Server, Check, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-const NOTIFICATIONS = [
-  { id: 1, type: 'CRITICAL', title: 'Fuite de secret critique détectée',      desc: 'Le conteneur "payment-gateway" révèle une clé API Stripe en clair dans ses variables d\'environnement.', time: 'Il y a 10 min',  host: 'prod-swarm-01' },
-  { id: 2, type: 'WARNING',  title: 'Image mutable :latest en production',     desc: 'Le conteneur "nginx-frontend" a démarré avec le tag mutable "nginx:latest" sans digest SHA256.',           time: 'Il y a 1 heure', host: 'edge-node-02' },
-  { id: 3, type: 'INFO',     title: 'Audit de sécurité automatique réussi',    desc: 'L\'audit global a scanné 14 conteneurs. Aucun nouveau secret ou privilège abusif détecté.',                  time: 'Il y a 4 heures',host: 'Tous les hôtes' },
-  { id: 4, type: 'CRITICAL', title: 'Conteneur démarré en mode PRIVILÉGIÉ',   desc: 'Le conteneur "backup-daemon" a été lancé avec --privileged. Risque de compromission totale de l\'hôte.',    time: 'Il y a 1 jour',  host: 'prod-swarm-01' },
-];
-
 const TYPE_STYLE = {
-  CRITICAL: { border: 'border-l-red-500',       icon: TriangleAlert, color: 'text-red-400',    badge: 'bg-red-500/15 text-red-400 border border-red-500/20' },
-  WARNING:  { border: 'border-l-amber-400',      icon: CircleAlert,   color: 'text-amber-400',  badge: 'bg-amber-500/15 text-amber-400 border border-amber-500/20' },
-  INFO:     { border: 'border-l-[#F7931A]',      icon: Info,          color: 'text-[#F7931A]',  badge: 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20' },
+  CRITICAL: { border: 'border-l-red-500',  icon: TriangleAlert, color: 'text-red-400',   badge: 'bg-red-500/15 text-red-400 border border-red-500/20' },
+  WARNING:  { border: 'border-l-amber-400', icon: CircleAlert,  color: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400 border border-amber-500/20' },
+  INFO:     { border: 'border-l-[#F7931A]', icon: Info,         color: 'text-[#F7931A]', badge: 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20' },
 };
 
 const FILTERS = [
@@ -21,23 +14,35 @@ const FILTERS = [
   { id: 'warning',  label: 'Alerte' },
 ];
 
-export default function NotificationsView() {
+function fmtTime(s) {
+  if (!s) return '';
+  try {
+    const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z';
+    return new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return s; }
+}
+
+export default function NotificationsView({ notifications = [], onMarkRead, onRefresh }) {
   const [filter, setFilter] = useState('all');
 
-  const filtered = NOTIFICATIONS.filter(n => {
-    if (filter === 'critical') return n.type === 'CRITICAL';
-    if (filter === 'warning')  return n.type === 'WARNING';
+  const filtered = notifications.filter(n => {
+    if (filter === 'critical') return n.level === 'CRITICAL';
+    if (filter === 'warning')  return n.level === 'WARNING';
     return true;
   });
+  const unread = notifications.filter(n => !n.read).length;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
           <Bell className="w-4 h-4 text-[#94A3B8]" />
           Centre de Notifications
+          {unread > 0 && (
+            <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20">{unread} non lue{unread > 1 ? 's' : ''}</span>
+          )}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex items-center gap-1.5">
           {FILTERS.map(f => (
             <button
               key={f.id}
@@ -53,6 +58,18 @@ export default function NotificationsView() {
               {f.label}
             </button>
           ))}
+          {onRefresh && (
+            <button type="button" onClick={onRefresh} title="Rafraîchir"
+              className="p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/[0.04]">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {unread > 0 && onMarkRead && (
+            <button type="button" onClick={onMarkRead}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs rounded-full font-mono font-medium text-[#94A3B8] hover:text-white hover:bg-white/[0.04] border border-white/[0.08]">
+              <Check className="w-3.5 h-3.5" /> Tout marquer comme lu
+            </button>
+          )}
         </div>
       </div>
 
@@ -64,26 +81,30 @@ export default function NotificationsView() {
       ) : (
         <div className="space-y-2.5">
           {filtered.map(n => {
-            const s = TYPE_STYLE[n.type];
+            const s = TYPE_STYLE[n.level] || TYPE_STYLE.INFO;
             const Icon = s.icon;
             return (
-              <div key={n.id} className={cn('card p-4 border-l-4 flex gap-4 items-start hover:border-l-4 transition-all', s.border)}>
+              <div key={n.id} className={cn('card p-4 border-l-4 flex gap-4 items-start transition-all', s.border, !n.read && 'bg-white/[0.02]')}>
                 <Icon className={cn('w-5 h-5 shrink-0 mt-0.5', s.color)} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3 mb-1">
-                    <h4 className="font-heading text-sm font-semibold text-white">{n.title}</h4>
+                    <h4 className="font-heading text-sm font-semibold text-white">
+                      {n.title}
+                      {!n.read && <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-[#F7931A] align-middle" />}
+                    </h4>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn('px-1.5 py-0.5 rounded-md font-mono text-xs font-bold', s.badge)}>
-                        {n.type}
-                      </span>
-                      <span className="font-mono text-xs text-[#94A3B8]/40 whitespace-nowrap">{n.time}</span>
+                      <span className={cn('px-1.5 py-0.5 rounded-md font-mono text-xs font-bold', s.badge)}>{n.level}</span>
+                      <span className="font-mono text-xs text-[#94A3B8]/40 whitespace-nowrap">{fmtTime(n.timestamp)}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-[#94A3B8] mb-2 leading-relaxed">{n.desc}</p>
-                  <div className="flex items-center gap-1.5 font-mono text-xs text-[#94A3B8]/50">
-                    <Server className="w-3 h-3" />
-                    Hôte : <strong className="text-[#94A3B8]">{n.host}</strong>
-                  </div>
+                  {n.body && <p className="text-xs text-[#94A3B8] mb-2 leading-relaxed">{n.body}</p>}
+                  {(n.container_name || n.host) && (
+                    <div className="flex items-center gap-1.5 font-mono text-xs text-[#94A3B8]/50">
+                      <Server className="w-3 h-3" />
+                      {n.container_name && <>Conteneur : <strong className="text-[#94A3B8]">{n.container_name}</strong></>}
+                      {n.host && <span className="ml-2">Hôte : <strong className="text-[#94A3B8]">{n.host}</strong></span>}
+                    </div>
+                  )}
                 </div>
               </div>
             );

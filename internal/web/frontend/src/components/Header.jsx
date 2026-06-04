@@ -81,10 +81,10 @@ export default function Header({ activePage, onNavigate, me }) {
         )}
       >
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-xs font-bold text-black shrink-0 shadow-[0_0_12px_rgba(247,147,26,0.5)]">
-          {initials(me?.username)}
+          {initials((me?.full_name || '').trim() || me?.username)}
         </div>
         <div className="hidden sm:block text-left">
-          <p className="font-heading text-sm font-semibold text-white leading-tight">{displayName(me?.username)}</p>
+          <p className="font-heading text-sm font-semibold text-white leading-tight">{(me?.full_name || '').trim() || displayName(me?.username)}</p>
           <p className="text-xs text-[#94A3B8] leading-tight font-mono">{ROLE_LABELS[me?.role] || 'Utilisateur'}</p>
         </div>
       </button>

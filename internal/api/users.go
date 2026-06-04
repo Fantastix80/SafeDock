@@ -11,6 +11,13 @@ import (
 	"github.com/safedock/safedock/internal/db"
 )
 
+// audit enregistre une action sensible au nom de l'utilisateur courant.
+func audit(r *http.Request, action, target, detail string) {
+	if u, ok := currentUser(r); ok {
+		db.WriteSecurityAudit(u.ID, u.Username, action, target, detail)
+	}
+}
+
 // currentUser charge le compte associé à la session courante.
 func currentUser(r *http.Request) (db.User, bool) {
 	claims, ok := auth.ClaimsFrom(r)
@@ -75,6 +82,8 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 			Username string `json:"username"`
 			Password string `json:"password"`
 			Role     string `json:"role"`
+			FullName string `json:"full_name"`
+			Email    string `json:"email"`
 			ScopeAll bool   `json:"scope_all"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -91,10 +100,12 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Compte créé avec changement de mot de passe imposé au premier login.
-		if _, err := db.CreateUser(username, crypto.PasswordVerifier(req.Password), req.Role, req.ScopeAll, true); err != nil {
+		if _, err := db.CreateUser(username, crypto.PasswordVerifier(req.Password), req.Role,
+			strings.TrimSpace(req.FullName), strings.TrimSpace(req.Email), req.ScopeAll, true); err != nil {
 			http.Error(w, fmt.Sprintf("Création impossible (nom déjà pris ?) : %v", err), http.StatusConflict)
 			return
 		}
+		audit(r, "user.create", username, fmt.Sprintf("rôle=%s, voit-tout=%t", req.Role, req.ScopeAll))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Utilisateur créé."))
 
@@ -127,6 +138,7 @@ func (s *Server) HandleUsersDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	audit(r, "user.delete", target.Username, "")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Utilisateur supprimé."))
 }
@@ -152,6 +164,9 @@ func (s *Server) HandleUserPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if u, err := db.GetUserByID(req.ID); err == nil {
+		audit(r, "user.reset_password", u.Username, "changement imposé au prochain login")
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Mot de passe réinitialisé (changement imposé à la prochaine connexion)."))
 }
@@ -168,6 +183,9 @@ func (s *Server) HandleUserResetMFA(w http.ResponseWriter, r *http.Request) {
 	if err := db.ResetUserMFA(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if u, err := db.GetUserByID(id); err == nil {
+		audit(r, "user.reset_mfa", u.Username, "ré-enrôlement requis")
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("MFA réinitialisé : un nouvel enrôlement sera demandé à la prochaine connexion."))
@@ -205,6 +223,7 @@ func (s *Server) HandleUserRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	audit(r, "user.set_role", target.Username, fmt.Sprintf("%s → %s", target.Role, req.Role))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Rôle mis à jour."))
 }
@@ -227,6 +246,9 @@ func (s *Server) HandleUserScope(w http.ResponseWriter, r *http.Request) {
 	_ = db.SetUserScopeAll(req.ID, req.ScopeAll)
 	_ = db.SetUserAllowedTags(req.ID, req.AllowedTags)
 	_ = db.SetUserAllowedHosts(req.ID, req.AllowedHosts)
+	if u, err := db.GetUserByID(req.ID); err == nil {
+		audit(r, "user.set_scope", u.Username, fmt.Sprintf("voit-tout=%t, %d tag(s), %d hôte(s)", req.ScopeAll, len(req.AllowedTags), len(req.AllowedHosts)))
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Portée mise à jour."))
 }
@@ -266,6 +288,7 @@ func (s *Server) HandleTags(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Création impossible (déjà existant ?) : %v", err), http.StatusConflict)
 			return
 		}
+		audit(r, "tag.create", name, "")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Tag créé."))
 
@@ -287,6 +310,7 @@ func (s *Server) HandleTagsDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	audit(r, "tag.delete", fmt.Sprintf("tag#%d", id), "")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Tag supprimé."))
 }
@@ -332,9 +356,51 @@ func (s *Server) HandleTagAssignments(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		action := "tag.assign"
+		if req.Action == "unassign" {
+			action = "tag.unassign"
+		}
+		audit(r, action, req.ContainerName, fmt.Sprintf("tag#%d (hôte %d)", req.TagID, req.HostID))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Association mise à jour."))
 
+	default:
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandleSecurityAudit renvoie le journal d'audit de sécurité (admin uniquement).
+func (s *Server) HandleSecurityAudit(w http.ResponseWriter, r *http.Request) {
+	if !auth.RequireRole(w, r, db.RoleAdmin) {
+		return
+	}
+	entries, err := db.GetSecurityAudit(200)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(entries)
+}
+
+// HandleNotifications : GET liste les notifications, POST les marque comme lues.
+func (s *Server) HandleNotifications(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		list, err := db.GetNotifications(200)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(list)
+	case http.MethodPost:
+		if err := db.MarkNotificationsRead(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Notifications marquées comme lues."))
 	default:
 		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
 	}

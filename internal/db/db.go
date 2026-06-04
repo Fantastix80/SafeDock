@@ -250,6 +250,8 @@ func runMigrations(db *sql.DB) error {
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL DEFAULT '',
 		role TEXT NOT NULL DEFAULT 'viewer',
+		full_name TEXT NOT NULL DEFAULT '',
+		email TEXT NOT NULL DEFAULT '',
 		totp_secret TEXT NOT NULL DEFAULT '',
 		totp_enabled INTEGER NOT NULL DEFAULT 0,
 		must_change_password INTEGER NOT NULL DEFAULT 0,
@@ -271,6 +273,31 @@ func runMigrations(db *sql.DB) error {
 		host_id INTEGER NOT NULL,
 		container_name TEXT NOT NULL,
 		UNIQUE(tag_id, host_id, container_name)
+	);`
+
+	// 13. Journal d'audit de sécurité (qui fait quoi : auth + administration)
+	securityAuditTable := `
+	CREATE TABLE IF NOT EXISTS security_audit (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+		actor_id INTEGER NOT NULL DEFAULT 0,
+		actor TEXT NOT NULL DEFAULT '',
+		action TEXT NOT NULL DEFAULT '',
+		target TEXT NOT NULL DEFAULT '',
+		detail TEXT NOT NULL DEFAULT ''
+	);`
+
+	// 14. Notifications applicatives (alertes affichées dans le centre de notifications)
+	notificationsTable := `
+	CREATE TABLE IF NOT EXISTS notifications (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+		level TEXT NOT NULL DEFAULT 'INFO',
+		title TEXT NOT NULL DEFAULT '',
+		body TEXT NOT NULL DEFAULT '',
+		container_name TEXT NOT NULL DEFAULT '',
+		host TEXT NOT NULL DEFAULT '',
+		read INTEGER NOT NULL DEFAULT 0
 	);`
 
 	// 12. Historique des vulnérabilités (un point par scan → tendances dans la durée)
@@ -301,7 +328,7 @@ func runMigrations(db *sql.DB) error {
 		UNIQUE(user_id, host_id)
 	);`
 
-	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable, scanReportsTable, cveExceptionsTable, hostsTable, mfaBackupTable, usersTable, tagsTable, containerTagsTable, userTagsTable, userHostsTable, cveHistoryTable}
+	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable, scanReportsTable, cveExceptionsTable, hostsTable, mfaBackupTable, usersTable, tagsTable, containerTagsTable, userTagsTable, userHostsTable, cveHistoryTable, securityAuditTable, notificationsTable}
 	for _, sqlStmt := range tables {
 		_, err := db.Exec(sqlStmt)
 		if err != nil {
@@ -316,6 +343,8 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN totp_secret TEXT DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN totp_enabled INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE mfa_backup_codes ADD COLUMN user_id INTEGER DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN full_name TEXT NOT NULL DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';")
 
 	return nil
 }
@@ -1311,6 +1340,8 @@ type User struct {
 	ID                 int    `json:"id"`
 	Username           string `json:"username"`
 	Role               string `json:"role"`
+	FullName           string `json:"full_name"`
+	Email              string `json:"email"`
 	TOTPEnabled        bool   `json:"totp_enabled"`
 	MustChangePassword bool   `json:"must_change_password"`
 	ScopeAll           bool   `json:"scope_all"`
@@ -1369,7 +1400,7 @@ func GetUserAuth(username string) (UserAuth, error) {
 func scanUserRow(rowScan func(...any) error) (User, error) {
 	var u User
 	var totpEn, mustChange, scopeAll int
-	if err := rowScan(&u.ID, &u.Username, &u.Role, &totpEn, &mustChange, &scopeAll, &u.CreatedAt); err != nil {
+	if err := rowScan(&u.ID, &u.Username, &u.Role, &u.FullName, &u.Email, &totpEn, &mustChange, &scopeAll, &u.CreatedAt); err != nil {
 		return u, err
 	}
 	u.TOTPEnabled = totpEn == 1
@@ -1387,7 +1418,7 @@ func GetUserByID(id int) (User, error) {
 		return User{}, fmt.Errorf("base de données non initialisée")
 	}
 	row := db.QueryRow(
-		`SELECT id, username, role, totp_enabled, must_change_password, scope_all, created_at
+		`SELECT id, username, role, full_name, email, totp_enabled, must_change_password, scope_all, created_at
 		 FROM users WHERE id = ?;`, id)
 	return scanUserRow(row.Scan)
 }
@@ -1399,7 +1430,7 @@ func ListUsers() ([]User, error) {
 		return nil, fmt.Errorf("base de données non initialisée")
 	}
 	rows, err := db.Query(
-		`SELECT id, username, role, totp_enabled, must_change_password, scope_all, created_at
+		`SELECT id, username, role, full_name, email, totp_enabled, must_change_password, scope_all, created_at
 		 FROM users ORDER BY id ASC;`)
 	if err != nil {
 		return nil, err
@@ -1428,20 +1459,30 @@ func CountAdmins() (int, error) {
 }
 
 // CreateUser crée un compte. mustChange impose un changement de mot de passe au 1er login.
-func CreateUser(username, passwordHash, role string, scopeAll, mustChange bool) (int64, error) {
+func CreateUser(username, passwordHash, role, fullName, email string, scopeAll, mustChange bool) (int64, error) {
 	db := GetDB()
 	if db == nil {
 		return 0, fmt.Errorf("base de données non initialisée")
 	}
 	res, err := db.Exec(
-		`INSERT INTO users (username, password_hash, role, scope_all, must_change_password)
-		 VALUES (?, ?, ?, ?, ?);`,
-		username, passwordHash, role, boolToInt(scopeAll), boolToInt(mustChange),
+		`INSERT INTO users (username, password_hash, role, full_name, email, scope_all, must_change_password)
+		 VALUES (?, ?, ?, ?, ?, ?, ?);`,
+		username, passwordHash, role, fullName, email, boolToInt(scopeAll), boolToInt(mustChange),
 	)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+// SetUserProfile met à jour l'identité affichée d'un compte (nom complet + email).
+func SetUserProfile(id int, fullName, email string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE users SET full_name = ?, email = ? WHERE id = ?;", fullName, email, id)
+	return err
 }
 
 // DeleteUser supprime un compte et ses dépendances (codes de secours, portées).
@@ -1781,4 +1822,122 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// ==========================================================================
+// Operations : Journal d'audit de sécurité (qui fait quoi)
+// ==========================================================================
+
+// SecurityAuditEntry est une entrée du journal d'audit (action sensible tracée).
+type SecurityAuditEntry struct {
+	ID        int    `json:"id"`
+	Timestamp string `json:"timestamp"`
+	Actor     string `json:"actor"`
+	Action    string `json:"action"`
+	Target    string `json:"target"`
+	Detail    string `json:"detail"`
+}
+
+// WriteSecurityAudit enregistre une action sensible (best-effort, n'échoue jamais bruyamment).
+func WriteSecurityAudit(actorID int, actor, action, target, detail string) {
+	db := GetDB()
+	if db == nil {
+		return
+	}
+	_, _ = db.Exec(
+		`INSERT INTO security_audit (actor_id, actor, action, target, detail) VALUES (?, ?, ?, ?, ?);`,
+		actorID, actor, action, target, detail)
+}
+
+// GetSecurityAudit retourne les dernières entrées du journal (du plus récent au plus ancien).
+func GetSecurityAudit(limit int) ([]SecurityAuditEntry, error) {
+	db := GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("base de données non initialisée")
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+	rows, err := db.Query(
+		`SELECT id, timestamp, actor, action, target, detail
+		 FROM security_audit ORDER BY id DESC LIMIT ?;`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	list := make([]SecurityAuditEntry, 0)
+	for rows.Next() {
+		var e SecurityAuditEntry
+		if err := rows.Scan(&e.ID, &e.Timestamp, &e.Actor, &e.Action, &e.Target, &e.Detail); err != nil {
+			return nil, err
+		}
+		list = append(list, e)
+	}
+	return list, nil
+}
+
+// ==========================================================================
+// Operations : Notifications applicatives (centre de notifications)
+// ==========================================================================
+
+// Notification est une alerte affichée dans le centre de notifications.
+type Notification struct {
+	ID            int    `json:"id"`
+	Timestamp     string `json:"timestamp"`
+	Level         string `json:"level"` // CRITICAL | WARNING | INFO
+	Title         string `json:"title"`
+	Body          string `json:"body"`
+	ContainerName string `json:"container_name"`
+	Host          string `json:"host"`
+	Read          bool   `json:"read"`
+}
+
+// WriteNotification ajoute une notification (best-effort).
+func WriteNotification(level, title, body, containerName, host string) {
+	db := GetDB()
+	if db == nil {
+		return
+	}
+	_, _ = db.Exec(
+		`INSERT INTO notifications (level, title, body, container_name, host) VALUES (?, ?, ?, ?, ?);`,
+		level, title, body, containerName, host)
+}
+
+// GetNotifications retourne les notifications les plus récentes.
+func GetNotifications(limit int) ([]Notification, error) {
+	db := GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("base de données non initialisée")
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+	rows, err := db.Query(
+		`SELECT id, timestamp, level, title, body, container_name, host, read
+		 FROM notifications ORDER BY id DESC LIMIT ?;`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	list := make([]Notification, 0)
+	for rows.Next() {
+		var n Notification
+		var read int
+		if err := rows.Scan(&n.ID, &n.Timestamp, &n.Level, &n.Title, &n.Body, &n.ContainerName, &n.Host, &read); err != nil {
+			return nil, err
+		}
+		n.Read = read == 1
+		list = append(list, n)
+	}
+	return list, nil
+}
+
+// MarkNotificationsRead marque toutes les notifications comme lues.
+func MarkNotificationsRead() error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE notifications SET read = 1 WHERE read = 0;")
+	return err
 }

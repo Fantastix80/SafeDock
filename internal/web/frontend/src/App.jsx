@@ -39,6 +39,8 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [securityAudit, setSecurityAudit] = useState([]);
   const [overrides, setOverrides] = useState({});
   const [config, setConfig] = useState(null);
   
@@ -167,15 +169,19 @@ export default function App() {
     fetchExceptions();
     fetchTags();
     fetchAssignments();
+    fetchNotifications();
     if (me?.role === 'admin') {
       fetchHosts();
       fetchUsers();
+      fetchSecurityAudit();
     }
   };
 
   const fetchTags = () => fetch('/api/tags').then(handleJson).then(d => setTags(d || [])).catch(() => {});
   const fetchAssignments = () => fetch('/api/tags/assignments').then(handleJson).then(d => setAssignments(d || [])).catch(() => {});
   const fetchUsers = () => fetch('/api/users').then(handleJson).then(d => setUsers(d || [])).catch(() => {});
+  const fetchNotifications = () => fetch('/api/notifications').then(handleJson).then(d => setNotifications(d || [])).catch(() => {});
+  const fetchSecurityAudit = () => fetch('/api/audit/security').then(handleJson).then(d => setSecurityAudit(d || [])).catch(() => {});
 
   // ── Handlers utilisateurs (admin) ──
   const apiPost = (url, body) => fetch(url, {
@@ -198,6 +204,14 @@ export default function App() {
   // ── Changement de mot de passe (self) ──
   const handleChangePassword = (current_password, new_password) =>
     apiPost('/api/account/password', { current_password, new_password });
+
+  // ── Mise à jour du profil (self) : nom complet + email ──
+  const handleUpdateProfile = (full_name, email) =>
+    apiPost('/api/account/profile', { full_name, email }).then(() => checkSession());
+
+  // ── Notifications ──
+  const handleMarkNotificationsRead = () =>
+    apiPost('/api/notifications', {}).then(fetchNotifications);
 
   const fetchHosts = () => {
     return fetch('/api/hosts')
@@ -561,11 +575,11 @@ export default function App() {
           )}
 
           {activePage === 'notifications' && (
-            <NotificationsView />
+            <NotificationsView notifications={notifications} onMarkRead={handleMarkNotificationsRead} onRefresh={fetchNotifications} />
           )}
 
           {activePage === 'account' && (
-            <AccountView me={me} onChangePassword={handleChangePassword} />
+            <AccountView me={me} onChangePassword={handleChangePassword} onUpdateProfile={handleUpdateProfile} />
           )}
 
           {(activePage === 'permissions' || activePage === 'users') && (
@@ -583,6 +597,8 @@ export default function App() {
                 onSetScope={handleSetScope}
                 onCreateTag={handleCreateTag}
                 onDeleteTag={handleDeleteTag}
+                audit={securityAudit}
+                onRefreshAudit={fetchSecurityAudit}
               />
             ) : <AccessDenied />
           )}

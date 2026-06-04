@@ -275,7 +275,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		
 		// Enregistrement dans l'historique d'audit SQLite
 		_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "BLOCKED", secopsReason, critCount, highCount, trivyReport.Summary.Medium)
-		
+		db.WriteNotification("WARNING", "Déploiement bloqué par le pare-feu SecOps",
+			fmt.Sprintf("%s : %s", containerName, secopsReason), containerName, "")
+
 		// Envoi de l'alerte par e-mail
 		mailSubject := fmt.Sprintf("🚨 Bloqué : Alerte SecOps sur la mise à jour de %s", containerName)
 		mailContent := fmt.Sprintf(`

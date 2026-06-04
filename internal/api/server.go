@@ -53,6 +53,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/logout", auth.HandleLogout)
 	mux.HandleFunc("/api/session", auth.HandleSession)
 	mux.HandleFunc("/api/account/password", auth.HandleChangePassword)
+	mux.HandleFunc("/api/account/profile", auth.HandleUpdateProfile)
 
 	// 1. Enregistrement des routes de l'API REST (protégées par le middleware d'auth)
 	mux.HandleFunc("/api/containers", s.HandleContainers)
@@ -83,6 +84,10 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/tags", s.HandleTags)
 	mux.HandleFunc("/api/tags/delete", s.HandleTagsDelete)
 	mux.HandleFunc("/api/tags/assignments", s.HandleTagAssignments)
+
+	// Journal d'audit de sécurité + notifications applicatives
+	mux.HandleFunc("/api/audit/security", s.HandleSecurityAudit)
+	mux.HandleFunc("/api/notifications", s.HandleNotifications)
 
 	// 2. Enregistrement du point d'entrée pour les fichiers statiques de l'UI
 	// On extrait le sous-répertoire "static" de notre système de fichiers embarqué

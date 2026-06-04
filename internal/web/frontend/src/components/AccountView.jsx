@@ -10,12 +10,31 @@ const TABS = [
 
 const ROLE_LABEL = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
 
-export default function AccountView({ me, onChangePassword }) {
+function monogram(name, username) {
+  const base = (name || '').trim() || username || '';
+  if (!base) return '?';
+  const parts = base.trim().split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return base.slice(0, 2).toUpperCase();
+}
+
+export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
   const [activeTab, setActiveTab] = useState('infos');
-  const [user, setUser] = useState({
-    username: me?.username || '', email: '',
-    fullName: me?.username || '', role: ROLE_LABEL[me?.role] || me?.role || '', organization: 'SafeDock'
-  });
+  const [fullName, setFullName] = useState(me?.full_name || '');
+  const [email, setEmail] = useState(me?.email || '');
+  const [profileStatus, setProfileStatus] = useState({ text: '', type: '' });
+  const username = me?.username || '';
+  const roleLabel = ROLE_LABEL[me?.role] || me?.role || '';
+
+  const saveProfile = async () => {
+    try {
+      await onUpdateProfile(fullName, email);
+      setProfileStatus({ text: 'Profil mis à jour.', type: 'ok' });
+      setTimeout(() => setProfileStatus({ text: '', type: '' }), 4000);
+    } catch (err) {
+      setProfileStatus({ text: err.message || 'Échec de la mise à jour.', type: 'error' });
+    }
+  };
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -56,23 +75,23 @@ export default function AccountView({ me, onChangePassword }) {
       <div className="card p-5 h-fit text-center hover:border-[#F7931A]/20 hover:shadow-[0_0_30px_-10px_rgba(247,147,26,0.15)] transition-all duration-300">
         <div className="relative w-20 h-20 mx-auto mb-4">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-2xl font-bold text-black border-2 border-[#F7931A]/40 shadow-[0_0_20px_rgba(247,147,26,0.4)]">
-            J
+            {monogram(fullName, username)}
           </div>
           <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#0F1115] shadow-[0_0_8px_#34d399]" />
         </div>
 
-        <h3 className="font-heading text-sm font-bold text-white">{user.fullName}</h3>
-        <p className="text-xs text-[#94A3B8] font-mono mt-0.5">@{user.username}</p>
+        <h3 className="font-heading text-sm font-bold text-white">{fullName.trim() || username}</h3>
+        <p className="text-xs text-[#94A3B8] font-mono mt-0.5">@{username}</p>
 
         <span className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <ShieldCheck className="w-3 h-3" /> {user.role}
+          <ShieldCheck className="w-3 h-3" /> {roleLabel}
         </span>
 
         <div className="mt-4 pt-4 border-t border-white/[0.06] text-left space-y-2">
-          <p className="font-mono text-xs text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Appartenance</p>
-          <Row label="Organisation" value={user.organization} />
-          <Row label="Session IP"   value={<code className="font-mono text-xs text-[#94A3B8]">192.168.1.100</code>} />
-          <Row label="Status SSO"   value={<span className="font-mono text-xs text-[#94A3B8]/40">Désactivé</span>} />
+          <p className="font-mono text-xs text-[#94A3B8]/40 uppercase font-medium tracking-widest mb-2">Compte</p>
+          <Row label="Email" value={<span className="font-mono text-xs text-[#94A3B8]">{email || '—'}</span>} />
+          <Row label="Rôle"  value={<span className="font-mono text-xs text-[#94A3B8]">{roleLabel}</span>} />
+          <Row label="MFA"   value={<span className="font-mono text-xs text-emerald-400">Obligatoire · actif</span>} />
         </div>
       </div>
 
@@ -104,12 +123,24 @@ export default function AccountView({ me, onChangePassword }) {
           {/* ── Infos ── */}
           {activeTab === 'infos' && (
             <div className="space-y-4">
-              <p className="text-sm text-[#94A3B8] font-mono">Identité et appartenance du compte SecOps.</p>
+              <p className="text-sm text-[#94A3B8] font-mono">Identité affichée de votre compte. Le nom d'utilisateur n'est pas modifiable.</p>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Nom complet"         value={user.fullName}     onChange={v => setUser(p => ({ ...p, fullName: v }))} />
-                <Field label="Adresse email"        type="email" value={user.email}     onChange={v => setUser(p => ({ ...p, email: v }))} />
-                <Field label="Nom d'utilisateur"    value={user.username}     onChange={v => setUser(p => ({ ...p, username: v }))} />
-                <Field label="Organisation"         value={user.organization} onChange={v => setUser(p => ({ ...p, organization: v }))} />
+                <Field label="Nom complet"      value={fullName} onChange={setFullName} placeholder="Prénom Nom" />
+                <Field label="Adresse email"    type="email" value={email} onChange={setEmail} placeholder="prenom@domaine.com" />
+                <div className="space-y-1">
+                  <label className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-wider">Nom d'utilisateur</label>
+                  <input value={username} disabled
+                    className="w-full px-3 py-2 text-sm rounded-xl bg-[#0A0C10]/60 border border-white/[0.06] text-[#94A3B8]/60 font-mono cursor-not-allowed" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={saveProfile}
+                  className="px-5 py-2 text-sm font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25 hover:bg-[#F7931A]/25 transition-all">
+                  Enregistrer le profil
+                </button>
+                {profileStatus.text && (
+                  <p className={cn('text-sm font-mono', profileStatus.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>{profileStatus.text}</p>
+                )}
               </div>
             </div>
           )}
@@ -189,7 +220,8 @@ export default function AccountView({ me, onChangePassword }) {
             </div>
           )}
 
-          {/* Save footer */}
+          {/* Save footer (préférences de notifications uniquement) */}
+          {activeTab === 'notifications' && (
           <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
             {status && <p className="text-sm text-emerald-400 font-mono font-medium">{status}</p>}
             <button
@@ -199,6 +231,7 @@ export default function AccountView({ me, onChangePassword }) {
               Enregistrer les préférences
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>

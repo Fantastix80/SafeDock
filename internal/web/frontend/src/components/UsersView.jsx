@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Trash2, KeyRound, Smartphone, Tag as TagIcon, Plus, Check } from 'lucide-react';
+import { Users, UserPlus, Trash2, KeyRound, Smartphone, Tag as TagIcon, Plus, Check, History, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const ROLES = [
@@ -11,9 +11,9 @@ const ROLES = [
 export default function UsersView({
   me, users = [], tags = [], hosts = [],
   onCreateUser, onDeleteUser, onSetRole, onResetPassword, onResetMFA, onSetScope,
-  onCreateTag, onDeleteTag,
+  onCreateTag, onDeleteTag, audit = [], onRefreshAudit,
 }) {
-  const [nu, setNu] = useState({ username: '', password: '', role: 'viewer', scope_all: false });
+  const [nu, setNu] = useState({ username: '', password: '', full_name: '', email: '', role: 'viewer', scope_all: false });
   const [msg, setMsg] = useState('');
   const [tagName, setTagName] = useState('');
   const [scopeEdit, setScopeEdit] = useState(null); // user being edited
@@ -24,7 +24,7 @@ export default function UsersView({
     e.preventDefault();
     try {
       await onCreateUser(nu);
-      setNu({ username: '', password: '', role: 'viewer', scope_all: false });
+      setNu({ username: '', password: '', full_name: '', email: '', role: 'viewer', scope_all: false });
       notify('Utilisateur créé.');
     } catch (err) { notify(err.message); }
   };
@@ -57,6 +57,8 @@ export default function UsersView({
         </div>
         <div className="flex items-end gap-3 flex-wrap">
           <Inp label="Nom d'utilisateur" value={nu.username} onChange={v => setNu(p => ({ ...p, username: v }))} />
+          <Inp label="Nom complet" value={nu.full_name} onChange={v => setNu(p => ({ ...p, full_name: v }))} />
+          <Inp label="Email" type="email" value={nu.email} onChange={v => setNu(p => ({ ...p, email: v }))} />
           <Inp label="Mot de passe initial" type="password" value={nu.password} onChange={v => setNu(p => ({ ...p, password: v }))} />
           <div className="space-y-1">
             <Lbl>Rôle</Lbl>
@@ -90,8 +92,12 @@ export default function UsersView({
             <tbody>
               {users.map(u => (
                 <tr key={u.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                  <td className="px-3 py-2.5 font-heading font-semibold text-white">
-                    {u.username}{u.id === me.user_id && <span className="ml-2 text-[10px] font-mono text-[#F7931A]">(vous)</span>}
+                  <td className="px-3 py-2.5">
+                    <div className="font-heading font-semibold text-white">
+                      {(u.full_name || '').trim() || u.username}
+                      {u.id === me.user_id && <span className="ml-2 text-[10px] font-mono text-[#F7931A]">(vous)</span>}
+                    </div>
+                    <div className="text-xs font-mono text-[#94A3B8]/50">@{u.username}{u.email ? ` · ${u.email}` : ''}</div>
                   </td>
                   <td className="px-3 py-2.5">
                     <select value={u.role} onChange={e => onSetRole(u.id, e.target.value).then(() => notify('Rôle mis à jour.')).catch(err => notify(err.message))}
@@ -155,8 +161,52 @@ export default function UsersView({
           {tags.length === 0 && <span className="text-sm text-[#94A3B8]/40 font-mono">Aucun tag. Créez-en pour organiser et restreindre l'accès.</span>}
         </div>
       </div>
+
+      {/* Journal d'audit de sécurité */}
+      <div className="card">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-[#F7931A]" />
+            <span className="font-heading text-sm font-semibold text-white">Journal d'audit de sécurité</span>
+          </div>
+          {onRefreshAudit && (
+            <button onClick={onRefreshAudit} title="Rafraîchir" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/[0.04]">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-[#0F1115]"><tr className="border-b border-white/[0.04]">
+              <th className={th}>Date</th><th className={th}>Acteur</th><th className={th}>Action</th><th className={th}>Cible</th><th className={th}>Détail</th>
+            </tr></thead>
+            <tbody>
+              {audit.map(e => (
+                <tr key={e.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                  <td className="px-3 py-2 font-mono text-xs text-[#94A3B8]/70 whitespace-nowrap">{fmtAuditTime(e.timestamp)}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-white">{e.actor || '—'}</td>
+                  <td className="px-3 py-2"><span className="px-1.5 py-0.5 rounded-md text-xs font-mono bg-white/[0.05] text-[#F7931A] border border-[#F7931A]/20">{e.action}</span></td>
+                  <td className="px-3 py-2 font-mono text-xs text-[#94A3B8]">{e.target || '—'}</td>
+                  <td className="px-3 py-2 text-xs text-[#94A3B8]/70">{e.detail}</td>
+                </tr>
+              ))}
+              {audit.length === 0 && (
+                <tr><td colSpan={5} className="px-3 py-6 text-center text-sm text-[#94A3B8]/40 font-mono">Aucune action enregistrée.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
+}
+
+function fmtAuditTime(s) {
+  if (!s) return '';
+  try {
+    const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z';
+    return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return s; }
 }
 
 function ScopeEditor({ user, tags, hosts, onClose, onSave }) {

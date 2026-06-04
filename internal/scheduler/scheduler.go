@@ -143,6 +143,11 @@ func (m *Manager) runCycle(ctx context.Context) {
 					prevCrit, report.Summary.Critical, prevHigh, report.Summary.High),
 				report.Summary.Critical, report.Summary.High, report.Summary.Medium)
 
+			db.WriteNotification("CRITICAL", "Nouvelles vulnérabilités détectées",
+				fmt.Sprintf("%s (%s) : Critiques %d→%d, Élevées %d→%d sur une image inchangée.",
+					c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High),
+				c.Name, "")
+
 			sendDriftAlert(cfg, c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High)
 		}
 	}

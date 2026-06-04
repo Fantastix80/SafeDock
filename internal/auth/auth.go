@@ -55,7 +55,7 @@ func ResolveAdminPassword(envPassword string) error {
 			pw = generateRandomPassword(20)
 			generated = true
 		}
-		if _, cerr := db.CreateUser("admin", crypto.PasswordVerifier(pw), db.RoleAdmin, true, false); cerr != nil {
+		if _, cerr := db.CreateUser("admin", crypto.PasswordVerifier(pw), db.RoleAdmin, "", "", true, false); cerr != nil {
 			return cerr
 		}
 		if generated {
@@ -239,6 +239,8 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	setCookie(w, cookieName, token, int(sessionTTL.Seconds()))
 	clearCookie(w, preAuthCookieName)
 
+	db.WriteSecurityAudit(user.ID, user.Username, "auth.login", "", "connexion réussie (MFA validé)")
+
 	resp := map[string]interface{}{
 		"status":               "ok",
 		"authenticated":        true,
@@ -292,8 +294,41 @@ func HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Impossible de changer le mot de passe", http.StatusInternalServerError)
 		return
 	}
+	db.WriteSecurityAudit(claims.UserID, u.Username, "auth.password_change", "", "mot de passe modifié par l'utilisateur")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+// HandleUpdateProfile permet à l'utilisateur connecté de mettre à jour son identité
+// affichée (nom complet + email).
+func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		return
+	}
+	claims, ok := ClaimsFrom(r)
+	if !ok {
+		writeJSONError(w, http.StatusUnauthorized, "Authentification requise")
+		return
+	}
+	var req struct {
+		FullName string `json:"full_name"`
+		Email    string `json:"email"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes)).Decode(&req); err != nil {
+		http.Error(w, "Format JSON invalide", http.StatusBadRequest)
+		return
+	}
+	if err := db.SetUserProfile(claims.UserID, strings.TrimSpace(req.FullName), strings.TrimSpace(req.Email)); err != nil {
+		http.Error(w, "Impossible de mettre à jour le profil", http.StatusInternalServerError)
+		return
+	}
+	user, _ := db.GetUserByID(claims.UserID)
+	db.WriteSecurityAudit(claims.UserID, user.Username, "profile.update", "", "")
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok": true, "full_name": user.FullName, "email": user.Email,
+	})
 }
 
 // HandleLogout invalide les cookies de session.
@@ -321,6 +356,8 @@ func HandleSession(w http.ResponseWriter, r *http.Request) {
 		"authenticated":        true,
 		"user_id":              user.ID,
 		"username":             user.Username,
+		"full_name":            user.FullName,
+		"email":                user.Email,
 		"role":                 user.Role,
 		"must_change_password": user.MustChangePassword,
 		"scope_all":            user.ScopeAll,
