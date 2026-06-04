@@ -128,6 +128,10 @@ func (m *Manager) runCycle(ctx context.Context) {
 			_ = db.SaveScanReport(cacheKey, scanner, c.Name, ref, string(b))
 		}
 
+		// Point d'historique CVE (suivi de l'évolution dans la durée).
+		_ = db.AppendVulnHistory(c.Name, c.CurrentDigest, scanner,
+			report.Summary.Critical, report.Summary.High, report.Summary.Medium, report.Summary.Low)
+
 		// Détection de dérive : même image, davantage de CVE qu'au scan précédent.
 		if hadPrev && (report.Summary.Critical > prevCrit || report.Summary.High > prevHigh) {
 			drifts++

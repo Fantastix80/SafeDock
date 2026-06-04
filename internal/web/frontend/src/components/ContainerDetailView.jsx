@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Bug, ListChecks, RefreshCw, RotateCw, Settings2,
-  CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown
+  CheckCircle2, XCircle, ShieldCheck, Tag, X, Search, ChevronUp, ChevronDown, TrendingUp
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 
@@ -35,6 +35,9 @@ export default function ContainerDetailView({
   const [dockleLoading, setDockleLoading] = useState(false);
   const [dockleError, setDockleError] = useState('');
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const [ovrSeverity, setOvrSeverity] = useState('');
   const [ovrAllowRoot, setOvrAllowRoot] = useState('');
   const [ovrAllowPrivilege, setOvrAllowPrivilege] = useState('');
@@ -65,8 +68,19 @@ export default function ContainerDetailView({
       .finally(() => setDockleLoading(false));
   };
 
+  const fetchHistory = () => {
+    if (!container) return;
+    setHistoryLoading(true);
+    const q = `name=${encodeURIComponent(container.name)}${container.host_id ? `&host=${container.host_id}` : ''}`;
+    fetch(`/api/containers/history?${q}`)
+      .then(res => { if (!res.ok) throw new Error('Erreur historique'); return res.json(); })
+      .then(data => setHistory(Array.isArray(data) ? data : []))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  };
+
   useEffect(() => {
-    if (container) { fetchTrivy(); fetchDockle(); }
+    if (container) { fetchTrivy(); fetchDockle(); fetchHistory(); }
   }, [containerId]);
 
   useEffect(() => {
@@ -160,6 +174,7 @@ export default function ContainerDetailView({
 
   const TABS = [
     { id: 'trivy',     label: 'Failles CVE',       icon: Bug },
+    { id: 'trend',     label: 'Tendance',          icon: TrendingUp },
     { id: 'dockle',    label: 'Conformité Dockle', icon: ListChecks },
     { id: 'lifecycle', label: 'Déploiement',       icon: RotateCw },
     { id: 'overrides', label: 'Paramètres',        icon: Settings2 },
@@ -384,6 +399,20 @@ export default function ContainerDetailView({
             </div>
           )}
 
+          {/* TAB: Tendance */}
+          {tab === 'trend' && (
+            <div>
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <p className="font-heading text-xs font-semibold text-white">Évolution des vulnérabilités dans la durée</p>
+                <button type="button" onClick={fetchHistory} disabled={historyLoading}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-white/[0.04] transition-colors">
+                  <RefreshCw className={cn('w-3.5 h-3.5', historyLoading && 'animate-spin')} /> Rafraîchir
+                </button>
+              </div>
+              <VulnTrendChart points={history} loading={historyLoading} />
+            </div>
+          )}
+
           {/* TAB: Dockle */}
           {tab === 'dockle' && (
             <div>
@@ -573,6 +602,95 @@ export default function ContainerDetailView({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// VulnTrendChart trace l'évolution des CVE (par sévérité) dans le temps, en SVG pur
+// (aucune dépendance de graphe). Les points sont fournis en ordre chronologique croissant.
+function VulnTrendChart({ points = [], loading = false }) {
+  if (loading && points.length === 0) {
+    return <p className="text-sm text-[#94A3B8] font-mono py-10 text-center">Chargement de l'historique…</p>;
+  }
+  if (!points || points.length === 0) {
+    return (
+      <div className="py-10 text-center">
+        <p className="text-sm text-[#94A3B8] font-mono">Aucun historique pour l'instant.</p>
+        <p className="text-xs text-[#94A3B8]/60 font-mono mt-1">
+          Un point est enregistré à chaque scan ; la supervision re-scanne automatiquement toutes les 24 h.
+        </p>
+      </div>
+    );
+  }
+
+  const SERIES = [
+    { key: 'critical', label: 'Critiques', color: '#ef4444' },
+    { key: 'high',     label: 'Élevées',   color: '#F7931A' },
+    { key: 'medium',   label: 'Moyennes',  color: '#f59e0b' },
+    { key: 'low',      label: 'Faibles',   color: '#FFD600' },
+  ];
+
+  const W = 640, H = 210, padL = 34, padR = 14, padT = 14, padB = 30;
+  const n = points.length;
+  const maxVal = Math.max(1, ...points.flatMap(p => [p.critical, p.high, p.medium, p.low]));
+  const px = (i) => n === 1 ? padL + (W - padL - padR) / 2 : padL + (i * (W - padL - padR)) / (n - 1);
+  const py = (v) => padT + (H - padT - padB) * (1 - v / maxVal);
+  const path = (key) => points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${px(i).toFixed(1)} ${py(p[key]).toFixed(1)}`).join(' ');
+
+  const ticks = 4;
+  const fmtDate = (s) => {
+    if (!s) return '';
+    try {
+      const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z';
+      return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    } catch { return s; }
+  };
+  const latest = points[n - 1];
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 230 }} preserveAspectRatio="xMidYMid meet">
+        {/* Grille horizontale + graduations Y */}
+        {Array.from({ length: ticks + 1 }).map((_, i) => {
+          const v = Math.round((maxVal * (ticks - i)) / ticks);
+          const yy = py(v);
+          return (
+            <g key={i}>
+              <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              <text x={padL - 6} y={yy + 3} textAnchor="end" fontSize="9" fill="#94A3B8" fontFamily="monospace">{v}</text>
+            </g>
+          );
+        })}
+        {/* Graduations X : début / milieu / fin */}
+        {[0, Math.floor((n - 1) / 2), n - 1].filter((v, idx, a) => a.indexOf(v) === idx).map((i) => (
+          <text key={i} x={px(i)} y={H - 10} textAnchor="middle" fontSize="9" fill="#94A3B8" fontFamily="monospace">
+            {fmtDate(points[i].scanned_at)}
+          </text>
+        ))}
+        {/* Séries */}
+        {SERIES.map(s => (
+          <g key={s.key}>
+            <path d={path(s.key)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            {n <= 40 && points.map((p, i) => (
+              <circle key={i} cx={px(i)} cy={py(p[s.key])} r="2.5" fill={s.color} />
+            ))}
+          </g>
+        ))}
+      </svg>
+
+      {/* Légende + dernières valeurs */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+        {SERIES.map(s => (
+          <span key={s.key} className="flex items-center gap-1.5 text-xs font-mono text-[#94A3B8]">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+            {s.label} : <span className="text-white font-semibold">{latest[s.key]}</span>
+          </span>
+        ))}
+      </div>
+      <p className="text-xs text-[#94A3B8]/60 font-mono mt-2">
+        {n} point{n > 1 ? 's' : ''} — du {fmtDate(points[0].scanned_at)} au {fmtDate(latest.scanned_at)}
+        {latest.scanner ? ` · moteur ${latest.scanner}` : ''}
+      </p>
     </div>
   );
 }

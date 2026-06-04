@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -126,6 +127,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			}
 			log.Println("👤 Migration : compte 'admin' créé à partir de la configuration existante.")
 		}
+	}
+
+	// Amorçage de l'historique CVE depuis les rapports existants (une seule fois).
+	var histCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM cve_history;").Scan(&histCount); err == nil && histCount == 0 {
+		backfillVulnHistory(db)
 	}
 
 	return globalDB, nil
@@ -266,6 +273,20 @@ func runMigrations(db *sql.DB) error {
 		UNIQUE(tag_id, host_id, container_name)
 	);`
 
+	// 12. Historique des vulnérabilités (un point par scan → tendances dans la durée)
+	cveHistoryTable := `
+	CREATE TABLE IF NOT EXISTS cve_history (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		container_name TEXT NOT NULL,
+		image_digest TEXT NOT NULL DEFAULT '',
+		scanner TEXT NOT NULL DEFAULT '',
+		critical INTEGER NOT NULL DEFAULT 0,
+		high INTEGER NOT NULL DEFAULT 0,
+		medium INTEGER NOT NULL DEFAULT 0,
+		low INTEGER NOT NULL DEFAULT 0,
+		scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
 	// 11. Portées utilisateur (tags et hôtes autorisés)
 	userTagsTable := `
 	CREATE TABLE IF NOT EXISTS user_allowed_tags (
@@ -280,7 +301,7 @@ func runMigrations(db *sql.DB) error {
 		UNIQUE(user_id, host_id)
 	);`
 
-	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable, scanReportsTable, cveExceptionsTable, hostsTable, mfaBackupTable, usersTable, tagsTable, containerTagsTable, userTagsTable, userHostsTable}
+	tables := []string{settingsTable, registriesTable, auditLogsTable, containerSettingsTable, scanReportsTable, cveExceptionsTable, hostsTable, mfaBackupTable, usersTable, tagsTable, containerTagsTable, userTagsTable, userHostsTable, cveHistoryTable}
 	for _, sqlStmt := range tables {
 		_, err := db.Exec(sqlStmt)
 		if err != nil {
@@ -834,6 +855,105 @@ func SaveScanReport(cacheKey, scannerType, containerName, imageRef, reportJSON s
 
 	_, err := db.Exec(query, cacheKey, scannerType, containerName, imageRef, reportJSON)
 	return err
+}
+
+// VulnHistoryPoint est un point de la courbe d'évolution des vulnérabilités d'un conteneur.
+type VulnHistoryPoint struct {
+	ScannedAt string `json:"scanned_at"`
+	Scanner   string `json:"scanner"`
+	Critical  int    `json:"critical"`
+	High      int    `json:"high"`
+	Medium    int    `json:"medium"`
+	Low       int    `json:"low"`
+}
+
+// AppendVulnHistory ajoute un point à l'historique CVE d'un conteneur (suivi dans la durée).
+func AppendVulnHistory(containerName, imageDigest, scanner string, critical, high, medium, low int) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec(
+		`INSERT INTO cve_history (container_name, image_digest, scanner, critical, high, medium, low)
+		 VALUES (?, ?, ?, ?, ?, ?, ?);`,
+		containerName, imageDigest, scanner, critical, high, medium, low)
+	return err
+}
+
+// GetVulnHistory retourne l'historique CVE d'un conteneur, du plus ancien au plus récent.
+func GetVulnHistory(containerName string, limit int) ([]VulnHistoryPoint, error) {
+	db := GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("base de données non initialisée")
+	}
+	if limit <= 0 || limit > 2000 {
+		limit = 365
+	}
+	rows, err := db.Query(
+		`SELECT scanned_at, scanner, critical, high, medium, low
+		 FROM cve_history WHERE container_name = ? ORDER BY scanned_at DESC, id DESC LIMIT ?;`,
+		containerName, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	pts := make([]VulnHistoryPoint, 0)
+	for rows.Next() {
+		var p VulnHistoryPoint
+		if err := rows.Scan(&p.ScannedAt, &p.Scanner, &p.Critical, &p.High, &p.Medium, &p.Low); err != nil {
+			return nil, err
+		}
+		pts = append(pts, p)
+	}
+	// Inversion → ordre chronologique croissant (pratique pour tracer une courbe).
+	for i, j := 0, len(pts)-1; i < j; i, j = i+1, j-1 {
+		pts[i], pts[j] = pts[j], pts[i]
+	}
+	return pts, nil
+}
+
+// backfillVulnHistory amorce l'historique CVE à partir des rapports de scan déjà
+// présents (une seule fois, quand la table d'historique est vide). Cela donne un
+// premier point réel par conteneur sans attendre le prochain cycle de supervision.
+func backfillVulnHistory(db *sql.DB) {
+	rows, err := db.Query(
+		`SELECT container_name, report_json, scanner_type, scanned_at
+		 FROM scan_reports WHERE scanner_type != 'dockle' AND container_name != '';`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	type summaryOnly struct {
+		Summary struct {
+			Critical int `json:"critical"`
+			High     int `json:"high"`
+			Medium   int `json:"medium"`
+			Low      int `json:"low"`
+		} `json:"summary"`
+	}
+	type entry struct {
+		name, scanner, at        string
+		crit, high, medium, low  int
+	}
+	var entries []entry
+	for rows.Next() {
+		var name, rj, scanner, at string
+		if rows.Scan(&name, &rj, &scanner, &at) != nil {
+			continue
+		}
+		var s summaryOnly
+		if json.Unmarshal([]byte(rj), &s) != nil {
+			continue
+		}
+		entries = append(entries, entry{name, scanner, at, s.Summary.Critical, s.Summary.High, s.Summary.Medium, s.Summary.Low})
+	}
+	for _, e := range entries {
+		_, _ = db.Exec(
+			`INSERT INTO cve_history (container_name, scanner, critical, high, medium, low, scanned_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?);`,
+			e.name, e.scanner, e.crit, e.high, e.medium, e.low, e.at)
+	}
 }
 
 // GetScanReport charge le rapport JSON d'un scan depuis la base de données.

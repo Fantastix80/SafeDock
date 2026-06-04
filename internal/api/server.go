@@ -56,6 +56,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// 1. Enregistrement des routes de l'API REST (protégées par le middleware d'auth)
 	mux.HandleFunc("/api/containers", s.HandleContainers)
+	mux.HandleFunc("/api/containers/history", s.HandleContainerHistory)
 	mux.HandleFunc("/api/containers/settings", s.HandleContainersSettings)
 	mux.HandleFunc("/api/containers/settings/delete", s.HandleContainersSettingsDelete)
 	mux.HandleFunc("/api/containers/", s.HandleSingleContainerSubRoutes)

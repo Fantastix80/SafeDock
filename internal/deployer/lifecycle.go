@@ -338,6 +338,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			if saveErr := db.SaveScanReport(trivyCacheKey, "trivy", containerName, fullNewImage, string(reportBytes)); saveErr == nil {
 				fmt.Printf("   📦 [CACHE] Rapport Trivy pré-chargé en DB pour la nouvelle image (%.20s...)\n", newDigest)
 			}
+			// Point d'historique CVE pour la nouvelle image déployée (suivi dans la durée).
+			_ = db.AppendVulnHistory(containerName, newDigest, "trivy",
+				trivyReport.Summary.Critical, trivyReport.Summary.High, trivyReport.Summary.Medium, trivyReport.Summary.Low)
 		}
 	}
 

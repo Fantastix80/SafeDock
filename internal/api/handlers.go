@@ -174,6 +174,28 @@ func (s *Server) ensureScope(w http.ResponseWriter, r *http.Request, hostID int,
 	return true
 }
 
+// HandleContainerHistory renvoie l'historique des vulnérabilités d'un conteneur
+// (un point par scan), pour tracer l'évolution dans la durée. Filtré par portée RBAC.
+// GET /api/containers/history?name=<nom>&host=<id>
+func (s *Server) HandleContainerHistory(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		http.Error(w, "paramètre 'name' requis", http.StatusBadRequest)
+		return
+	}
+	hostID, _ := strconv.Atoi(r.URL.Query().Get("host"))
+	if !s.ensureScope(w, r, hostID, name) {
+		return
+	}
+	points, err := db.GetVulnHistory(name, 365)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(points)
+}
+
 // HandleConfig lit (GET) ou écrit (POST) la configuration dynamique en DB.
 // GET /api/config
 // POST /api/config
