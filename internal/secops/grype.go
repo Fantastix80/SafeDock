@@ -43,9 +43,11 @@ func ScanImageGrype(ctx context.Context, imageName string) (*TrivyReport, error)
 
 	err := cmd.Run()
 	if err != nil {
-		// En cas d'absence de binaire, on peut générer un rapport simulé de haute fidélité pour le confort d'évaluation
+		// SÉCURITÉ : aucun rapport simulé. Un outil de sécurité ne doit jamais
+		// fabriquer de données de vulnérabilité. Si le binaire est absent ou échoue,
+		// on remonte une erreur explicite plutôt qu'un faux verdict.
 		if strings.Contains(err.Error(), "executable file not found") {
-			return GetMockGrypeReport(imageName), nil
+			return nil, fmt.Errorf("le binaire 'grype' est introuvable dans le PATH — installez Grype ou choisissez un autre scanner")
 		}
 		return nil, fmt.Errorf("erreur lors de l'exécution de Grype (code: %v) | stderr: %s", err, stderr.String())
 	}
@@ -112,61 +114,6 @@ func ParseGrypeJSON(imageName string, data []byte) (*TrivyReport, error) {
 	return report, nil
 }
 
-// GetMockGrypeReport retourne un faux rapport Grype complet et crédible si le binaire n'est pas trouvé.
-func GetMockGrypeReport(imageName string) *TrivyReport {
-	report := &TrivyReport{
-		ImageName: imageName,
-		Summary: TrivySummary{
-			Critical: 1,
-			High:     3,
-			Medium:   4,
-			Low:      6,
-		},
-		Vulnerabilities: []VulnerabilityDetail{
-			{
-				CVEID:            "CVE-2023-4911",
-				PackageName:      "libc6",
-				InstalledVersion: "2.35-0ubuntu3.1",
-				FixedVersion:     "2.35-0ubuntu3.5",
-				Severity:         "CRITICAL",
-				Title:            "Vulnerabilité de débordement de tampon dans ld.so (Looney Tunables)",
-				Description:      "Un débordement de tampon a été trouvé dans le chargeur dynamique ld.so de la bibliothèque GNU C lors du traitement de la variable d'environnement GLIBC_TUNABLES.",
-				URL:              "https://nvd.nist.gov/vuln/detail/CVE-2023-4911",
-			},
-			{
-				CVEID:            "CVE-2024-21626",
-				PackageName:      "runc",
-				InstalledVersion: "1.1.7-0ubuntu1",
-				FixedVersion:     "1.1.12-0ubuntu1",
-				Severity:         "HIGH",
-				Title:            "Fuite de descripteur de fichier runc permettant l'échappement de conteneur",
-				Description:      "runc v1.1.11 et antérieurs est vulnérable à un problème d'échappement de conteneur causé par une fuite de descripteur de fichier interne lors de l'exécution de commandes.",
-				URL:              "https://nvd.nist.gov/vuln/detail/CVE-2024-21626",
-			},
-			{
-				CVEID:            "CVE-2023-38545",
-				PackageName:      "libcurl4",
-				InstalledVersion: "7.81.0-1ubuntu1.13",
-				FixedVersion:     "7.81.0-1ubuntu1.14",
-				Severity:         "HIGH",
-				Title:            "Débordement de tas SOCKS5 dans libcurl",
-				Description:      "Cette faille de sécurité permet à un attaquant de déclencher un débordement de tampon sur le tas lors du protocole de connexion SOCKS5.",
-				URL:              "https://nvd.nist.gov/vuln/detail/CVE-2023-38545",
-			},
-			{
-				CVEID:            "CVE-2023-29491",
-				PackageName:      "libtirpc3",
-				InstalledVersion: "1.3.2-1ubuntu2",
-				FixedVersion:     "1.3.2-1ubuntu2.1",
-				Severity:         "MEDIUM",
-				Title:            "Déni de service RPC-bind",
-				Description:      "Un problème de déréférencement de pointeur nul a été identifié dans libtirpc permettant de crasher le service rpcbind distant.",
-				URL:              "https://nvd.nist.gov/vuln/detail/CVE-2023-29491",
-			},
-		},
-	}
-	return report
-}
 
 // ScanImageHybrid exécute les deux analyses (Trivy et Grype) et fusionne les résultats.
 func ScanImageHybrid(ctx context.Context, imageName string) (*TrivyReport, error) {

@@ -35,3 +35,6 @@ go.work
 # SafeDock custom build / temp output
 dist/
 /safedock
+
+# Claude Code local settings (per-developer, not versioned)
+.claude/

@@ -6,15 +6,18 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/safedock/safedock/internal/api"
-	"github.com/safedock/safedock/internal/cleanup"
+	"github.com/safedock/safedock/internal/auth"
 	"github.com/safedock/safedock/internal/config"
+	"github.com/safedock/safedock/internal/crypto"
 	"github.com/safedock/safedock/internal/db"
 	"github.com/safedock/safedock/internal/docker"
+	"github.com/safedock/safedock/internal/scheduler"
 )
 
 func main() {
@@ -27,6 +30,27 @@ func main() {
 	_, err := db.InitDB("")
 	if err != nil {
 		log.Fatalf("❌ ÉCHEC INITIALISATION BASE DE DONNÉES : %v\n", err)
+	}
+
+	// 1b. Initialisation du socle cryptographique (clé maître persistée à côté de la DB).
+	// Doit précéder tout chiffrement de secret (config) et toute opération d'auth.
+	if err := crypto.Init(db.DBDir()); err != nil {
+		log.Fatalf("❌ ÉCHEC INITIALISATION CRYPTO : %v\n", err)
+	}
+
+	// 1c. Résolution du mot de passe administrateur (env prioritaire, sinon génération).
+	if err := auth.ResolveAdminPassword(os.Getenv("SAFEDOCK_AUTH_PASSWORD")); err != nil {
+		log.Fatalf("❌ ÉCHEC CONFIGURATION AUTHENTIFICATION : %v\n", err)
+	}
+
+	// 1d. Récupération d'urgence MFA : si SAFEDOCK_RESET_MFA=true, on réinitialise le
+	// second facteur (perte de l'authentificateur). Le prochain login forcera un ré-enrôlement.
+	if v, _ := strconv.ParseBool(os.Getenv("SAFEDOCK_RESET_MFA")); v {
+		if err := auth.ResetAdminMFA(); err != nil {
+			log.Printf("⚠️  Réinitialisation MFA admin impossible : %v\n", err)
+		} else {
+			log.Println("🔓 MFA de l'admin réinitialisé (SAFEDOCK_RESET_MFA). Le prochain login demandera un nouvel enrôlement.")
+		}
 	}
 
 	// 2. Chargement de la configuration
@@ -78,19 +102,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// 4. Démarrage du nettoyage automatique des images Docker inutilisées.
-	// Les scans trivy/grype/dockle tirent les images mais ne les suppriment pas.
-	// Le Manager nettoie périodiquement les images non référencées par un conteneur.
-	cleanupManager, err := cleanup.New()
-	if err != nil {
-		// Non bloquant : SafeDock fonctionne sans le nettoyage automatique.
-		log.Printf("⚠️  Nettoyage automatique non disponible : %v\n", err)
-	} else {
-		defer cleanupManager.Close()
-		cleanupManager.StartPeriodicCleanup(ctx)
-	}
+	// 3b. Supervision continue : re-scans périodiques + détection de dérive de vulnérabilités.
+	scheduler.New().Start(ctx)
 
-	// 5. Lancement du serveur API REST & Dashboard Web
+	// 4. Lancement du serveur API REST & Dashboard Web
 	server := api.NewServer(cfg)
 
 	fmt.Println("\n==================================================")

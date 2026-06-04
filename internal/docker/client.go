@@ -2,7 +2,10 @@ package docker
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -24,6 +27,8 @@ type ContainerAuditInfo struct {
 	AllMounts       []string          `json:"all_mounts"`
 	TagPinned       bool              `json:"tag_pinned"`
 	SecretLeaks     []secops.SecretLeak `json:"secret_leaks"`
+	HostID          int               `json:"host_id"`
+	HostName        string            `json:"host_name"`
 }
 
 // DockerAuditor gère l'interaction avec l'API Docker Engine.
@@ -31,8 +36,7 @@ type DockerAuditor struct {
 	cli *client.Client
 }
 
-// NewDockerAuditor initialise le client Docker.
-// Il utilise automatiquement les options d'environnement (socket local ou variable DOCKER_HOST).
+// NewDockerAuditor initialise le client Docker local (socket / DOCKER_HOST).
 func NewDockerAuditor() (*DockerAuditor, error) {
 	cli, err := client.NewClientWithOpts(
 		client.FromEnv,
@@ -44,9 +48,72 @@ func NewDockerAuditor() (*DockerAuditor, error) {
 	return &DockerAuditor{cli: cli}, nil
 }
 
+// NewDockerAuditorFor initialise un client Docker pour un endpoint donné.
+// endpoint vide → hôte local (FromEnv). Sinon (ex: "tcp://1.2.3.4:2376"),
+// connexion distante, avec TLS mutuel si du matériel de certificat est fourni.
+func NewDockerAuditorFor(endpoint, caPEM, certPEM, keyPEM string) (*DockerAuditor, error) {
+	if endpoint == "" {
+		return NewDockerAuditor()
+	}
+
+	opts := []client.Opt{
+		client.WithHost(endpoint),
+		client.WithAPIVersionNegotiation(),
+	}
+
+	// TLS mutuel : certificat client + (optionnel) CA pour valider le serveur.
+	if certPEM != "" && keyPEM != "" {
+		cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
+		if err != nil {
+			return nil, fmt.Errorf("certificat/clé TLS client invalide : %w", err)
+		}
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
+		if caPEM != "" {
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM([]byte(caPEM)) {
+				return nil, fmt.Errorf("CA TLS illisible")
+			}
+			tlsConfig.RootCAs = pool
+		}
+		httpClient := &http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		}
+		opts = append(opts, client.WithHTTPClient(httpClient))
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("impossible de se connecter à l'hôte Docker distant : %w", err)
+	}
+	return &DockerAuditor{cli: cli}, nil
+}
+
 // Close libère les ressources du client.
 func (da *DockerAuditor) Close() error {
 	return da.cli.Close()
+}
+
+// Ping vérifie la connectivité avec le démon Docker (sert au test de connexion d'un hôte).
+func (da *DockerAuditor) Ping(ctx context.Context) error {
+	_, err := da.cli.Ping(ctx)
+	return err
+}
+
+// ImageExistsLocally indique si une image (par référence ou digest) est présente dans le démon.
+func (da *DockerAuditor) ImageExistsLocally(ctx context.Context, ref string) bool {
+	_, _, err := da.cli.ImageInspectWithRaw(ctx, ref)
+	return err == nil
+}
+
+// RemoveImageIfUnused tente de supprimer une image. Force=false : le démon Docker
+// refuse la suppression si un conteneur l'utilise (filet de sécurité). Sert à éviter
+// l'accumulation disque des images tirées lors d'audits ad-hoc.
+func (da *DockerAuditor) RemoveImageIfUnused(ctx context.Context, ref string) error {
+	_, err := da.cli.ImageRemove(ctx, ref, types.ImageRemoveOptions{Force: false, PruneChildren: true})
+	return err
 }
 
 // AuditContainers liste et inspecte tous les conteneurs pour en extraire un rapport de sécurité.

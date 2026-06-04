@@ -8,12 +8,30 @@ const TABS = [
   { id: 'notifications', label: 'Notifications',  icon: Bell },
 ];
 
-export default function AccountView() {
+const ROLE_LABEL = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
+
+export default function AccountView({ me, onChangePassword }) {
   const [activeTab, setActiveTab] = useState('infos');
   const [user, setUser] = useState({
-    username: 'Hell0W0rld', email: 'secops-admin@safedock.local',
-    fullName: 'Jean SecOps', role: 'Administrateur Principal', organization: 'SafeDock Corp'
+    username: me?.username || '', email: '',
+    fullName: me?.username || '', role: ROLE_LABEL[me?.role] || me?.role || '', organization: 'SafeDock'
   });
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwStatus, setPwStatus] = useState({ text: '', type: '' });
+
+  const changePassword = async () => {
+    if (newPw.length < 10) { setPwStatus({ text: 'Au moins 10 caractères.', type: 'error' }); return; }
+    if (newPw !== confirmPw) { setPwStatus({ text: 'Les mots de passe ne correspondent pas.', type: 'error' }); return; }
+    try {
+      await onChangePassword(curPw, newPw);
+      setCurPw(''); setNewPw(''); setConfirmPw('');
+      setPwStatus({ text: 'Mot de passe changé avec succès.', type: 'ok' });
+    } catch (err) {
+      setPwStatus({ text: err.message || 'Échec du changement.', type: 'error' });
+    }
+  };
   const [notif, setNotif] = useState({
     cveAlerts: true, statusChanges: true, deployments: false,
     secretLeaks: true, enableThreshold: true, minSeverity: 'CRITICAL'
@@ -99,17 +117,22 @@ export default function AccountView() {
           {/* ── Sécurité ── */}
           {activeTab === 'securite' && (
             <div className="space-y-3">
-              <p className="text-sm text-[#94A3B8] font-mono">Mots de passe et authentification multi-facteurs.</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Nouveau mot de passe"       type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
-                <Field label="Confirmer le mot de passe"  type="password" placeholder="••••••••••••" value="" onChange={() => {}} />
+              <p className="text-sm text-[#94A3B8] font-mono">Changer votre mot de passe.</p>
+              <div className="grid grid-cols-1 gap-3 max-w-md">
+                <Field label="Mot de passe actuel"        type="password" placeholder="••••••••••••" value={curPw}     onChange={setCurPw} />
+                <Field label="Nouveau mot de passe"       type="password" placeholder="••••••••••••" value={newPw}     onChange={setNewPw} />
+                <Field label="Confirmer le mot de passe"  type="password" placeholder="••••••••••••" value={confirmPw} onChange={setConfirmPw} />
               </div>
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
-                <div>
-                  <p className="text-sm font-semibold text-white">Validation Double Facteur (2FA / TOTP)</p>
-                  <p className="text-xs text-[#94A3B8] mt-0.5">Sécuriser l'accès avec un code temporaire sur votre appareil mobile.</p>
-                </div>
-                <ToggleSwitch checked={mfa} onChange={setMfa} />
+              {pwStatus.text && (
+                <p className={cn('text-sm font-mono', pwStatus.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>{pwStatus.text}</p>
+              )}
+              <button type="button" onClick={changePassword}
+                className="px-5 py-2 text-sm font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25 hover:bg-[#F7931A]/25 transition-all">
+                Changer le mot de passe
+              </button>
+              <div className="flex items-center gap-2 p-3.5 rounded-xl bg-[#0A0C10] border border-white/[0.06] mt-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <p className="text-xs text-[#94A3B8]">La double authentification (TOTP) est <strong className="text-white">obligatoire</strong> et déjà active sur votre compte.</p>
               </div>
             </div>
           )}

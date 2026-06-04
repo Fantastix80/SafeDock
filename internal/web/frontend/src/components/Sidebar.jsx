@@ -1,21 +1,25 @@
 import React from 'react';
 import {
   LayoutDashboard, Boxes, ShieldCheck, Server, Newspaper,
-  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw, ScanSearch
+  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw, ScanSearch, LogOut, ShieldOff, Users
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+// adminOnly : visible uniquement pour le rôle admin.
 const NAV_ITEMS = [
-  { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-  { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
-  { id: 'audit',         label: 'Audit',         icon: ScanSearch },
-  { id: 'actions',       label: 'Actions',       icon: ShieldCheck },
-  { id: 'agents',        label: 'Agents',        icon: Server },
-  { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'dashboard',     label: 'Dashboard',        icon: LayoutDashboard },
+  { id: 'containers',    label: 'Conteneurs',       icon: Boxes },
+  { id: 'audit',         label: 'Audit',            icon: ScanSearch },
+  { id: 'actions',       label: 'Actions',          icon: ShieldCheck, adminOnly: true },
+  { id: 'exceptions',    label: 'Risques acceptés',  icon: ShieldOff, adminOnly: true },
+  { id: 'agents',        label: 'Agents',           icon: Server, adminOnly: true },
+  { id: 'users',         label: 'Utilisateurs',     icon: Users, adminOnly: true },
+  { id: 'watch',         label: 'Veille SecOps',    icon: Newspaper },
+  { id: 'notifications', label: 'Notifications',    icon: Bell },
 ];
 
-export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing }) {
+export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing, onLogout, role }) {
+  const navItems = NAV_ITEMS.filter(it => !it.adminOnly || role === 'admin');
   return (
     <aside
       className={cn(
@@ -69,7 +73,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navigation">
-        {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+        {navItems.map(({ id, label, icon: Icon }) => {
           const active = activePage === id;
           return (
             <button
@@ -130,6 +134,7 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
         </button>
 
         {/* Settings */}
+        {role === 'admin' && (
         <button
           type="button"
           onClick={() => onNavigate('settings')}
@@ -149,6 +154,27 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
             isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
           )}>
             Paramètres
+          </span>
+        </button>
+        )}
+
+        {/* Logout */}
+        <button
+          type="button"
+          onClick={onLogout}
+          title={isCollapsed ? 'Déconnexion' : undefined}
+          className={cn(
+            'w-full flex items-center rounded-xl px-2.5 py-2.5',
+            'text-base font-mono font-medium transition-all duration-200',
+            'text-[#94A3B8] hover:text-red-400 hover:bg-red-500/[0.06]'
+          )}
+        >
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          <span className={cn(
+            'whitespace-nowrap overflow-hidden transition-all duration-300',
+            isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
+          )}>
+            Déconnexion
           </span>
         </button>
 

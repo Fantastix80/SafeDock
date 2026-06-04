@@ -18,7 +18,7 @@ export default function ContainerDetailView({
   containerId, containers, overrides,
   onSaveOverride, onDeleteOverride,
   onTriggerRollout, isRolloutLoading, rolloutStatusMsg,
-  onNavigate, containerTags = {}, onUpdateTags
+  onNavigate, isAdmin = false, allTags = [], onAssignTag
 }) {
   const container = containers.find(c => c.id === containerId);
   const [tab, setTab] = useState('trivy');
@@ -43,10 +43,12 @@ export default function ContainerDetailView({
 
   const [newTagInput, setNewTagInput] = useState('');
 
+  const hostParam = container && container.host_id ? `&host=${container.host_id}` : '';
+
   const fetchTrivy = () => {
     if (!containerId) return;
     setTrivyLoading(true); setTrivyError('');
-    fetch(`/api/containers/${containerId}/trivy?scanner=${ovrScanner}`)
+    fetch(`/api/containers/${containerId}/trivy?scanner=${ovrScanner}${hostParam}`)
       .then(res => { if (!res.ok) throw new Error('Erreur de scan'); return res.json(); })
       .then(data => setTrivyReport(data))
       .catch(err => setTrivyError(err.message))
@@ -56,7 +58,7 @@ export default function ContainerDetailView({
   const fetchDockle = () => {
     if (!containerId) return;
     setDockleLoading(true); setDockleError('');
-    fetch(`/api/containers/${containerId}/dockle`)
+    fetch(`/api/containers/${containerId}/dockle?host=${container && container.host_id ? container.host_id : ''}`)
       .then(res => { if (!res.ok) throw new Error('Erreur Dockle'); return res.json(); })
       .then(data => setDockleReport(data))
       .catch(err => setDockleError(err.message))
@@ -91,14 +93,14 @@ export default function ContainerDetailView({
     );
   }
 
-  const activeTags = containerTags[container.name] || container.tags || [];
+  const activeTags = container.tags || [];
   const hasOverride = !!overrides[container.name];
 
-  const handleAddTag = (e) => {
-    e.preventDefault();
-    const t = newTagInput.trim();
-    if (t && !activeTags.includes(t)) onUpdateTags(container.name, [...activeTags, t]);
-    setNewTagInput('');
+  // Bascule l'association d'un tag (admin uniquement) via l'API réelle.
+  const toggleTag = (tag) => {
+    if (!onAssignTag) return;
+    const action = activeTags.includes(tag.name) ? 'unassign' : 'assign';
+    onAssignTag(action, tag.id, container.host_id, container.name);
   };
 
   const handleSortCVE = (field) => {
@@ -480,35 +482,38 @@ export default function ContainerDetailView({
                 Seuils de tolérance et configuration du scanner pour ce conteneur.
               </p>
 
-              {/* Tag Manager */}
+              {/* Tag Manager — association réelle des tags (admin). Restreint la visibilité par portée. */}
               <div className="p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-2">
                 <p className="font-mono text-xs font-semibold text-white flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#F7931A]" /> Gestion des Tags
+                  <Tag className="w-3.5 h-3.5 text-[#F7931A]" /> Tags du conteneur
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {activeTags.length === 0
-                    ? <p className="font-mono text-xs text-[#94A3B8]/40 italic">Aucun tag associé.</p>
-                    : activeTags.map((t, i) => (
-                      <span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#F7931A]/10 text-[#F7931A] border border-[#F7931A]/20 text-xs font-semibold font-mono">
-                        {t}
-                        <button type="button" onClick={() => onUpdateTags(container.name, activeTags.filter(x => x !== t))}>
-                          <X className="w-2.5 h-2.5 hover:text-red-400 transition-colors" />
-                        </button>
-                      </span>
-                    ))
-                  }
-                </div>
-                <form onSubmit={handleAddTag} className="flex gap-2">
-                  <input
-                    className={cn(inputClass, 'flex-1')}
-                    placeholder="Nouveau tag..."
-                    value={newTagInput}
-                    onChange={e => setNewTagInput(e.target.value)}
-                  />
-                  <button type="submit" className="px-2.5 py-1.5 text-xs rounded-xl bg-white/[0.05] text-[#94A3B8] hover:text-white hover:bg-white/[0.09] transition-colors font-mono">
-                    Ajouter
-                  </button>
-                </form>
+                {!isAdmin ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeTags.length === 0
+                      ? <p className="font-mono text-xs text-[#94A3B8]/40 italic">Aucun tag associé.</p>
+                      : activeTags.map((t, i) => (
+                        <span key={i} className="px-1.5 py-0.5 rounded-md bg-[#F7931A]/10 text-[#F7931A] border border-[#F7931A]/20 text-xs font-semibold font-mono">{t}</span>
+                      ))}
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-mono text-xs text-[#94A3B8]/50">Cliquez pour associer/dissocier un tag :</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allTags.length === 0
+                        ? <p className="font-mono text-xs text-[#94A3B8]/40 italic">Aucun tag défini. Créez-en dans « Utilisateurs ».</p>
+                        : allTags.map(t => {
+                          const on = activeTags.includes(t.name);
+                          return (
+                            <button key={t.id} type="button" onClick={() => toggleTag(t)}
+                              className={cn('px-2 py-0.5 rounded-md text-xs font-semibold font-mono border transition-colors',
+                                on ? 'bg-[#F7931A]/15 text-[#F7931A] border-[#F7931A]/30' : 'bg-white/[0.04] text-[#94A3B8] border-white/[0.08] hover:text-white')}>
+                              {on ? '✓ ' : '+ '}{t.name}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
               </div>
 
               {[

@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, ShieldHalf, Settings2, Key, Users, Server, Building2, CheckCircle2, XCircle, Lock } from 'lucide-react';
+import { Mail, ShieldHalf, Settings2, Key, Server, Building2, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
-import PermissionsView from './PermissionsView';
 
+// La gestion des comptes et des permissions vit désormais dans la page « Utilisateurs ».
 const TABS = [
   { id: 'smtp',        label: 'SMTP / Alertes',      icon: Mail,       group: 'Base' },
   { id: 'seuils',      label: 'Seuils SecOps',        icon: ShieldHalf, group: 'Base' },
   { id: 'prefs',       label: 'Préférences',          icon: Settings2,  group: 'Base' },
   { id: 'registries',  label: 'Registres Privés',     icon: Key,        group: 'Admin' },
-  { id: 'users',       label: 'Utilisateurs',         icon: Users,      group: 'Admin' },
   { id: 'agents',      label: 'Multi-Hôtes',          icon: Server,     group: 'Admin' },
   { id: 'security',    label: 'Sécurité Entreprise',  icon: Building2,  group: 'Admin' },
-  { id: 'permissions', label: 'Permissions',          icon: Lock,       group: 'Admin' },
 ];
 
-export default function SettingsView({ config, registries, onSaveGlobalSettings, onAddRegistry, onDeleteRegistry, simulatedUsers, setSimulatedUsers, activeUserProfile, setActiveUserProfile }) {
+export default function SettingsView({ config, registries, onSaveGlobalSettings, onAddRegistry, onDeleteRegistry }) {
   const [tab, setTab] = useState('smtp');
   const [severity, setSeverity] = useState('HIGH');
   const [allowRoot, setAllowRoot] = useState(false);
@@ -416,18 +414,8 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
           </>
         )}
 
-        {/* Permissions */}
-        {tab === 'permissions' && (
-          <PermissionsView
-            simulatedUsers={simulatedUsers}
-            setSimulatedUsers={setSimulatedUsers}
-            activeUserProfile={activeUserProfile}
-            setActiveUserProfile={setActiveUserProfile}
-          />
-        )}
-
         {/* Status footer */}
-        {status && tab !== 'permissions' && (
+        {status && (
           <p className="text-xs text-emerald-400 font-mono font-medium pt-2 border-t border-white/[0.06]">{status}</p>
         )}
       </div>

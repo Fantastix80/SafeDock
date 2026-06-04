@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/safedock/safedock/internal/db"
 )
 
 // RegistryClient gère l'interaction avec les API de Registres Docker V2.
@@ -66,9 +69,59 @@ func ResolveImageName(fullImageName string) ImageInfo {
 	}
 }
 
+// normalizeHost ramène un hôte de registre à une forme comparable (sans schéma ni slash final),
+// en unifiant les nombreux alias de Docker Hub.
+func normalizeHost(h string) string {
+	h = strings.TrimSpace(strings.ToLower(h))
+	h = strings.TrimPrefix(h, "https://")
+	h = strings.TrimPrefix(h, "http://")
+	h = strings.TrimSuffix(h, "/")
+	switch h {
+	case "docker.io", "index.docker.io", "index.docker.io/v1", "registry.docker.io":
+		return "registry-1.docker.io"
+	}
+	return h
+}
+
+// credsForHost cherche en base des identifiants correspondant à l'hôte de registre donné.
+func (rc *RegistryClient) credsForHost(host string) (user, pass string, ok bool) {
+	list, err := db.GetRegistries()
+	if err != nil {
+		return "", "", false
+	}
+	target := normalizeHost(host)
+	for _, c := range list {
+		if normalizeHost(c.ServerAddress) == target {
+			return c.Username, c.Password, c.Password != "" || c.Username != ""
+		}
+	}
+	return "", "", false
+}
+
+// EncodedAuthForImage retourne l'en-tête RegistryAuth (base64 d'un AuthConfig JSON)
+// à passer à ImagePull pour un registre privé. ok=false si aucun identifiant n'est connu.
+func (rc *RegistryClient) EncodedAuthForImage(fullImageName string) (string, bool) {
+	img := ResolveImageName(fullImageName)
+	user, pass, ok := rc.credsForHost(img.Registry)
+	if !ok {
+		return "", false
+	}
+	authConfig := map[string]string{
+		"username":      user,
+		"password":      pass,
+		"serveraddress": img.Registry,
+	}
+	raw, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", false
+	}
+	return base64.URLEncoding.EncodeToString(raw), true
+}
+
 // FetchRemoteDigest interroge le registre distant pour récupérer le Digest SHA256 associé au Tag.
 func (rc *RegistryClient) FetchRemoteDigest(ctx context.Context, fullImageName string) (string, error) {
 	img := ResolveImageName(fullImageName)
+	regUser, regPass, hasCreds := rc.credsForHost(img.Registry)
 
 	// URL de l'API Registry V2 pour le manifeste
 	scheme := "https"
@@ -94,18 +147,25 @@ func (rc *RegistryClient) FetchRemoteDigest(ctx context.Context, fullImageName s
 
 	// 3. Gestion de l'Authentification si retour 401
 	if resp.StatusCode == http.StatusUnauthorized {
-		token, err := rc.getBearerToken(ctx, resp.Header.Get("Www-Authenticate"))
-		if err != nil {
-			return "", fmt.Errorf("authentification échouée au registre : %w", err)
-		}
+		wwwAuth := resp.Header.Get("Www-Authenticate")
 
-		// On ré-émet la requête avec le Bearer Token
 		req, err = http.NewRequestWithContext(ctx, "HEAD", manifestURL, nil)
 		if err != nil {
 			return "", err
 		}
 		req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json")
-		req.Header.Set("Authorization", "Bearer "+token)
+
+		if strings.HasPrefix(wwwAuth, "Basic") && hasCreds {
+			// Registre en authentification Basic directe (registres privés simples).
+			req.SetBasicAuth(regUser, regPass)
+		} else {
+			// Flux à jeton Bearer (Docker Hub, GHCR, GitLab…), avec identifiants si disponibles.
+			token, terr := rc.getBearerToken(ctx, wwwAuth, regUser, regPass, hasCreds)
+			if terr != nil {
+				return "", fmt.Errorf("authentification échouée au registre : %w", terr)
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
 
 		resp, err = rc.client.Do(req)
 		if err != nil {
@@ -139,7 +199,9 @@ type tokenResponse struct {
 }
 
 // getBearerToken effectue la requête d'authentification Bearer auprès du realm retourné par le 401.
-func (rc *RegistryClient) getBearerToken(ctx context.Context, wwwAuthenticateHeader string) (string, error) {
+// Si des identifiants sont fournis (hasCreds), ils sont présentés en Basic auth à l'endpoint de token
+// pour obtenir un jeton avec les droits de pull sur un dépôt privé.
+func (rc *RegistryClient) getBearerToken(ctx context.Context, wwwAuthenticateHeader, user, pass string, hasCreds bool) (string, error) {
 	if wwwAuthenticateHeader == "" {
 		return "", fmt.Errorf("en-tête Www-Authenticate manquant")
 	}
@@ -188,6 +250,11 @@ func (rc *RegistryClient) getBearerToken(ctx context.Context, wwwAuthenticateHea
 	req, err := http.NewRequestWithContext(ctx, "GET", authURL.String(), nil)
 	if err != nil {
 		return "", err
+	}
+
+	// Identifiants présentés à l'endpoint de token pour accéder aux dépôts privés.
+	if hasCreds {
+		req.SetBasicAuth(user, pass)
 	}
 
 	resp, err := rc.client.Do(req)

@@ -13,23 +13,32 @@ import ContainerSettingsView from './components/ContainerSettingsView';
 import ActionsView from './components/ActionsView';
 import AgentsView from './components/AgentsView';
 import ContainerDetailView from './components/ContainerDetailView';
-import PermissionsView from './components/PermissionsView';
 import AuditView from './components/AuditView';
+import LoginView from './components/LoginView';
+import ExceptionsView from './components/ExceptionsView';
+import UsersView from './components/UsersView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'audit', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions'];
+    const validPages = ['dashboard', 'containers', 'audit', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions', 'exceptions', 'users'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
   };
 
+  const [authed, setAuthed] = useState(null); // null = vérification en cours, false = login, true = app
+  const [me, setMe] = useState(null);         // profil courant (rôle, username, portée)
   const [activePage, setActivePage] = useState(getPageFromPathname());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [containers, setContainers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [registries, setRegistries] = useState([]);
+  const [exceptions, setExceptions] = useState([]);
+  const [hosts, setHosts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [tags, setTags] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [overrides, setOverrides] = useState({});
   const [config, setConfig] = useState(null);
   
@@ -38,57 +47,10 @@ export default function App() {
   const [isRolloutLoading, setIsRolloutLoading] = useState(false);
   const [rolloutStatusMsg, setRolloutStatusMsg] = useState({ text: '', type: '' });
 
-  // Custom container tags state
-  const [containerTags, setContainerTags] = useState(() => {
-    const saved = localStorage.getItem('safedock-custom-tags');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  // Simulated users & active user profile for scoping data permissions
-  const [simulatedUsers, setSimulatedUsers] = useState(() => {
-    const saved = localStorage.getItem('safedock-simulated-users');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 1, name: 'Jean Admin', role: 'Admin', scopeType: 'all', scopeValue: null, desc: 'Accès complet à l\'infrastructure' },
-      { id: 2, name: 'Alice Dev', role: 'Lecteur', scopeType: 'tags', scopeValue: ['Staging', 'Dev'], desc: 'Limité aux tags Staging et Dev' },
-      { id: 3, name: 'Bob Auditor', role: 'Auditeur', scopeType: 'hosts', scopeValue: ['db-node-02'], desc: 'Limité à l\'hôte db-node-02' },
-      { id: 4, name: 'Charlie External', role: 'Lecteur', scopeType: 'hybrid', scopeValue: { host: 'prod-swarm-01', tag: 'Web' }, desc: 'Limité aux conteneurs Web de prod-swarm-01' }
-    ];
-  });
-
-  const [activeUserProfile, setActiveUserProfile] = useState(() => {
-    const saved = localStorage.getItem('safedock-active-user');
-    return saved ? JSON.parse(saved) : { id: 1, name: 'Jean Admin', role: 'Admin', scopeType: 'all', scopeValue: null, desc: 'Accès complet à l\'infrastructure' };
-  });
-
-  const handleUpdateContainerTags = (containerName, newTags) => {
-    setContainerTags(prev => {
-      const updated = { ...prev, [containerName]: newTags };
-      localStorage.setItem('safedock-custom-tags', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const getScopedContainers = () => {
-    return containers.filter(c => {
-      if (activeUserProfile.scopeType === 'all') return true;
-      if (activeUserProfile.scopeType === 'tags') {
-        const allowedTags = activeUserProfile.scopeValue;
-        return (c.tags || []).some(tag => allowedTags.includes(tag));
-      }
-      if (activeUserProfile.scopeType === 'hosts') {
-        const allowedHosts = activeUserProfile.scopeValue;
-        return allowedHosts.includes(c.host_name);
-      }
-      if (activeUserProfile.scopeType === 'hybrid') {
-        const { host, tag } = activeUserProfile.scopeValue;
-        return c.host_name === host && (c.tags || []).includes(tag);
-      }
-      return true;
-    });
-  };
-
-  const scopedContainers = getScopedContainers();
+  // La portée (RBAC) est désormais appliquée côté serveur : /api/containers ne renvoie
+  // que les conteneurs visibles par l'utilisateur courant, avec leurs vrais tags.
+  const scopedContainers = containers;
+  const isAdmin = me?.role === 'admin';
 
   const [stats, setStats] = useState({
     total: 0,
@@ -148,30 +110,52 @@ export default function App() {
       globalGrade: globalGrade,
       globalScore: avgScore
     });
-  }, [containers, activeUserProfile]);
+  }, [containers]);
 
-  // Load theme and initial data on mount
+  const checkSession = () => {
+    return fetch('/api/session')
+      .then(res => res.json())
+      .then(data => {
+        setMe(data.authenticated ? data : null);
+        setAuthed(!!data.authenticated);
+      })
+      .catch(() => setAuthed(false));
+  };
+
+  // Theme + routing + vérification de session au montage
   useEffect(() => {
     document.documentElement.classList.add('dark');
-    fetchAllData();
-
-    // Listen to popstate event for HTML5 History routing
-    const handlePopState = () => {
-      setActivePage(getPageFromPathname());
-    };
+    checkSession();
+    const handlePopState = () => setActivePage(getPageFromPathname());
     window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
-    // Set up polling interval to keep dashboard fresh (every 10 seconds)
+  // Chargement des données + polling, uniquement une fois authentifié
+  useEffect(() => {
+    if (authed !== true) return;
+
+    fetchAllData();
     const interval = setInterval(() => {
       fetchContainers();
       fetchAuditLogs();
     }, 10000);
 
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      clearInterval(interval);
-    };
-  }, []);
+    return () => clearInterval(interval);
+  }, [authed]);
+
+  const handleLogout = () => {
+    fetch('/api/logout', { method: 'POST' }).finally(() => setAuthed(false));
+  };
+
+  // Centralise la détection d'expiration de session : tout 401 renvoie à l'écran de connexion.
+  const handleJson = (res) => {
+    if (res.status === 401) {
+      setAuthed(false);
+      throw new Error('Session expirée');
+    }
+    return res.json();
+  };
 
   // Asynchronous API Fetchers
   const fetchAllData = () => {
@@ -180,18 +164,111 @@ export default function App() {
     fetchAuditLogs();
     fetchRegistries();
     fetchContainerOverrides();
+    fetchExceptions();
+    fetchTags();
+    fetchAssignments();
+    if (me?.role === 'admin') {
+      fetchHosts();
+      fetchUsers();
+    }
+  };
+
+  const fetchTags = () => fetch('/api/tags').then(handleJson).then(d => setTags(d || [])).catch(() => {});
+  const fetchAssignments = () => fetch('/api/tags/assignments').then(handleJson).then(d => setAssignments(d || [])).catch(() => {});
+  const fetchUsers = () => fetch('/api/users').then(handleJson).then(d => setUsers(d || [])).catch(() => {});
+
+  // ── Handlers utilisateurs (admin) ──
+  const apiPost = (url, body) => fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+  }).then(async res => { if (!res.ok) throw new Error(await res.text()); return res; });
+
+  const handleCreateUser = (u) => apiPost('/api/users', u).then(fetchUsers);
+  const handleDeleteUser = (id) => apiPost('/api/users/delete', { id }).then(fetchUsers);
+  const handleSetRole = (id, role) => apiPost('/api/users/role', { id, role }).then(fetchUsers);
+  const handleResetPassword = (id, new_password) => apiPost('/api/users/password', { id, new_password });
+  const handleResetMFA = (id) => apiPost('/api/users/reset-mfa', { id }).then(fetchUsers);
+  const handleSetScope = (id, payload) => apiPost('/api/users/scope', { id, ...payload }).then(fetchUsers);
+
+  // ── Handlers tags (admin) ──
+  const handleCreateTag = (name) => apiPost('/api/tags', { name }).then(fetchTags);
+  const handleDeleteTag = (id) => apiPost('/api/tags/delete', { id }).then(() => { fetchTags(); fetchAssignments(); fetchContainers(); });
+  const handleAssignTag = (action, tag_id, host_id, container_name) =>
+    apiPost('/api/tags/assignments', { action, tag_id, host_id, container_name }).then(() => { fetchAssignments(); fetchContainers(); });
+
+  // ── Changement de mot de passe (self) ──
+  const handleChangePassword = (current_password, new_password) =>
+    apiPost('/api/account/password', { current_password, new_password });
+
+  const fetchHosts = () => {
+    return fetch('/api/hosts')
+      .then(handleJson)
+      .then(data => setHosts(data || []))
+      .catch(err => console.error("Error fetching hosts:", err));
+  };
+
+  const handleAddHost = (payload) => {
+    return fetch('/api/hosts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    }).then(async res => {
+      if (!res.ok) throw new Error(await res.text());
+      return fetchHosts();
+    });
+  };
+
+  const handleDeleteHost = (id) => {
+    return fetch('/api/hosts/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
+    }).then(async res => {
+      if (!res.ok) throw new Error(await res.text());
+      return fetchHosts();
+    });
+  };
+
+  const handleTestHost = (payload) => {
+    return fetch('/api/hosts/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    }).then(handleJson);
+  };
+
+  const fetchExceptions = () => {
+    return fetch('/api/exceptions')
+      .then(handleJson)
+      .then(data => setExceptions(data || []))
+      .catch(err => console.error("Error fetching exceptions:", err));
+  };
+
+  const handleAddException = (cveId, containerName, reason, expiresAt) => {
+    return fetch('/api/exceptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cve_id: cveId, container_name: containerName, reason, expires_at: expiresAt }),
+    }).then(async res => {
+      if (!res.ok) throw new Error(await res.text());
+      return fetchExceptions();
+    });
+  };
+
+  const handleDeleteException = (id) => {
+    return fetch('/api/exceptions/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).then(res => {
+      if (!res.ok) throw new Error("Erreur suppression exception");
+      return fetchExceptions();
+    });
   };
 
   const fetchConfig = () => {
     return fetch('/api/config')
-      .then(res => res.json())
+      .then(handleJson)
       .then(data => setConfig(data))
       .catch(err => console.error("Error fetching config:", err));
   };
 
   const fetchContainers = () => {
     return fetch('/api/containers')
-      .then(res => res.json())
+      .then(handleJson)
       .then(data => {
         const processed = (data || []).map(c => {
           const non_root = !c.is_root;
@@ -214,67 +291,17 @@ export default function App() {
           
           const update_available = !c.tag_pinned && (c.image_tag === 'latest' || c.image_tag === 'dev');
 
-          // Determine Host Name and Tags for Multi-Host visual representation
-          let host_name = 'prod-swarm-01';
-          let tags = ['Production', 'Web'];
+          // Hôte réel + tags réels fournis par le backend (plus aucune fabrication).
+          const host_name = c.host_name || 'Hôte local';
+          const tags = c.tags || [];
           
-          const nameLower = (c.name || '').toLowerCase();
-          if (nameLower.includes('db') || nameLower.includes('redis') || nameLower.includes('postgres') || nameLower.includes('sql')) {
-            host_name = 'db-node-02';
-            tags = ['Database', 'Critical', 'Back-End'];
-          } else if (nameLower.includes('gateway') || nameLower.includes('payment') || nameLower.includes('api')) {
-            host_name = 'prod-swarm-01';
-            tags = ['Production', 'API', 'Gateway'];
-          } else if (nameLower.includes('test') || nameLower.includes('dev') || nameLower.includes('demo')) {
-            host_name = 'stage-aws-us-east';
-            tags = ['Staging', 'Dev', 'Internal'];
-          } else if (nameLower.includes('backup') || nameLower.includes('cron')) {
-            host_name = 'edge-node-02';
-            tags = ['Backup', 'Cron', 'System'];
-          } else {
-          // Assign random/default hosts based on ID
-            const hosts = ['prod-swarm-01', 'db-node-02', 'stage-aws-us-east', 'edge-node-02'];
-            const idCode = c.id ? c.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
-            host_name = hosts[idCode % hosts.length] || 'prod-swarm-01';
-            tags = ['App', 'Docker'];
-          }
-
-          // Apply user custom tags override
-          if (containerTags[c.name]) {
-            tags = containerTags[c.name];
-          }
-          
-          let cve_critical = 0;
-          let cve_high = 0;
-          let cve_medium = 0;
-          let cve_low = 0;
-
-          if (score < 40) {
-            cve_critical = 2;
-            cve_high = 5;
-            cve_medium = 8;
-            cve_low = 12;
-          } else if (score < 60) {
-            cve_critical = 0;
-            cve_high = 3;
-            cve_medium = 6;
-            cve_low = 10;
-          } else if (score < 75) {
-            cve_critical = 0;
-            cve_high = 1;
-            cve_medium = 4;
-            cve_low = 8;
-          } else if (score < 90) {
-            cve_critical = 0;
-            cve_high = 0;
-            cve_medium = 2;
-            cve_low = 5;
-          } else {
-            cve_critical = 0;
-            cve_high = 0;
-            cve_medium = 0;
-            cve_low = 1;
-          }
+          // Compteurs CVE : données réelles fournies par le backend depuis le cache de scans.
+          // Un conteneur jamais scanné a scanned=false et des compteurs à 0 (aucune donnée inventée).
+          const scanned = !!c.scanned;
+          const cve_critical = c.cve_critical || 0;
+          const cve_high = c.cve_high || 0;
+          const cve_medium = c.cve_medium || 0;
+          const cve_low = c.cve_low || 0;
 
           return {
             ...c,
@@ -285,6 +312,7 @@ export default function App() {
             update_available,
             host_name,
             tags,
+            scanned,
             cve_critical,
             cve_high,
             cve_medium,
@@ -298,21 +326,21 @@ export default function App() {
 
   const fetchAuditLogs = () => {
     return fetch('/api/audit-logs')
-      .then(res => res.json())
+      .then(handleJson)
       .then(data => setAuditLogs(data || []))
       .catch(err => console.error("Error fetching audit logs:", err));
   };
 
   const fetchRegistries = () => {
     return fetch('/api/registries')
-      .then(res => res.json())
+      .then(handleJson)
       .then(data => setRegistries(data || []))
       .catch(err => console.error("Error fetching registries:", err));
   };
 
   const fetchContainerOverrides = () => {
     return fetch('/api/containers/settings')
-      .then(res => res.json())
+      .then(handleJson)
       .then(data => setOverrides(data || {}))
       .catch(err => console.error("Error fetching overrides:", err));
   };
@@ -397,21 +425,24 @@ export default function App() {
 
   const handleTriggerRollout = (containerId, containerName) => {
     setIsRolloutLoading(true);
-    setRolloutStatusMsg({ text: "Recherche de mise à jour distante...", type: "success" });
+    setRolloutStatusMsg({ text: "Recherche de mise à jour distante et analyse SecOps...", type: "success" });
 
-    fetch('/api/containers/rollout', {
+    const target = containers.find(c => c.id === containerId);
+    const hostQ = target && target.host_id ? `?host=${target.host_id}` : '';
+
+    fetch(`/api/containers/${containerId}/update${hostQ}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: containerId, action: 'recreate' })
+      headers: { 'Content-Type': 'application/json' }
     })
-      .then(res => {
+      .then(async res => {
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          return res.text().then(text => { throw new Error(text); });
+          throw new Error(data.error || `Erreur serveur (HTTP ${res.status})`);
         }
-        return res.json();
+        return data;
       })
       .then(data => {
-        setRolloutStatusMsg({ text: `Pivot de déploiement réussi : ${data.message || 'Conteneur recréé avec succès.'}`, type: 'success' });
+        setRolloutStatusMsg({ text: data.message || 'Opération terminée.', type: 'success' });
         fetchAllData();
       })
       .catch(err => {
@@ -442,6 +473,14 @@ export default function App() {
 
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
 
+  // Gate d'authentification
+  if (authed === null) {
+    return <div className="flex items-center justify-center min-h-screen bg-[#030304] text-[#94A3B8] font-mono text-sm">Chargement…</div>;
+  }
+  if (authed === false) {
+    return <LoginView onSuccess={checkSession} />;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#030304]">
       <Sidebar
@@ -451,6 +490,8 @@ export default function App() {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onRefresh={handleRefreshAll}
         isRefreshing={isRefreshing}
+        onLogout={handleLogout}
+        role={me?.role}
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -485,6 +526,15 @@ export default function App() {
             <AuditView />
           )}
 
+          {activePage === 'exceptions' && (
+            <ExceptionsView
+              exceptions={exceptions}
+              containers={scopedContainers}
+              onAdd={handleAddException}
+              onDelete={handleDeleteException}
+            />
+          )}
+
           {activePage === 'actions' && (
             <ActionsView
               containers={scopedContainers}
@@ -494,7 +544,15 @@ export default function App() {
           )}
 
           {activePage === 'agents' && (
-            <AgentsView />
+            isAdmin ? (
+              <AgentsView
+                hosts={hosts}
+                containers={containers}
+                onAddHost={handleAddHost}
+                onDeleteHost={handleDeleteHost}
+                onTestHost={handleTestHost}
+              />
+            ) : <AccessDenied />
           )}
 
           {activePage === 'watch' && (
@@ -506,36 +564,38 @@ export default function App() {
           )}
 
           {activePage === 'account' && (
-            <AccountView />
+            <AccountView me={me} onChangePassword={handleChangePassword} />
           )}
 
-          {activePage === 'permissions' && (
-            <PermissionsView
-              simulatedUsers={simulatedUsers}
-              setSimulatedUsers={setSimulatedUsers}
-              activeUserProfile={activeUserProfile}
-              setActiveUserProfile={(prof) => {
-                setActiveUserProfile(prof);
-                localStorage.setItem('safedock-active-user', JSON.stringify(prof));
-              }}
-            />
+          {(activePage === 'permissions' || activePage === 'users') && (
+            isAdmin ? (
+              <UsersView
+                me={me}
+                users={users}
+                tags={tags}
+                hosts={hosts}
+                onCreateUser={handleCreateUser}
+                onDeleteUser={handleDeleteUser}
+                onSetRole={handleSetRole}
+                onResetPassword={handleResetPassword}
+                onResetMFA={handleResetMFA}
+                onSetScope={handleSetScope}
+                onCreateTag={handleCreateTag}
+                onDeleteTag={handleDeleteTag}
+              />
+            ) : <AccessDenied />
           )}
 
           {activePage === 'settings' && (
-            <SettingsView
-              config={config}
-              registries={registries}
-              onSaveGlobalSettings={handleSaveGlobalSettings}
-              onAddRegistry={handleAddRegistry}
-              onDeleteRegistry={handleDeleteRegistry}
-              simulatedUsers={simulatedUsers}
-              setSimulatedUsers={setSimulatedUsers}
-              activeUserProfile={activeUserProfile}
-              setActiveUserProfile={(prof) => {
-                setActiveUserProfile(prof);
-                localStorage.setItem('safedock-active-user', JSON.stringify(prof));
-              }}
-            />
+            isAdmin ? (
+              <SettingsView
+                config={config}
+                registries={registries}
+                onSaveGlobalSettings={handleSaveGlobalSettings}
+                onAddRegistry={handleAddRegistry}
+                onDeleteRegistry={handleDeleteRegistry}
+              />
+            ) : <AccessDenied />
           )}
 
           {activePage === 'container-settings' && (
@@ -560,8 +620,10 @@ export default function App() {
               isRolloutLoading={isRolloutLoading}
               rolloutStatusMsg={rolloutStatusMsg}
               onNavigate={handleNavigate}
-              containerTags={containerTags}
-              onUpdateTags={handleUpdateContainerTags}
+              isAdmin={isAdmin}
+              role={me?.role}
+              allTags={tags}
+              onAssignTag={handleAssignTag}
             />
           )}
 
@@ -571,6 +633,15 @@ export default function App() {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <div className="card p-10 text-center">
+      <p className="font-heading text-base font-semibold text-white">Accès refusé</p>
+      <p className="text-sm text-[#94A3B8] mt-2 font-mono">Cette section est réservée aux administrateurs.</p>
     </div>
   );
 }

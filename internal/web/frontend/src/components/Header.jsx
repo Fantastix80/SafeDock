@@ -14,6 +14,7 @@ const PAGE_META = {
   permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
   'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
   'audit':               { title: 'Audit d\'Image',            desc: 'Analysez n\'importe quelle image Docker avant déploiement' },
+  exceptions:            { title: 'Risques acceptés',          desc: 'CVE tolérées : visibles mais ne bloquant pas les déploiements' },
   '404':                 { title: 'Ressource introuvable',     desc: "La page demandée n'existe pas" },
 };
 

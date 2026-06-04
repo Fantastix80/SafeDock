@@ -2,8 +2,12 @@ package deployer
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -25,13 +29,53 @@ type LifecycleOrchestrator struct {
 	cfg      *config.Config
 }
 
-// NewLifecycleOrchestrator initialise l'orchestrateur.
+// NewLifecycleOrchestrator initialise l'orchestrateur pour l'hôte Docker local.
 func NewLifecycleOrchestrator(cfg *config.Config) (*LifecycleOrchestrator, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("erreur initialisation client Docker : %w", err)
 	}
 
+	return &LifecycleOrchestrator{
+		cli:    cli,
+		regCli: registry.NewRegistryClient(),
+		cfg:    cfg,
+	}, nil
+}
+
+// NewLifecycleOrchestratorFor initialise l'orchestrateur pour un hôte Docker donné.
+// endpoint vide → hôte local ; sinon connexion distante avec TLS mutuel optionnel.
+func NewLifecycleOrchestratorFor(cfg *config.Config, endpoint, caPEM, certPEM, keyPEM string) (*LifecycleOrchestrator, error) {
+	if endpoint == "" {
+		return NewLifecycleOrchestrator(cfg)
+	}
+
+	opts := []client.Opt{
+		client.WithHost(endpoint),
+		client.WithAPIVersionNegotiation(),
+	}
+	if certPEM != "" && keyPEM != "" {
+		cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
+		if err != nil {
+			return nil, fmt.Errorf("certificat/clé TLS client invalide : %w", err)
+		}
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+		if caPEM != "" {
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM([]byte(caPEM)) {
+				return nil, fmt.Errorf("CA TLS illisible")
+			}
+			tlsConfig.RootCAs = pool
+		}
+		opts = append(opts, client.WithHTTPClient(&http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		}))
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("erreur initialisation client Docker distant : %w", err)
+	}
 	return &LifecycleOrchestrator{
 		cli:    cli,
 		regCli: registry.NewRegistryClient(),
@@ -46,11 +90,13 @@ func (lo *LifecycleOrchestrator) Close() error {
 
 // CheckAndUpdateContainer verifie si une mise à jour est disponible pour le conteneur donné.
 // Si oui, il exécute la batterie SecOps et réalise un redéploiement transactionnel sécurisé.
-func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, containerID string) error {
+// Retourne (updated, error) : updated=true seulement si un nouveau conteneur a été déployé.
+// updated=false avec error=nil signifie « déjà à jour, rien à faire ».
+func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, containerID string) (bool, error) {
 	// 1. Inspection du conteneur actuel
 	inspect, err := lo.cli.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return fmt.Errorf("impossible d'inspecter le conteneur : %w", err)
+		return false, fmt.Errorf("impossible d'inspecter le conteneur : %w", err)
 	}
 
 	containerName := strings.TrimPrefix(inspect.Name, "/")
@@ -67,7 +113,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	// 2. Récupération du Digest distant depuis le registre
 	remoteDigest, err := lo.regCli.FetchRemoteDigest(ctx, originalImage)
 	if err != nil {
-		return fmt.Errorf("impossible de requêter le registre distant : %w", err)
+		return false, fmt.Errorf("impossible de requêter le registre distant : %w", err)
 	}
 
 	// 3. Comparaison avec le Digest local actuel
@@ -77,7 +123,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 
 	if localDigest == remoteDigest || strings.HasSuffix(localDigest, remoteDigest) {
 		fmt.Printf("   ✅ [CYCLE %s] Le conteneur est à jour (Digests identiques).\n", containerName)
-		return nil
+		return false, nil
 	}
 
 	fmt.Printf("   🚨 [CYCLE %s] Nouvelle version détectée sur le registre !\n", containerName)
@@ -87,27 +133,50 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	fullNewImage := fmt.Sprintf("%s@%s", imageNameWithoutDigest, remoteDigest)
 	fmt.Printf("   ├─ Téléchargement (Pull) de l'image de Staging : %s...\n", fullNewImage)
 	
-	pullReader, err := lo.cli.ImagePull(ctx, fullNewImage, types.ImagePullOptions{})
+	pullOpts := types.ImagePullOptions{}
+	if encodedAuth, ok := lo.regCli.EncodedAuthForImage(fullNewImage); ok {
+		// Registre privé : on injecte les identifiants stockés (déchiffrés) pour le pull.
+		pullOpts.RegistryAuth = encodedAuth
+	}
+	pullReader, err := lo.cli.ImagePull(ctx, fullNewImage, pullOpts)
 	if err != nil {
-		return fmt.Errorf("échec du téléchargement de l'image de Staging : %w", err)
+		return false, fmt.Errorf("échec du téléchargement de l'image de Staging : %w", err)
 	}
 	// Lecture obligatoire du flux pour finaliser le téléchargement
 	_, _ = io.Copy(io.Discard, pullReader)
 	pullReader.Close()
 	fmt.Println("   ├─ Image téléchargée avec succès. Début des scans...")
 
+	// Nettoyage immédiat à la fin de cette fonction pour tous les chemins d'échec.
+	// deployed passe à true uniquement si le pivot réussit ; dans tous les autres
+	// cas (erreur de scan, rejet SecOps, crash + rollback), defer supprime l'image.
+	deployed := false
+	defer func() {
+		if !deployed {
+			lo.cleanupStagingImage(fullNewImage)
+		}
+	}()
+
 	// 5. Batterie SecOps : Scan de vulnérabilités (Trivy)
 	fmt.Println("   ├─ Lancement du scan de vulnérabilités Trivy...")
 	trivyReport, err := secops.ScanImage(ctx, fullNewImage)
 	if err != nil {
-		return fmt.Errorf("échec du scan Trivy sur l'image de Staging : %w", err)
+		return false, fmt.Errorf("échec du scan Trivy sur l'image de Staging : %w", err)
 	}
 	
-	// Évaluation de la conformité Trivy
+	// Évaluation de la conformité Trivy (compteurs bruts, pour les logs et notifications).
 	critCount := trivyReport.Summary.Critical
 	highCount := trivyReport.Summary.High
-	fmt.Printf("   │  ├─ Failles Trivy détectées : %d Critiques, %d Hautes, %d Moyennes\n", 
+	fmt.Printf("   │  ├─ Failles Trivy détectées : %d Critiques, %d Hautes, %d Moyennes\n",
 		critCount, highCount, trivyReport.Summary.Medium)
+
+	// Risques acceptés : on exclut les CVE explicitement tolérées (et non expirées) du verdict.
+	// Les compteurs effectifs servent à la décision de blocage ; les bruts restent affichés.
+	exceptedSet, _ := db.GetActiveExceptedCVEs(containerName)
+	effCrit, effHigh, effMed, effLow, effUnknown := effectiveCounts(trivyReport, exceptedSet)
+	if waived := (critCount - effCrit) + (highCount - effHigh); waived > 0 {
+		fmt.Printf("   │  ℹ️  %d vulnérabilité(s) critiques/hautes tolérée(s) par exception (risque accepté).\n", waived)
+	}
 
 	// Décision automatique de sécurité avec prise en compte des surcharges par conteneur
 	isSecOpsApproved := true
@@ -151,35 +220,31 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		secopsReason = "Le conteneur s'exécute en mode privilégié, ce qui n'est pas autorisé par vos règles de sécurité."
 	}
 
-	// 5c. Validation SecOps : Règle CVE Sévérités
+	// 5c. Validation SecOps : Règle CVE Sévérités (sur compteurs effectifs, hors risques acceptés)
 	if isSecOpsApproved {
-		medCount := trivyReport.Summary.Medium
-		lowCount := trivyReport.Summary.Low
-		unknownCount := trivyReport.Summary.Unknown
-
 		switch maxSev {
 		case "CRITICAL":
-			if critCount > 0 {
+			if effCrit > 0 {
 				isSecOpsApproved = false
-				secopsReason = fmt.Sprintf("Présence de %d vulnérabilités critiques non tolérées (seuil: CRITICAL)", critCount)
+				secopsReason = fmt.Sprintf("Présence de %d vulnérabilités critiques non tolérées (seuil: CRITICAL)", effCrit)
 			}
 		case "HIGH":
-			if critCount > 0 || highCount > 0 {
+			if effCrit > 0 || effHigh > 0 {
 				isSecOpsApproved = false
-				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d) ou hautes (%d) non tolérées (seuil: HIGH)", critCount, highCount)
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d) ou hautes (%d) non tolérées (seuil: HIGH)", effCrit, effHigh)
 			}
 		case "MEDIUM":
-			if critCount > 0 || highCount > 0 || medCount > 0 {
+			if effCrit > 0 || effHigh > 0 || effMed > 0 {
 				isSecOpsApproved = false
-				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d), hautes (%d) ou moyennes (%d) non tolérées (seuil: MEDIUM)", critCount, highCount, medCount)
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités critiques (%d), hautes (%d) ou moyennes (%d) non tolérées (seuil: MEDIUM)", effCrit, effHigh, effMed)
 			}
 		case "LOW":
-			if critCount > 0 || highCount > 0 || medCount > 0 || lowCount > 0 {
+			if effCrit > 0 || effHigh > 0 || effMed > 0 || effLow > 0 {
 				isSecOpsApproved = false
-				secopsReason = fmt.Sprintf("Présence de vulnérabilités non tolérées (critiques: %d, hautes: %d, moyennes: %d, basses: %d) (seuil: LOW)", critCount, highCount, medCount, lowCount)
+				secopsReason = fmt.Sprintf("Présence de vulnérabilités non tolérées (critiques: %d, hautes: %d, moyennes: %d, basses: %d) (seuil: LOW)", effCrit, effHigh, effMed, effLow)
 			}
 		case "NONE":
-			totalCVE := critCount + highCount + medCount + lowCount + unknownCount
+			totalCVE := effCrit + effHigh + effMed + effLow + effUnknown
 			if totalCVE > 0 {
 				isSecOpsApproved = false
 				secopsReason = fmt.Sprintf("Présence de %d vulnérabilités détectées alors qu'aucune n'est tolérée (seuil: NONE)", totalCVE)
@@ -226,7 +291,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		`, containerName, secopsReason, fullNewImage, critCount, highCount, len(trivyReport.Vulnerabilities))
 		
 		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
-		return fmt.Errorf("mise à jour bloquée par les règles SecOps : %s", secopsReason)
+		return false, fmt.Errorf("mise à jour bloquée par les règles SecOps : %s", secopsReason)
 	}
 
 	// 8. Redéploiement transactionnel sécurisé (Pass !)
@@ -245,11 +310,36 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			<p>🛡️ <strong>SafeDock a automatiquement restauré l'ancien conteneur de manière sécurisée.</strong> Aucune coupure permanente de service.</p>
 		`, containerName, err)
 		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
-		return err
+		return false, err
 	}
 
 	// Enregistrement du succès dans l'historique d'audit SQLite
 	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot SecOps complété avec succès", critCount, highCount, trivyReport.Summary.Medium)
+
+	// Déploiement confirmé → l'image est en production, le defer ne la supprimera pas
+	deployed = true
+
+	// ── Nettoyage du cache de l'ancienne image ─────────────────────────────────
+	// L'ancienne image n'est plus en service : ses rapports SQLite sont obsolètes.
+	// inspect.Image contient le hash de contenu de l'image avant le pivot.
+	oldDigest := inspect.Image
+	if n, purgeErr := db.PurgeScanReportsByDigest(oldDigest); purgeErr == nil && n > 0 {
+		fmt.Printf("   🗑️  [CACHE] %d rapport(s) de l'ancienne image supprimé(s) (%.20s...)\n", n, oldDigest)
+	}
+
+	// ── Pré-chargement du cache pour la nouvelle image ─────────────────────────
+	// Le rapport Trivy de staging est déjà disponible : on le sauvegarde en DB
+	// avec le hash de contenu de la nouvelle image. Ainsi, quand l'utilisateur
+	// ouvre l'onglet Audit après la MAJ, le rapport s'affiche sans re-scan.
+	if newInfo, _, inspErr := lo.cli.ImageInspectWithRaw(ctx, fullNewImage); inspErr == nil {
+		newDigest := newInfo.ID
+		if reportBytes, marshErr := json.Marshal(trivyReport); marshErr == nil {
+			trivyCacheKey := newDigest + "_trivy"
+			if saveErr := db.SaveScanReport(trivyCacheKey, "trivy", containerName, fullNewImage, string(reportBytes)); saveErr == nil {
+				fmt.Printf("   📦 [CACHE] Rapport Trivy pré-chargé en DB pour la nouvelle image (%.20s...)\n", newDigest)
+			}
+		}
+	}
 
 	// Déploiement réussi mail
 	mailSubject := fmt.Sprintf("✅ Déployé : Mise à jour SecOps réussie pour %s", containerName)
@@ -264,7 +354,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	`, containerName, originalImage, fullNewImage)
 	_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, true))
 
-	return nil
+	return true, nil
 }
 
 // executeTransactionalRollout orchestre le pivotement sécurisé vers le nouveau Digest.
@@ -366,4 +456,48 @@ func (lo *LifecycleOrchestrator) triggerRollback(ctx context.Context, oldID, con
 
 	fmt.Println("   │  ✅ [ROLLBACK COMPLETED] Service d'origine restauré et en ligne.")
 	return fmt.Errorf("pivot échoué, rollback automatique effectué : %w", deployErr)
+}
+
+// effectiveCounts recompte les vulnérabilités par sévérité en excluant les CVE
+// présentes dans l'ensemble des risques acceptés (exceptions actives).
+func effectiveCounts(r *secops.TrivyReport, excepted map[string]bool) (crit, high, med, low, unknown int) {
+	for _, v := range r.Vulnerabilities {
+		if excepted[strings.ToUpper(strings.TrimSpace(v.CVEID))] {
+			continue
+		}
+		switch strings.ToUpper(v.Severity) {
+		case "CRITICAL":
+			crit++
+		case "HIGH":
+			high++
+		case "MEDIUM":
+			med++
+		case "LOW":
+			low++
+		default:
+			unknown++
+		}
+	}
+	return
+}
+
+// cleanupStagingImage supprime immédiatement une image de staging qui n'a pas
+// abouti à un déploiement (rejet SecOps, crash + rollback, ou erreur de scan).
+// Utilise un contexte indépendant pour ne pas être bloqué par l'annulation
+// éventuelle du contexte HTTP parent.
+// Force=false : Docker refusera la suppression si un conteneur utilise l'image
+// (filet de sécurité supplémentaire, ne devrait pas arriver en pratique).
+func (lo *LifecycleOrchestrator) cleanupStagingImage(imageRef string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := lo.cli.ImageRemove(ctx, imageRef, types.ImageRemoveOptions{
+		Force:         false,
+		PruneChildren: true,
+	})
+	if err != nil {
+		fmt.Printf("   🧹 [STAGING CLEANUP WARNING] Impossible de supprimer l'image %s : %v\n", imageRef, err)
+		return
+	}
+	fmt.Printf("   🧹 [STAGING CLEANUP] Image de staging supprimée immédiatement : %s\n", imageRef)
 }
