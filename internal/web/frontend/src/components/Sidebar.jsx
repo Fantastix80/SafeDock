@@ -5,21 +5,34 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-// adminOnly : visible uniquement pour le rôle admin.
-const NAV_ITEMS = [
-  { id: 'dashboard',     label: 'Dashboard',        icon: LayoutDashboard },
-  { id: 'containers',    label: 'Conteneurs',       icon: Boxes },
-  { id: 'audit',         label: 'Audit',            icon: ScanSearch },
-  { id: 'actions',       label: 'Actions',          icon: ShieldCheck, adminOnly: true },
-  { id: 'exceptions',    label: 'Risques acceptés',  icon: ShieldOff, adminOnly: true },
-  { id: 'agents',        label: 'Agents',           icon: Server, adminOnly: true },
-  { id: 'users',         label: 'Utilisateurs',     icon: Users, adminOnly: true },
-  { id: 'watch',         label: 'Veille SecOps',    icon: Newspaper },
-  { id: 'notifications', label: 'Notifications',    icon: Bell },
+// Navigation groupée. La section « Administration » (adminOnly) n'est rendue
+// que pour le rôle admin — la sidebar reste épurée pour les autres rôles.
+const NAV_GROUPS = [
+  {
+    title: 'Supervision',
+    items: [
+      { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
+      { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
+      { id: 'audit',         label: 'Audit',         icon: ScanSearch },
+      { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
+      { id: 'notifications', label: 'Notifications', icon: Bell },
+    ],
+  },
+  {
+    title: 'Administration',
+    adminOnly: true,
+    items: [
+      { id: 'users',      label: 'Utilisateurs',     icon: Users },
+      { id: 'agents',      label: 'Multi-hôtes',      icon: Server },
+      { id: 'actions',     label: 'Actions',          icon: ShieldCheck },
+      { id: 'exceptions',  label: 'Risques acceptés', icon: ShieldOff },
+      { id: 'settings',    label: 'Paramètres',       icon: Settings },
+    ],
+  },
 ];
 
 export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing, onLogout, role }) {
-  const navItems = NAV_ITEMS.filter(it => !it.adminOnly || role === 'admin');
+  const groups = NAV_GROUPS.filter(g => !g.adminOnly || role === 'admin');
   return (
     <aside
       className={cn(
@@ -71,40 +84,47 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
         </span>
       </button>
 
-      {/* Nav */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden" aria-label="Navigation">
-        {navItems.map(({ id, label, icon: Icon }) => {
-          const active = activePage === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onNavigate(id)}
-              aria-current={active ? 'page' : undefined}
-              title={isCollapsed ? label : undefined}
-              className={cn(
-                'w-full flex items-center rounded-xl px-2.5 py-2.5 transition-all duration-200',
-                'text-base font-mono font-medium',
-                isCollapsed && 'justify-center',
-                active
-                  ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
-                  : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
-              )}
-            >
-              <Icon className="w-[18px] h-[18px] shrink-0" />
-              <span className={cn(
-                'truncate whitespace-nowrap overflow-hidden transition-all duration-300',
-                isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
-              )}>
-                {label}
-              </span>
-              <span className={cn(
-                'shrink-0 rounded-full bg-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.9)] transition-all duration-300',
-                (active && !isCollapsed) ? 'ml-auto w-1 h-4 opacity-100' : 'w-0 h-4 opacity-0 overflow-hidden'
-              )} />
-            </button>
-          );
-        })}
+      {/* Nav — groupée par section (Supervision / Administration) */}
+      <nav className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden" aria-label="Navigation">
+        {groups.map((group, gi) => (
+          <div key={group.title} className={cn('space-y-0.5', gi > 0 && 'mt-2')}>
+            {isCollapsed
+              ? (gi > 0 && <div className="mx-2 my-2 border-t border-white/[0.06]" />)
+              : <p className="px-2.5 pt-2 pb-1 text-[10px] font-mono font-semibold uppercase tracking-widest text-[#94A3B8]/40">{group.title}</p>}
+            {group.items.map(({ id, label, icon: Icon }) => {
+              const active = activePage === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onNavigate(id)}
+                  aria-current={active ? 'page' : undefined}
+                  title={isCollapsed ? label : undefined}
+                  className={cn(
+                    'w-full flex items-center rounded-xl px-2.5 py-2.5 transition-all duration-200',
+                    'text-base font-mono font-medium',
+                    isCollapsed && 'justify-center',
+                    active
+                      ? 'bg-[#F7931A]/10 text-[#F7931A] shadow-[inset_0_0_20px_rgba(247,147,26,0.05)]'
+                      : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
+                  )}
+                >
+                  <Icon className="w-[18px] h-[18px] shrink-0" />
+                  <span className={cn(
+                    'truncate whitespace-nowrap overflow-hidden transition-all duration-300',
+                    isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
+                  )}>
+                    {label}
+                  </span>
+                  <span className={cn(
+                    'shrink-0 rounded-full bg-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.9)] transition-all duration-300',
+                    (active && !isCollapsed) ? 'ml-auto w-1 h-4 opacity-100' : 'w-0 h-4 opacity-0 overflow-hidden'
+                  )} />
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Bottom section */}
@@ -132,31 +152,6 @@ export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleC
             Audit Global
           </span>
         </button>
-
-        {/* Settings */}
-        {role === 'admin' && (
-        <button
-          type="button"
-          onClick={() => onNavigate('settings')}
-          aria-current={activePage === 'settings' ? 'page' : undefined}
-          title={isCollapsed ? 'Paramètres' : undefined}
-          className={cn(
-            'w-full flex items-center rounded-xl px-2.5 py-2.5',
-            'text-base font-mono font-medium transition-all duration-200',
-            activePage === 'settings'
-              ? 'bg-[#F7931A]/10 text-[#F7931A]'
-              : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04]'
-          )}
-        >
-          <Settings className="w-[18px] h-[18px] shrink-0" />
-          <span className={cn(
-            'whitespace-nowrap overflow-hidden transition-all duration-300',
-            isCollapsed ? 'max-w-0 ml-0 opacity-0' : 'max-w-[160px] ml-3 opacity-100'
-          )}>
-            Paramètres
-          </span>
-        </button>
-        )}
 
         {/* Logout */}
         <button
