@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Boxes, Search, ArrowUpDown, ChevronUp, ChevronDown,
-  Server, Eye, Settings2, CheckCircle2, XCircle, ShieldCheck, TriangleAlert
+  Server, Eye, Settings2, CheckCircle2, XCircle, ShieldCheck, TriangleAlert, Loader2
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 
@@ -109,19 +109,20 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                   <span className="flex items-center justify-center">Privilèges <SortIcon field="privileged_safe" /></span>
                 </th>
                 <th className={cn(thBase, 'text-center')}>Secrets</th>
+                <th className={cn(thBase, 'text-center')}>CVE</th>
                 <th className={cn(thBase, 'text-right')}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {containers.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
+                  <td colSpan="11" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
                     Chargement des conteneurs...
                   </td>
                 </tr>
               ) : slice.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
+                  <td colSpan="11" className="px-4 py-12 text-center text-[#94A3B8]/40 font-mono text-xs">
                     Aucun résultat pour cette recherche.
                   </td>
                 </tr>
@@ -169,6 +170,9 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
                           </span>
                         : <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
                       }
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <CveCell c={c} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
@@ -240,6 +244,35 @@ function BoolIcon({ ok }) {
   return ok
     ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
     : <XCircle className="w-4 h-4 text-red-400 mx-auto" />;
+}
+
+// CveCell affiche l'état du scan de vulnérabilités d'un conteneur :
+//  - non scanné → indicateur « scan en attente » (spinner) ;
+//  - scanné sans CVE → « 0 » (sain) ;
+//  - scanné avec CVE → compteurs par sévérité (Critiques/Élevées/Moyennes/Faibles).
+function CveCell({ c }) {
+  if (!c.scanned) {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[#94A3B8]/60" title="En attente du prochain scan de vulnérabilités">
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F7931A]" /> scan en attente
+      </span>
+    );
+  }
+  const crit = c.cve_critical || 0, high = c.cve_high || 0, med = c.cve_medium || 0, low = c.cve_low || 0;
+  if (crit + high + med + low === 0) {
+    return <span className="font-mono text-xs text-emerald-400">0</span>;
+  }
+  const pill = (n, label, cls) => n > 0
+    ? <span className={cn('px-1.5 py-0.5 rounded-md font-mono text-xs font-bold', cls)}>{n}{label}</span>
+    : null;
+  return (
+    <span className="inline-flex items-center justify-center gap-1 flex-wrap">
+      {pill(crit, 'C', 'bg-red-500/15 text-red-400 border border-red-500/20')}
+      {pill(high, 'É', 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/20')}
+      {pill(med, 'M', 'bg-amber-500/15 text-amber-400 border border-amber-500/20')}
+      {pill(low, 'F', 'bg-[#FFD600]/10 text-[#FFD600] border border-[#FFD600]/20')}
+    </span>
+  );
 }
 
 function PageBtn({ onClick, disabled, active, children }) {

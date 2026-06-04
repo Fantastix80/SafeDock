@@ -27,6 +27,7 @@ import (
 const (
 	defaultIntervalHours = 24
 	initialDelay         = 3 * time.Minute // laisse le démarrage se stabiliser
+	eagerScanInterval    = 5 * time.Minute // premier scan rapide des nouveaux conteneurs
 )
 
 // Manager orchestre les re-scans périodiques.
@@ -60,6 +61,10 @@ func (m *Manager) Start(ctx context.Context) {
 
 		ticker := time.NewTicker(m.interval)
 		defer ticker.Stop()
+		// Passage rapide : capte les conteneurs fraîchement démarrés et les scanne
+		// sans attendre le prochain cycle complet.
+		eager := time.NewTicker(eagerScanInterval)
+		defer eager.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -67,19 +72,19 @@ func (m *Manager) Start(ctx context.Context) {
 				return
 			case <-ticker.C:
 				m.runCycle(ctx)
+			case <-eager.C:
+				m.scanNewContainers(ctx)
 			}
 		}
 	}()
 }
 
-// runCycle re-scanne tous les conteneurs en cours (sur tous les hôtes) et détecte les dérives.
-func (m *Manager) runCycle(ctx context.Context) {
+// collectContainers agrège les conteneurs en cours d'exécution de tous les hôtes activés.
+func (m *Manager) collectContainers(ctx context.Context) []dockerContainer {
 	hosts, err := db.GetEnabledHosts()
 	if err != nil || len(hosts) == 0 {
 		hosts = []db.DockerHost{{Name: "Hôte local", Endpoint: ""}}
 	}
-
-	// Agrégation des conteneurs de tous les hôtes activés.
 	var containers []dockerContainer
 	for _, h := range hosts {
 		auditor, aerr := docker.NewDockerAuditorFor(h.Endpoint, h.TLSCa, h.TLSCert, h.TLSKey)
@@ -97,12 +102,52 @@ func (m *Manager) runCycle(ctx context.Context) {
 			containers = append(containers, dockerContainer{info: c, hostName: h.Name})
 		}
 	}
+	return containers
+}
+
+// scanNewContainers effectue le PREMIER scan des conteneurs jamais scannés (cadence
+// rapide), pour qu'un conteneur fraîchement démarré obtienne ses résultats sans
+// attendre le prochain cycle complet de 24 h. Ne fait rien si tout est déjà scanné.
+func (m *Manager) scanNewContainers(ctx context.Context) {
+	cfg := config.ReloadConfig()
+	scanner := scannerName(cfg.SecOps.SecopsScanner)
+	scanned := 0
+	for _, dc := range m.collectContainers(ctx) {
+		c := dc.info
+		if c.CurrentDigest == "" {
+			continue
+		}
+		if _, _, _, e := db.GetLatestVulnScanByDigest(c.CurrentDigest); e == nil {
+			continue // déjà un rapport en cache pour ce digest
+		}
+		ref := c.ImageName + ":" + c.ImageTag
+		report, scanErr := runScan(ctx, scanner, ref)
+		if scanErr != nil {
+			continue // l'image n'est peut-être pas encore prête ; on réessaiera au prochain passage
+		}
+		if b, e := json.Marshal(report); e == nil {
+			_ = db.SaveScanReport(c.CurrentDigest+"_"+scanner, scanner, c.Name, ref, string(b))
+		}
+		_ = db.AppendVulnHistory(c.Name, c.CurrentDigest, scanner,
+			report.Summary.Critical, report.Summary.High, report.Summary.Medium, report.Summary.Low)
+		scanned++
+		log.Printf("🆕 [SCAN INITIAL] Premier scan de '%s' (%s) : %d critiques, %d élevées.\n",
+			c.Name, ref, report.Summary.Critical, report.Summary.High)
+	}
+	if scanned > 0 {
+		log.Printf("🆕 [SCAN INITIAL] %d nouveau(x) conteneur(s) scanné(s).\n", scanned)
+	}
+}
+
+// runCycle re-scanne tous les conteneurs en cours (sur tous les hôtes) et détecte les dérives.
+func (m *Manager) runCycle(ctx context.Context) {
+	containers := m.collectContainers(ctx)
 
 	// Configuration fraîche (le scanner ou le SMTP ont pu changer à chaud).
 	cfg := config.ReloadConfig()
 	scanner := scannerName(cfg.SecOps.SecopsScanner)
 
-	log.Printf("🛰️  [RESCAN] Démarrage d'un cycle de supervision sur %d conteneur(s) / %d hôte(s)...\n", len(containers), len(hosts))
+	log.Printf("🛰️  [RESCAN] Démarrage d'un cycle de supervision sur %d conteneur(s)...\n", len(containers))
 	drifts := 0
 
 	for _, dc := range containers {
