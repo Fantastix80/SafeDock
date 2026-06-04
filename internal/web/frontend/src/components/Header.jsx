@@ -18,7 +18,23 @@ const PAGE_META = {
   '404':                 { title: 'Ressource introuvable',     desc: "La page demandée n'existe pas" },
 };
 
-export default function Header({ activePage, onNavigate }) {
+const ROLE_LABELS = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
+
+// initials dérive un monogramme depuis le nom d'utilisateur (ex. "jean.dupont" → "JD").
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+// displayName met une majuscule initiale au nom d'utilisateur pour l'affichage.
+function displayName(name) {
+  if (!name) return 'Utilisateur';
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+export default function Header({ activePage, onNavigate, me }) {
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -46,15 +62,6 @@ export default function Header({ activePage, onNavigate }) {
         </div>
       </div>
 
-      {/* LIVE indicator */}
-      <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#F7931A]/25 bg-[#F7931A]/5">
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F7931A] opacity-75" />
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#F7931A]" />
-        </span>
-        <span className="text-xs font-mono text-[#F7931A] tracking-widest">LIVE</span>
-      </div>
-
       {/* Clock */}
       <span className="hidden md:block text-xs text-[#94A3B8] font-mono tabular-nums">{time}</span>
 
@@ -74,11 +81,11 @@ export default function Header({ activePage, onNavigate }) {
         )}
       >
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#F7931A] to-[#FFD600] flex items-center justify-center text-xs font-bold text-black shrink-0 shadow-[0_0_12px_rgba(247,147,26,0.5)]">
-          H
+          {initials(me?.username)}
         </div>
         <div className="hidden sm:block text-left">
-          <p className="font-heading text-sm font-semibold text-white leading-tight">Hell0W0rld</p>
-          <p className="text-xs text-[#94A3B8] leading-tight font-mono">SecOps Admin</p>
+          <p className="font-heading text-sm font-semibold text-white leading-tight">{displayName(me?.username)}</p>
+          <p className="text-xs text-[#94A3B8] leading-tight font-mono">{ROLE_LABELS[me?.role] || 'Utilisateur'}</p>
         </div>
       </button>
     </header>

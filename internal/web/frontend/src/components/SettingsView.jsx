@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, ShieldHalf, Settings2, Key, Server, Building2, CheckCircle2, XCircle } from 'lucide-react';
+import { Mail, ShieldHalf, Settings2, Key, Building2, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 // La gestion des comptes et des permissions vit désormais dans la page « Utilisateurs ».
@@ -8,7 +8,6 @@ const TABS = [
   { id: 'seuils',      label: 'Seuils SecOps',        icon: ShieldHalf, group: 'Base' },
   { id: 'prefs',       label: 'Préférences',          icon: Settings2,  group: 'Base' },
   { id: 'registries',  label: 'Registres Privés',     icon: Key,        group: 'Admin' },
-  { id: 'agents',      label: 'Multi-Hôtes',          icon: Server,     group: 'Admin' },
   { id: 'security',    label: 'Sécurité Entreprise',  icon: Building2,  group: 'Admin' },
 ];
 
@@ -31,22 +30,6 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [regServer, setRegServer] = useState('');
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
-  const [agents, setAgents] = useState([
-    { name: 'prod-swarm-01',     ip: '192.168.1.90', status: 'connected', version: 'v0.9.5' },
-    { name: 'db-node-02',        ip: '192.168.1.91', status: 'connected', version: 'v0.9.5' },
-    { name: 'stage-aws-us-east', ip: '10.0.4.15',    status: 'connected', version: 'v0.9.5' },
-    { name: 'edge-node-02',      ip: '192.168.1.95', status: 'offline',   version: 'v0.9.3' },
-  ]);
-  const [agentName, setAgentName] = useState('');
-  const [agentIp, setAgentIp] = useState('');
-  const [users, setUsers] = useState([
-    { username: 'Hell0W0rld', email: 'secops-admin@safedock.local', role: 'Administrateur' },
-    { username: 'Reader01',   email: 'reader@safedock.local',       role: 'Lecteur' },
-    { username: 'AuditBot',   email: 'bot@safedock.local',          role: 'Auditeur SecOps' },
-  ]);
-  const [newUsername, setNewUsername] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('Lecteur');
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -89,22 +72,6 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       setRegServer(''); setRegUser(''); setRegPass('');
       setStatus('Registre enregistré.'); setTimeout(() => setStatus(''), 4000);
     });
-  };
-
-  const handleAddAgent = (e) => {
-    e.preventDefault();
-    if (!agentName || !agentIp) return;
-    setAgents(p => [...p, { name: agentName, ip: agentIp, status: 'connected', version: 'v0.9.5' }]);
-    setAgentName(''); setAgentIp('');
-    setStatus('Agent connecté.'); setTimeout(() => setStatus(''), 4000);
-  };
-
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUsername || !newEmail) return;
-    setUsers(p => [...p, { username: newUsername, email: newEmail, role: newRole }]);
-    setNewUsername(''); setNewEmail(''); setNewRole('Lecteur');
-    setStatus('Invitation envoyée.'); setTimeout(() => setStatus(''), 4000);
   };
 
   const inputClass = "w-full px-3 py-1.5 text-xs rounded-xl bg-[#0A0C10] border border-white/[0.08] text-white placeholder-[#94A3B8]/30 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono";
@@ -267,115 +234,27 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
           </>
         )}
 
-        {/* Users */}
-        {tab === 'users' && (
-          <>
-            <SHead>Utilisateurs SecOps</SHead>
-            <table className="w-full text-xs mb-3">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className={thCl}>Identifiant</th>
-                  <th className={thCl}>Email</th>
-                  <th className={thCl}>Rôle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.username} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                    <td className="px-3 py-2.5 font-heading font-semibold text-white">{u.username}</td>
-                    <td className="px-3 py-2.5 font-mono text-[#94A3B8]">{u.email}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {u.role}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <form onSubmit={handleAddUser} className="space-y-2">
-              <p className="font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">Inviter un utilisateur</p>
-              <div className="grid grid-cols-3 gap-2">
-                <input className={inputClass} placeholder="Nom d'utilisateur" value={newUsername} onChange={e => setNewUsername(e.target.value)} required />
-                <input type="email" className={inputClass} placeholder="email@domain.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
-                <select value={newRole} onChange={e => setNewRole(e.target.value)} className={selectClass}>
-                  <option value="Lecteur">Lecteur</option>
-                  <option value="Auditeur SecOps">Auditeur SecOps</option>
-                  <option value="Administrateur">Administrateur</option>
-                </select>
-              </div>
-              <div className="flex justify-end">
-                <OrangeBtn type="submit">Envoyer l'invitation</OrangeBtn>
-              </div>
-            </form>
-          </>
-        )}
-
-        {/* Agents */}
-        {tab === 'agents' && (
-          <>
-            <SHead>Hôtes Multi-Hébergement</SHead>
-            <table className="w-full text-xs mb-3">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className={thCl}>Hôte</th>
-                  <th className={thCl}>IP</th>
-                  <th className={thCl}>Statut</th>
-                  <th className={cn(thCl, 'text-right')}>Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.map(a => (
-                  <tr key={a.name} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                    <td className="px-3 py-2.5 font-heading font-semibold text-white">
-                      <span className="flex items-center gap-1.5">
-                        <Server className={cn('w-3 h-3 shrink-0', a.status === 'connected' ? 'text-[#F7931A]' : 'text-[#94A3B8]/30')} />
-                        {a.name}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-[#94A3B8]/70">{a.ip}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={cn('flex items-center gap-1.5 font-mono text-xs font-medium', a.status === 'connected' ? 'text-emerald-400' : 'text-[#94A3B8]/40')}>
-                        <span className={cn(
-                          'w-1.5 h-1.5 rounded-full shrink-0',
-                          a.status === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-[#94A3B8]/30'
-                        )} />
-                        {a.status === 'connected' ? 'Connecté' : 'Hors ligne'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-[#94A3B8]/50 text-xs">{a.version}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <form onSubmit={handleAddAgent} className="space-y-2">
-              <p className="font-mono text-xs font-medium text-[#94A3B8]/40 uppercase tracking-widest">Enrôler un agent</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input className={inputClass} placeholder="Nom hôte (ex: edge-node-03)" value={agentName} onChange={e => setAgentName(e.target.value)} required />
-                <input className={inputClass} placeholder="IP (ex: 192.168.1.96)" value={agentIp} onChange={e => setAgentIp(e.target.value)} required />
-              </div>
-              <div className="flex justify-end">
-                <OrangeBtn type="submit">Connecter l'Agent</OrangeBtn>
-              </div>
-            </form>
-          </>
-        )}
-
         {/* Security */}
         {tab === 'security' && (
           <>
             <SHead>Sécurité Entreprise</SHead>
             <div className="space-y-2">
               {[
-                { label: 'Authentification unique SAML / SSO', desc: 'Intégrez SafeDock avec votre IdP (Okta, Azure AD).' },
-                { label: 'Validation Double Facteur (MFA/TOTP)', desc: 'Forcez l\'utilisation de TOTP pour toutes les connexions.' },
+                { label: 'Validation Double Facteur (MFA/TOTP)', desc: 'Obligatoire pour chaque compte, avec codes de secours à usage unique.', state: 'on' },
+                { label: 'Comptes & RBAC par rôle', desc: 'Rôles Administrateur / Auditeur / Lecteur appliqués côté serveur.', state: 'on' },
+                { label: 'Portées par tags et par hôte', desc: "Limitez la visibilité d'un compte à un périmètre de conteneurs.", state: 'on' },
+                { label: 'Authentification unique SAML / SSO', desc: 'Intégration IdP (Okta, Azure AD) — prévue dans une prochaine version.', state: 'soon' },
               ].map(item => (
                 <div key={item.label} className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.05] hover:border-[#F7931A]/10 transition-all">
                   <div>
                     <p className="text-xs font-semibold text-white">{item.label}</p>
                     <p className="text-xs text-[#94A3B8] mt-0.5">{item.desc}</p>
                   </div>
-                  <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Désactivé</span>
+                  {item.state === 'on' ? (
+                    <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Activé</span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-white/[0.04] text-[#94A3B8] border border-white/[0.08]">Bientôt</span>
+                  )}
                 </div>
               ))}
             </div>

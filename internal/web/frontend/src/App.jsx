@@ -498,6 +498,7 @@ export default function App() {
         <Header
           activePage={activePage}
           onNavigate={handleNavigate}
+          me={me}
         />
 
         {/* View Router */}
