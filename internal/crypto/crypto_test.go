@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // TestMain initialise une clé maître éphémère pour toute la suite crypto.
@@ -127,6 +129,29 @@ func TestTOTPValidate(t *testing.T) {
 	}
 	if ValidateTOTP(secret, "12345") {
 		t.Error("un code de mauvaise longueur ne devrait pas valider")
+	}
+}
+
+func TestGenerateSSHKeypair(t *testing.T) {
+	priv, pub, err := GenerateSSHKeypair()
+	if err != nil {
+		t.Fatalf("GenerateSSHKeypair : %v", err)
+	}
+	// La clé privée doit être parseable comme dans le dialer SSH (ssh.ParsePrivateKey).
+	if _, perr := ssh.ParsePrivateKey([]byte(priv)); perr != nil {
+		t.Errorf("clé privée non parseable : %v", perr)
+	}
+	// La clé publique doit être au format authorized_keys.
+	if _, _, _, _, aerr := ssh.ParseAuthorizedKey([]byte(pub)); aerr != nil {
+		t.Errorf("clé publique invalide : %v", aerr)
+	}
+	if SSHFingerprint(pub) == "" {
+		t.Error("empreinte SHA256 vide")
+	}
+	// Deux générations doivent différer.
+	priv2, _, _ := GenerateSSHKeypair()
+	if priv == priv2 {
+		t.Error("deux générations produisent la même clé")
 	}
 }
 
