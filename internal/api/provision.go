@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -16,7 +17,6 @@ import (
 var (
 	reHostAddr = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,253}$`)
 	reUnixUser = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
-	reIPish    = regexp.MustCompile(`^[A-Za-z0-9_.:*-]{1,253}$`)
 )
 
 // HandleHostProvision génère un script bash, à lancer en root sur l'hôte cible,
@@ -70,8 +70,11 @@ func (s *Server) HandleHostProvision(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Port SSH invalide", http.StatusBadRequest)
 		return
 	}
-	if controllerIP != "" && !reIPish.MatchString(controllerIP) {
-		http.Error(w, "IP source SafeDock invalide", http.StatusBadRequest)
+	// L'IP source (option from=) doit être une adresse IP valide : on refuse les
+	// jokers ('*') et les noms d'hôte, qui rendraient la restriction soit trop
+	// large (from="*.*.*.*" matche tout), soit jamais satisfaite (lock-out).
+	if controllerIP != "" && net.ParseIP(controllerIP) == nil {
+		http.Error(w, "IP source SafeDock invalide (adresse IPv4 ou IPv6 attendue)", http.StatusBadRequest)
 		return
 	}
 
@@ -141,11 +144,23 @@ fi
 if ! id "$SAFEDOCK_USER" >/dev/null 2>&1; then
   useradd -m -s /bin/bash "$SAFEDOCK_USER"
 fi
-usermod -aG docker "$SAFEDOCK_USER"
+# Le groupe 'docker' peut ne pas exister (Docker rootless, groupe different) :
+# on n'interrompt pas le script (set -e) si c'est le cas.
+if getent group docker >/dev/null 2>&1; then
+  usermod -aG docker "$SAFEDOCK_USER"
+else
+  echo "Avertissement : groupe 'docker' introuvable. Ajoutez '$SAFEDOCK_USER' au groupe proprietaire du socket Docker." >&2
+fi
 passwd -l "$SAFEDOCK_USER" >/dev/null
 
 # 2. authorized_keys verrouille au moindre privilege.
-SSH_DIR="$(getent passwd "$SAFEDOCK_USER" | cut -d: -f6)/.ssh"
+# Repli si le home n'est pas renseigne (compte systeme cree sans -m) pour eviter
+# d'ecrire dans /.ssh a la racine.
+HOME_DIR="$(getent passwd "$SAFEDOCK_USER" | cut -d: -f6)"
+if [ -z "$HOME_DIR" ] || [ "$HOME_DIR" = "/" ]; then
+  HOME_DIR="/home/$SAFEDOCK_USER"
+fi
+SSH_DIR="$HOME_DIR/.ssh"
 install -d -m 700 -o "$SAFEDOCK_USER" -g "$SAFEDOCK_USER" "$SSH_DIR"
 AUTH="$SSH_DIR/authorized_keys"
 OPTS='command="docker system dial-stdio",restrict'
@@ -200,8 +215,12 @@ $DQ     = [char]34   # guillemet double, evite tout probleme d'echappement
 # 1. OpenSSH Server present et demarre (service automatique).
 $cap = Get-WindowsCapability -Online -Name 'OpenSSH.Server*' | Select-Object -First 1
 if ($cap -and $cap.State -ne 'Installed') { Add-WindowsCapability -Online -Name $cap.Name | Out-Null }
-Set-Service -Name sshd -StartupType Automatic
-Start-Service sshd
+if (Get-Service -Name sshd -ErrorAction SilentlyContinue) {
+  Set-Service -Name sshd -StartupType Automatic
+  Start-Service sshd
+} else {
+  Write-Warning 'Service sshd introuvable. Installez OpenSSH Server (Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0) puis relancez ce script.'
+}
 
 # 2. Verification de Docker.
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -225,7 +244,17 @@ if (Get-LocalGroup -Name 'docker-users' -ErrorAction SilentlyContinue) {
 }
 
 # 4. authorized_keys par-utilisateur, verrouille au moindre privilege.
-$sshDir = Join-Path "C:\Users\$User" '.ssh'
+# Resout le VRAI dossier de profil. Un compte jamais connecte n'a pas encore de
+# profil : sshd ne lirait pas une cle posee dans un C:\Users\<user> fabrique.
+$sid = (New-Object System.Security.Principal.NTAccount($User)).Translate([System.Security.Principal.SecurityIdentifier]).Value
+$prof = Get-CimInstance Win32_UserProfile -Filter ('SID=' + [char]39 + $sid + [char]39) -ErrorAction SilentlyContinue
+if ($prof) {
+  $homeDir = $prof.LocalPath
+} else {
+  $homeDir = Join-Path 'C:\Users' $User
+  Write-Warning ('Le profil de ' + $User + ' n existe pas encore : la cle est posee dans ' + $homeDir + ' mais sshd ne la lira qu une fois le profil cree. Ouvrez une session une fois avec ce compte (ou via runas), puis relancez ce script.')
+}
+$sshDir = Join-Path $homeDir '.ssh'
 New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
 $auth = Join-Path $sshDir 'authorized_keys'
 $dial = 'docker system dial-stdio'

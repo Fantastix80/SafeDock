@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, ShieldHalf, Settings2, Key, Building2, CheckCircle2, XCircle, DatabaseBackup, Download, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { apiGet, apiSend } from '../lib/session';
 
 // La gestion des comptes et des permissions vit désormais dans la page « Utilisateurs ».
 const TABS = [
@@ -105,8 +106,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [backupBusy, setBackupBusy] = useState(false);
 
   const loadBackups = () => {
-    fetch('/api/backups')
-      .then(r => r.ok ? r.json() : null)
+    apiGet('/api/backups')
       .then(d => {
         if (!d) return;
         setBackups(d.backups || []);
@@ -119,30 +119,33 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const createBackup = async () => {
     setBackupBusy(true); setStatus('Création de la sauvegarde…');
     try {
-      const res = await fetch('/api/backups', { method: 'POST' });
-      if (!res.ok) throw new Error(await res.text());
+      await apiSend('/api/backups');
       setStatus('Sauvegarde créée.'); loadBackups();
     } catch (e) { setStatus('Échec : ' + (e.message || 'sauvegarde')); }
     finally { setBackupBusy(false); setTimeout(() => setStatus(''), 4000); }
   };
 
   const saveBackupCfg = async (enabled, keep) => {
-    setBackupEnabled(enabled); setBackupKeep(keep);
+    const prevEnabled = backupEnabled, prevKeep = backupKeep;
+    setBackupEnabled(enabled); setBackupKeep(keep); // optimiste
     try {
-      await fetch('/api/backups/config', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, keep: Number(keep) }),
-      });
+      await apiSend('/api/backups/config', { enabled, keep: Number(keep) });
       setStatus('Paramètres de sauvegarde enregistrés.'); setTimeout(() => setStatus(''), 3000);
-    } catch { /* ignore */ }
+    } catch (e) {
+      // Échec de persistance : on revient à l'état précédent et on signale.
+      setBackupEnabled(prevEnabled); setBackupKeep(prevKeep);
+      setStatus('Échec : ' + (e.message || 'enregistrement')); setTimeout(() => setStatus(''), 4000);
+    }
   };
 
   const deleteBackup = async (name) => {
     if (!window.confirm(`Supprimer la sauvegarde ${name} ?`)) return;
-    await fetch('/api/backups/delete', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
+    try {
+      await apiSend('/api/backups/delete', { name });
+      setStatus('Sauvegarde supprimée.'); setTimeout(() => setStatus(''), 3000);
+    } catch (e) {
+      setStatus('Échec : ' + (e.message || 'suppression')); setTimeout(() => setStatus(''), 4000);
+    }
     loadBackups();
   };
 

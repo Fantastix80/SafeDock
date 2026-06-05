@@ -321,9 +321,14 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 			SecurityAudit: req.Retention.SecurityAudit,
 			AuditLogs:     req.Retention.AuditLogs,
 		}
-		if validDefault[rc.Default] && validCat[rc.CVE] && validCat[rc.Notifications] &&
-			validCat[rc.SecurityAudit] && validCat[rc.AuditLogs] {
-			_ = db.SetRetentionConfig(rc)
+		if !validDefault[rc.Default] || !validCat[rc.CVE] || !validCat[rc.Notifications] ||
+			!validCat[rc.SecurityAudit] || !validCat[rc.AuditLogs] {
+			http.Error(w, "Valeur de rétention invalide", http.StatusBadRequest)
+			return
+		}
+		if err := db.SetRetentionConfig(rc); err != nil {
+			http.Error(w, fmt.Sprintf("Impossible d'enregistrer la rétention : %v", err), http.StatusInternalServerError)
+			return
 		}
 	} else if validDefault[req.RetentionDays] {
 		_ = db.SetRetentionDays(req.RetentionDays)

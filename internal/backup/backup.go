@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,7 +85,11 @@ func List() ([]Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Info, 0, len(entries))
+	type rec struct {
+		info Info
+		mod  time.Time
+	}
+	recs := make([]rec, 0, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !nameRe.MatchString(e.Name()) {
 			continue
@@ -93,10 +98,39 @@ func List() ([]Info, error) {
 		if ierr != nil {
 			continue
 		}
-		out = append(out, Info{Name: e.Name(), Size: fi.Size(), CreatedAt: parseStamp(e.Name())})
+		recs = append(recs, rec{
+			info: Info{Name: e.Name(), Size: fi.Size(), CreatedAt: parseStamp(e.Name())},
+			mod:  fi.ModTime(),
+		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name > out[j].Name })
+	// Tri par date de création réelle (mtime), la plus récente d'abord — robuste
+	// quelle que soit la convention de nommage. En cas d'égalité (même seconde),
+	// le suffixe de désambiguïsation départage (-N le plus élevé = le plus récent).
+	sort.Slice(recs, func(i, j int) bool {
+		if !recs[i].mod.Equal(recs[j].mod) {
+			return recs[i].mod.After(recs[j].mod)
+		}
+		if si, sj := suffixNum(recs[i].info.Name), suffixNum(recs[j].info.Name); si != sj {
+			return si > sj
+		}
+		return recs[i].info.Name > recs[j].info.Name // déterministe
+	})
+	out := make([]Info, len(recs))
+	for i, r := range recs {
+		out[i] = r.info
+	}
 	return out, nil
+}
+
+// suffixNum extrait le numéro de désambiguïsation « -N » d'un nom (0 si absent).
+func suffixNum(name string) int {
+	core := strings.TrimSuffix(strings.TrimPrefix(name, "safedock-"), ".db")
+	if parts := strings.Split(core, "-"); len(parts) == 3 {
+		if n, err := strconv.Atoi(parts[2]); err == nil {
+			return n
+		}
+	}
+	return 0
 }
 
 // Prune ne conserve que les `keep` sauvegardes les plus récentes (0 = illimité).

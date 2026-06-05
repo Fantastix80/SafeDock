@@ -17,6 +17,7 @@ import LoginView from './components/LoginView';
 import ExceptionsView from './components/ExceptionsView';
 import UsersView from './components/UsersView';
 import ComplianceView from './components/ComplianceView';
+import { setSessionExpiredHandler } from './lib/session';
 
 export default function App() {
   const getPageFromPathname = () => {
@@ -158,6 +159,10 @@ export default function App() {
     }
     return res.json();
   };
+
+  // Les composants qui appellent l'API via le helper partagé (lib/session) doivent
+  // eux aussi revenir à l'écran de connexion sur 401.
+  useEffect(() => { setSessionExpiredHandler(() => setAuthed(false)); }, []);
 
   // Asynchronous API Fetchers
   const fetchAllData = () => {
