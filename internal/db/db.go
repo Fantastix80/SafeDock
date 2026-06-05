@@ -1578,6 +1578,18 @@ func SetUserPassword(id int, passwordHash string, mustChange bool) error {
 	return err
 }
 
+// UpdateUserPasswordHash met à jour uniquement le vérificateur de mot de passe
+// (sans toucher au flag must_change_password). Sert à migrer de façon transparente
+// un ancien vérificateur HMAC vers argon2id lors d'une connexion réussie.
+func UpdateUserPasswordHash(id int, passwordHash string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE users SET password_hash = ? WHERE id = ?;", passwordHash, id)
+	return err
+}
+
 // SetUserRole change le rôle d'un compte.
 func SetUserRole(id int, role string) error {
 	db := GetDB()
@@ -1674,7 +1686,8 @@ func ReplaceUserBackupCodes(userID int, hashes []string) error {
 	return nil
 }
 
-// ConsumeUserBackupCode consomme un code de secours d'un compte (usage unique).
+// ConsumeUserBackupCode consomme un code de secours d'un compte (usage unique),
+// par correspondance exacte du hash (format historique HMAC déterministe).
 func ConsumeUserBackupCode(userID int, hash string) bool {
 	db := GetDB()
 	if db == nil {
@@ -1686,6 +1699,46 @@ func ConsumeUserBackupCode(userID int, hash string) bool {
 	}
 	n, _ := res.RowsAffected()
 	return n > 0
+}
+
+// ConsumeUserBackupCodeMatch consomme le premier code inutilisé du compte dont le
+// hash satisfait `matches` (vérification argon2 côté appelant). Nécessaire car les
+// hash salés ne peuvent pas être retrouvés par égalité SQL. Usage unique garanti
+// par l'UPDATE conditionnel `used = 0`.
+func ConsumeUserBackupCodeMatch(userID int, matches func(storedHash string) bool) bool {
+	db := GetDB()
+	if db == nil {
+		return false
+	}
+	rows, err := db.Query("SELECT id, code_hash FROM mfa_backup_codes WHERE user_id = ? AND used = 0;", userID)
+	if err != nil {
+		return false
+	}
+	type rec struct {
+		id   int
+		hash string
+	}
+	var recs []rec
+	for rows.Next() {
+		var r rec
+		if rows.Scan(&r.id, &r.hash) == nil {
+			recs = append(recs, r)
+		}
+	}
+	rows.Close() // fermer AVANT tout Exec (SQLite MaxOpenConns(1) → éviter l'interblocage)
+
+	for _, r := range recs {
+		if !matches(r.hash) {
+			continue
+		}
+		res, uerr := db.Exec("UPDATE mfa_backup_codes SET used = 1 WHERE id = ? AND used = 0;", r.id)
+		if uerr == nil {
+			if n, _ := res.RowsAffected(); n == 1 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ==========================================================================

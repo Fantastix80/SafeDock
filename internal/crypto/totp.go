@@ -110,9 +110,27 @@ func GenerateBackupCodes(n int) ([]string, error) {
 	return codes, nil
 }
 
-// HashBackupCode calcule le vérificateur HMAC d'un code de secours (clé maître).
-// Normalisé en majuscules et sans tiret pour tolérer les variations de saisie.
+// normalizeBackupCode tolère les variations de saisie (casse, tirets, espaces).
+func normalizeBackupCode(code string) string {
+	return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(code), "-", ""))
+}
+
+// HashBackupCode calcule un vérificateur argon2id salé d'un code de secours
+// (clé maître en pepper). Chaque appel produit un hash différent (sel aléatoire) :
+// la vérification se fait via VerifyBackupCode, pas par égalité.
 func HashBackupCode(code string) string {
-	norm := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(code), "-", ""))
-	return PasswordVerifier(norm)
+	return hashArgon2id(normalizeBackupCode(code))
+}
+
+// VerifyBackupCode vérifie un code de secours candidat contre un vérificateur
+// stocké, en gérant les deux formats (argon2id actuel, HMAC hérité).
+func VerifyBackupCode(code, stored string) bool {
+	if stored == "" {
+		return false
+	}
+	norm := normalizeBackupCode(code)
+	if strings.HasPrefix(stored, "$argon2id$") {
+		return verifyArgon2id(norm, stored)
+	}
+	return subtle.ConstantTimeCompare([]byte(legacyHMACVerifier(norm)), []byte(stored)) == 1
 }

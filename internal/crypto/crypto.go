@@ -23,6 +23,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/crypto/argon2"
 	"sync"
 	"time"
 )
@@ -170,22 +172,93 @@ func Decrypt(value string) (string, error) {
 
 // ── Mot de passe administrateur ─────────────────────────────────────────────
 
-// PasswordVerifier calcule un vérificateur HMAC-SHA256 du mot de passe avec la clé maître.
-// Stocké en base, il ne permet pas de retrouver le mot de passe et ne peut être
-// recalculé sans la clé maître (absente de la base).
-func PasswordVerifier(password string) string {
+// Paramètres argon2id (KDF mémoire-dure, salé). m≈64 Mio, t=2, p=2 : coût
+// raisonnable pour des connexions peu fréquentes, infaisable à cracker hors-ligne.
+const (
+	argonTime    = 2
+	argonMemory  = 64 * 1024 // KiB
+	argonThreads = 2
+	argonKeyLen  = 32
+	argonSaltLen = 16
+)
+
+// pepper applique la clé maître au secret AVANT le KDF : même si la base fuit,
+// sans secret.key le vérificateur reste incassable (la clé maître n'est pas en base).
+func pepper(secret string) []byte {
 	mac := hmac.New(sha256.New, masterKey)
-	mac.Write([]byte(password))
+	mac.Write([]byte(secret))
+	return mac.Sum(nil)
+}
+
+// hashArgon2id produit un vérificateur argon2id salé au format PHC standard
+// ($argon2id$v=19$m=..,t=..,p=..$sel$empreinte).
+func hashArgon2id(secret string) string {
+	salt := make([]byte, argonSaltLen)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		// Repli improbable : sans sel aléatoire on échoue côté vérification plutôt
+		// que de produire un hash faible.
+		return ""
+	}
+	h := argon2.IDKey(pepper(secret), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		argon2.Version, argonMemory, argonTime, argonThreads,
+		base64.RawStdEncoding.EncodeToString(salt),
+		base64.RawStdEncoding.EncodeToString(h))
+}
+
+// verifyArgon2id vérifie un secret contre un vérificateur argon2id encodé.
+func verifyArgon2id(secret, encoded string) bool {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
+		return false
+	}
+	var version int
+	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil || version != argon2.Version {
+		return false
+	}
+	var m, t uint32
+	var p uint8
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil {
+		return false
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil {
+		return false
+	}
+	want, err := base64.RawStdEncoding.DecodeString(parts[5])
+	if err != nil || len(want) == 0 {
+		return false
+	}
+	got := argon2.IDKey(pepper(secret), salt, t, m, p, uint32(len(want)))
+	return subtle.ConstantTimeCompare(got, want) == 1
+}
+
+// legacyHMACVerifier reproduit l'ancien vérificateur HMAC-SHA256 (clé maître),
+// conservé pour valider les vérificateurs déjà en base (migration transparente).
+func legacyHMACVerifier(secret string) string {
+	mac := hmac.New(sha256.New, masterKey)
+	mac.Write([]byte(secret))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// VerifyPassword compare en temps constant un mot de passe candidat au vérificateur stocké.
+// PasswordVerifier calcule un vérificateur argon2id salé (clé maître en pepper).
+// Stocké en base, il ne permet pas de retrouver le mot de passe et reste incassable
+// hors-ligne sans la clé maître. Les anciens vérificateurs HMAC restent acceptés
+// par VerifyPassword et sont remplacés au prochain changement de mot de passe.
+func PasswordVerifier(password string) string {
+	return hashArgon2id(password)
+}
+
+// VerifyPassword vérifie un mot de passe candidat contre le vérificateur stocké,
+// en gérant les deux formats (argon2id actuel, HMAC hérité) en temps constant.
 func VerifyPassword(password, verifier string) bool {
 	if verifier == "" {
 		return false
 	}
-	expected := PasswordVerifier(password)
-	return subtle.ConstantTimeCompare([]byte(expected), []byte(verifier)) == 1
+	if strings.HasPrefix(verifier, "$argon2id$") {
+		return verifyArgon2id(password, verifier)
+	}
+	return subtle.ConstantTimeCompare([]byte(legacyHMACVerifier(password)), []byte(verifier)) == 1
 }
 
 // ── Jetons signés à portée ──────────────────────────────────────────────────

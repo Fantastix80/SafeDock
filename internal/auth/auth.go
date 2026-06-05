@@ -174,6 +174,14 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Migration transparente : un ancien vérificateur HMAC est re-hashé en argon2id
+	// à cette connexion réussie (le flag must_change n'est pas touché).
+	if !strings.HasPrefix(u.PasswordHash, "$argon2id$") {
+		if nh := crypto.PasswordVerifier(req.Password); nh != "" {
+			_ = db.UpdateUserPasswordHash(u.ID, nh)
+		}
+	}
+
 	preToken, err := crypto.NewToken(crypto.ScopePreAuth, u.ID, u.Role, preAuthTTL)
 	if err != nil {
 		http.Error(w, "Impossible d'initialiser l'authentification", http.StatusInternalServerError)
@@ -250,7 +258,11 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	if enabled {
 		valid := crypto.ValidateTOTP(secret, code)
 		if !valid {
-			valid = db.ConsumeUserBackupCode(claims.UserID, crypto.HashBackupCode(code))
+			// Codes de secours : hash salés → vérification par parcours (argon2),
+			// avec repli transparent sur l'ancien format HMAC déterministe.
+			valid = db.ConsumeUserBackupCodeMatch(claims.UserID, func(stored string) bool {
+				return crypto.VerifyBackupCode(code, stored)
+			})
 		}
 		if !valid {
 			recordMFAFailure(r, key, verifyUser.ID)

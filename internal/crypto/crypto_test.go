@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -163,13 +164,49 @@ func TestBackupCodes(t *testing.T) {
 	if len(codes) != 10 {
 		t.Fatalf("attendu 10 codes, obtenu %d", len(codes))
 	}
-	// Le hash doit être insensible à la casse et aux tirets.
-	h1 := HashBackupCode(codes[0])
-	h2 := HashBackupCode(" " + codes[0] + " ")
-	if h1 != h2 {
-		t.Error("la normalisation du code de secours devrait donner le même hash")
+	// Le hash est désormais salé (argon2id) → deux hash du même code diffèrent,
+	// la vérification se fait via VerifyBackupCode.
+	stored := HashBackupCode(codes[0])
+	if stored == HashBackupCode(codes[0]) {
+		t.Error("le hash argon2id devrait être salé (deux hash du même code diffèrent)")
 	}
-	if HashBackupCode(codes[0]) == HashBackupCode(codes[1]) {
-		t.Error("deux codes différents ne devraient pas avoir le même hash")
+	if !VerifyBackupCode(codes[0], stored) {
+		t.Error("le bon code devrait être vérifié")
+	}
+	// Insensible à la casse, aux tirets et aux espaces de saisie.
+	if !VerifyBackupCode(" "+strings.ToLower(strings.ReplaceAll(codes[0], "-", ""))+" ", stored) {
+		t.Error("la normalisation (casse/tirets/espaces) devrait vérifier le code")
+	}
+	if VerifyBackupCode(codes[1], stored) {
+		t.Error("un autre code ne doit pas vérifier")
+	}
+	if VerifyBackupCode(codes[0], "") {
+		t.Error("un vérificateur vide ne doit jamais valider")
+	}
+}
+
+func TestPasswordVerifierArgon2AndLegacy(t *testing.T) {
+	// Nouveau format : argon2id salé (deux appels diffèrent), vérifiable.
+	a := PasswordVerifier("CorrectHorse10")
+	b := PasswordVerifier("CorrectHorse10")
+	if a == b {
+		t.Error("deux vérificateurs argon2id du même mot de passe devraient différer (sel)")
+	}
+	if !strings.HasPrefix(a, "$argon2id$") {
+		t.Errorf("format argon2id attendu, obtenu %q", a)
+	}
+	if !VerifyPassword("CorrectHorse10", a) || !VerifyPassword("CorrectHorse10", b) {
+		t.Error("argon2id : le bon mot de passe devrait être vérifié")
+	}
+	if VerifyPassword("mauvais", a) {
+		t.Error("argon2id : un mauvais mot de passe ne doit pas passer")
+	}
+	// Rétro-compatibilité : un ancien vérificateur HMAC reste accepté.
+	old := legacyHMACVerifier("CorrectHorse10")
+	if !VerifyPassword("CorrectHorse10", old) {
+		t.Error("l'ancien vérificateur HMAC devrait rester valide (migration)")
+	}
+	if VerifyPassword("mauvais", old) {
+		t.Error("HMAC hérité : un mauvais mot de passe ne doit pas passer")
 	}
 }
