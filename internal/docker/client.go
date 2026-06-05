@@ -5,13 +5,128 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/safedock/safedock/internal/secops"
+	"golang.org/x/crypto/ssh"
 )
+
+// remoteSocketPath est le socket Docker visé sur l'hôte distant via SSH.
+const remoteSocketPath = "/var/run/docker.sock"
+
+// NewEngineClient construit un client Docker pour un endpoint :
+//   - vide               → hôte local (FromEnv) ;
+//   - "tcp://host:2376"  → distant en TLS mutuel (certPEM/keyPEM, caPEM optionnel) ;
+//   - "ssh://user@host"  → distant via tunnel SSH (le socket reste local sur l'hôte,
+//     aucun port Docker n'est exposé). keyPEM = clé privée SSH (PEM), caPEM = clé
+//     publique de l'hôte (optionnelle, pour vérifier l'identité du serveur).
+//
+// Retourne aussi un io.Closer (connexion SSH sous-jacente) à fermer en plus du client,
+// ou nil pour les transports local/TCP.
+func NewEngineClient(endpoint, caPEM, certPEM, keyPEM string) (*client.Client, io.Closer, error) {
+	if endpoint == "" {
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		return cli, nil, err
+	}
+	if strings.HasPrefix(endpoint, "ssh://") {
+		return buildSSHClient(endpoint, caPEM, keyPEM)
+	}
+
+	opts := []client.Opt{
+		client.WithHost(endpoint),
+		client.WithAPIVersionNegotiation(),
+	}
+	if certPEM != "" && keyPEM != "" {
+		cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
+		if err != nil {
+			return nil, nil, fmt.Errorf("certificat/clé TLS client invalide : %w", err)
+		}
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+		if caPEM != "" {
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM([]byte(caPEM)) {
+				return nil, nil, fmt.Errorf("CA TLS illisible")
+			}
+			tlsConfig.RootCAs = pool
+		}
+		opts = append(opts, client.WithHTTPClient(&http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		}))
+	}
+	cli, err := client.NewClientWithOpts(opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connexion à l'hôte Docker distant impossible : %w", err)
+	}
+	return cli, nil, nil
+}
+
+// buildSSHClient ouvre une connexion SSH vers l'hôte et fournit au client Docker un
+// dialer qui atteint le socket Docker local du distant à travers ce tunnel.
+func buildSSHClient(endpoint, hostKey, privateKey string) (*client.Client, io.Closer, error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, nil, fmt.Errorf("endpoint SSH invalide : %w", err)
+	}
+	user := "root"
+	if u.User != nil && u.User.Username() != "" {
+		user = u.User.Username()
+	}
+	host := u.Host
+	if !strings.Contains(host, ":") {
+		host += ":22"
+	}
+	if strings.TrimSpace(privateKey) == "" {
+		return nil, nil, fmt.Errorf("clé privée SSH requise pour un endpoint ssh://")
+	}
+	signer, err := ssh.ParsePrivateKey([]byte(privateKey))
+	if err != nil {
+		return nil, nil, fmt.Errorf("clé privée SSH invalide : %w", err)
+	}
+
+	// Vérification de la clé hôte : si une clé publique d'hôte est fournie, on l'épingle
+	// (FixedHostKey). Sinon, on accepte à la première connexion — l'UI recommande de
+	// fournir la clé hôte pour se prémunir d'une attaque de l'homme du milieu.
+	hostCb := ssh.InsecureIgnoreHostKey()
+	if strings.TrimSpace(hostKey) != "" {
+		pub, _, _, _, perr := ssh.ParseAuthorizedKey([]byte(hostKey))
+		if perr != nil {
+			return nil, nil, fmt.Errorf("clé publique d'hôte SSH invalide : %w", perr)
+		}
+		hostCb = ssh.FixedHostKey(pub)
+	}
+
+	cfg := &ssh.ClientConfig{
+		User:            user,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback: hostCb,
+		Timeout:         10 * time.Second,
+	}
+	sshConn, err := ssh.Dial("tcp", host, cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connexion SSH à %s impossible : %w", host, err)
+	}
+
+	dial := func(_ context.Context, _, _ string) (net.Conn, error) {
+		return sshConn.Dial("unix", remoteSocketPath)
+	}
+	cli, err := client.NewClientWithOpts(
+		client.WithHost("unix://"+remoteSocketPath),
+		client.WithDialContext(dial),
+		client.WithAPIVersionNegotiation(),
+	)
+	if err != nil {
+		_ = sshConn.Close()
+		return nil, nil, fmt.Errorf("client Docker via SSH impossible : %w", err)
+	}
+	return cli, sshConn, nil
+}
 
 // ContainerAuditInfo contient les métadonnées de sécurité extraites d'un conteneur.
 type ContainerAuditInfo struct {
@@ -33,7 +148,8 @@ type ContainerAuditInfo struct {
 
 // DockerAuditor gère l'interaction avec l'API Docker Engine.
 type DockerAuditor struct {
-	cli *client.Client
+	cli    *client.Client
+	closer io.Closer // connexion SSH sous-jacente (nil pour local/TCP)
 }
 
 // NewDockerAuditor initialise le client Docker local (socket / DOCKER_HOST).
@@ -48,52 +164,23 @@ func NewDockerAuditor() (*DockerAuditor, error) {
 	return &DockerAuditor{cli: cli}, nil
 }
 
-// NewDockerAuditorFor initialise un client Docker pour un endpoint donné.
-// endpoint vide → hôte local (FromEnv). Sinon (ex: "tcp://1.2.3.4:2376"),
-// connexion distante, avec TLS mutuel si du matériel de certificat est fourni.
+// NewDockerAuditorFor initialise un client Docker pour un endpoint donné
+// (local, "tcp://..." en TLS mutuel, ou "ssh://user@host" via tunnel SSH).
 func NewDockerAuditorFor(endpoint, caPEM, certPEM, keyPEM string) (*DockerAuditor, error) {
-	if endpoint == "" {
-		return NewDockerAuditor()
-	}
-
-	opts := []client.Opt{
-		client.WithHost(endpoint),
-		client.WithAPIVersionNegotiation(),
-	}
-
-	// TLS mutuel : certificat client + (optionnel) CA pour valider le serveur.
-	if certPEM != "" && keyPEM != "" {
-		cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
-		if err != nil {
-			return nil, fmt.Errorf("certificat/clé TLS client invalide : %w", err)
-		}
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		}
-		if caPEM != "" {
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM([]byte(caPEM)) {
-				return nil, fmt.Errorf("CA TLS illisible")
-			}
-			tlsConfig.RootCAs = pool
-		}
-		httpClient := &http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsConfig},
-		}
-		opts = append(opts, client.WithHTTPClient(httpClient))
-	}
-
-	cli, err := client.NewClientWithOpts(opts...)
+	cli, closer, err := NewEngineClient(endpoint, caPEM, certPEM, keyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("impossible de se connecter à l'hôte Docker distant : %w", err)
+		return nil, err
 	}
-	return &DockerAuditor{cli: cli}, nil
+	return &DockerAuditor{cli: cli, closer: closer}, nil
 }
 
-// Close libère les ressources du client.
+// Close libère les ressources du client (y compris le tunnel SSH éventuel).
 func (da *DockerAuditor) Close() error {
-	return da.cli.Close()
+	err := da.cli.Close()
+	if da.closer != nil {
+		_ = da.closer.Close()
+	}
+	return err
 }
 
 // Ping vérifie la connectivité avec le démon Docker (sert au test de connexion d'un hôte).

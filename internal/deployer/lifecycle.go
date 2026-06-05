@@ -2,12 +2,9 @@ package deployer
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -17,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/safedock/safedock/internal/config"
 	"github.com/safedock/safedock/internal/db"
+	"github.com/safedock/safedock/internal/docker"
 	"github.com/safedock/safedock/internal/notifier"
 	"github.com/safedock/safedock/internal/registry"
 	"github.com/safedock/safedock/internal/secops"
@@ -24,9 +22,10 @@ import (
 
 // LifecycleOrchestrator orchestre le cycle de vie SecOps des conteneurs.
 type LifecycleOrchestrator struct {
-	cli      *client.Client
-	regCli   *registry.RegistryClient
-	cfg      *config.Config
+	cli    *client.Client
+	closer io.Closer // connexion SSH sous-jacente (nil pour local/TCP)
+	regCli *registry.RegistryClient
+	cfg    *config.Config
 }
 
 // NewLifecycleOrchestrator initialise l'orchestrateur pour l'hôte Docker local.
@@ -43,49 +42,28 @@ func NewLifecycleOrchestrator(cfg *config.Config) (*LifecycleOrchestrator, error
 	}, nil
 }
 
-// NewLifecycleOrchestratorFor initialise l'orchestrateur pour un hôte Docker donné.
-// endpoint vide → hôte local ; sinon connexion distante avec TLS mutuel optionnel.
+// NewLifecycleOrchestratorFor initialise l'orchestrateur pour un hôte Docker donné
+// (local, "tcp://..." en TLS mutuel, ou "ssh://user@host" via tunnel SSH).
 func NewLifecycleOrchestratorFor(cfg *config.Config, endpoint, caPEM, certPEM, keyPEM string) (*LifecycleOrchestrator, error) {
-	if endpoint == "" {
-		return NewLifecycleOrchestrator(cfg)
-	}
-
-	opts := []client.Opt{
-		client.WithHost(endpoint),
-		client.WithAPIVersionNegotiation(),
-	}
-	if certPEM != "" && keyPEM != "" {
-		cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
-		if err != nil {
-			return nil, fmt.Errorf("certificat/clé TLS client invalide : %w", err)
-		}
-		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
-		if caPEM != "" {
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM([]byte(caPEM)) {
-				return nil, fmt.Errorf("CA TLS illisible")
-			}
-			tlsConfig.RootCAs = pool
-		}
-		opts = append(opts, client.WithHTTPClient(&http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsConfig},
-		}))
-	}
-
-	cli, err := client.NewClientWithOpts(opts...)
+	cli, closer, err := docker.NewEngineClient(endpoint, caPEM, certPEM, keyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("erreur initialisation client Docker distant : %w", err)
+		return nil, fmt.Errorf("erreur initialisation client Docker : %w", err)
 	}
 	return &LifecycleOrchestrator{
 		cli:    cli,
+		closer: closer,
 		regCli: registry.NewRegistryClient(),
 		cfg:    cfg,
 	}, nil
 }
 
-// Close libère les ressources.
+// Close libère les ressources (y compris le tunnel SSH éventuel).
 func (lo *LifecycleOrchestrator) Close() error {
-	return lo.cli.Close()
+	err := lo.cli.Close()
+	if lo.closer != nil {
+		_ = lo.closer.Close()
+	}
+	return err
 }
 
 // CheckAndUpdateContainer verifie si une mise à jour est disponible pour le conteneur donné.

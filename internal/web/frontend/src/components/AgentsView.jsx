@@ -13,6 +13,7 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
   const [testResults, setTestResults] = useState({}); // hostId -> {ok, error, loading}
 
   const containerCount = (hostId) => containers.filter(c => c.host_id === hostId).length;
+  const isSSH = endpoint.trim().startsWith('ssh://');
 
   const payload = () => ({ name: name.trim(), endpoint: endpoint.trim(), tls_ca: tlsCa, tls_cert: tlsCert, tls_key: tlsKey });
 
@@ -63,8 +64,9 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
       <div>
         <h2 className="font-heading text-sm font-semibold text-white">Hôtes Docker fédérés</h2>
         <p className="text-xs text-[#94A3B8] mt-0.5">
-          Supervisez plusieurs daemons Docker depuis une seule console. L'hôte local est géré nativement ;
-          les hôtes distants se connectent via l'API Docker en TLS mutuel (le socket n'est jamais exposé en clair).
+          Supervisez plusieurs daemons Docker depuis une seule console. L'hôte local est géré nativement.
+          Pour un hôte distant, deux transports : <strong className="text-emerald-400">SSH (recommandé)</strong> — le socket
+          reste local, rien n'est exposé — ou <strong className="text-[#94A3B8]">TCP en TLS mutuel</strong>.
         </p>
       </div>
 
@@ -143,17 +145,28 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
           <div className="flex gap-2 p-2.5 mb-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/25">
             <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-200/90 leading-relaxed">
-              Exposer l'API Docker = accès root sur l'hôte. N'exposez l'endpoint qu'en <strong className="text-amber-300">TLS mutuel</strong>,
-              filtré par pare-feu vers la seule IP de SafeDock (idéalement via un VPN ou un proxy de socket restreint). Jamais en clair.
+              L'accès au démon Docker équivaut à un accès root sur l'hôte. <strong className="text-amber-300">Préférez SSH</strong> :
+              aucun port Docker n'est ouvert. Si vous choisissez TCP, exigez le <strong className="text-amber-300">TLS mutuel</strong>
+              et filtrez par pare-feu vers la seule IP de SafeDock. Jamais l'API en clair.
             </p>
           </div>
 
           <form onSubmit={handleAdd} className="space-y-3">
             <Field label="Nom d'affichage" placeholder="ex: prod-node-02" value={name} onChange={setName} />
-            <Field label="Endpoint" placeholder="tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />
-            <Area label="CA TLS (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCa} onChange={setTlsCa} />
-            <Area label="Certificat client (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCert} onChange={setTlsCert} />
-            <Area label="Clé client (PEM)" placeholder="-----BEGIN PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
+            <Field label="Endpoint" placeholder="ssh://root@10.0.0.5  ou  tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />
+            {isSSH ? (
+              <>
+                <p className="text-[11px] text-emerald-400/80 font-mono">Mode SSH : le socket Docker reste local sur l'hôte, rien n'est exposé.</p>
+                <Area label="Clé privée SSH (PEM)" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
+                <Area label="Clé publique de l'hôte (optionnel, recommandé)" placeholder="ssh-ed25519 AAAA…  (contenu de known_hosts)" value={tlsCa} onChange={setTlsCa} />
+              </>
+            ) : (
+              <>
+                <Area label="CA TLS (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCa} onChange={setTlsCa} />
+                <Area label="Certificat client (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCert} onChange={setTlsCert} />
+                <Area label="Clé client (PEM)" placeholder="-----BEGIN PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
+              </>
+            )}
 
             {status.text && (
               <p className={cn('text-xs text-center font-mono font-medium',
