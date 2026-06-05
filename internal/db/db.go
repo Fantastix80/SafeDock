@@ -31,6 +31,11 @@ func DBDir() string {
 	return filepath.Dir(dbFilePath)
 }
 
+// DBPath retourne le chemin résolu du fichier SQLite (vide tant que non initialisé).
+func DBPath() string {
+	return dbFilePath
+}
+
 // AuditLog représente un enregistrement d'historique SecOps ou de rollout.
 type AuditLog struct {
 	ID            int       `json:"id"`
@@ -165,6 +170,8 @@ func runMigrations(db *sql.DB) error {
 		retention_notif_days INTEGER DEFAULT -1,
 		retention_secaudit_days INTEGER DEFAULT -1,
 		retention_seclogs_days INTEGER DEFAULT -1,
+		backup_enabled INTEGER DEFAULT 1,
+		backup_keep INTEGER DEFAULT 7,
 		ssh_private_key TEXT DEFAULT '',
 		ssh_public_key TEXT DEFAULT ''
 	);`
@@ -363,6 +370,9 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_notif_days INTEGER DEFAULT -1;")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_secaudit_days INTEGER DEFAULT -1;")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_seclogs_days INTEGER DEFAULT -1;")
+	// Sauvegardes planifiées de la base : activées par défaut, 7 dernières conservées.
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN backup_enabled INTEGER DEFAULT 1;")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN backup_keep INTEGER DEFAULT 7;")
 	// Identité SSH SafeDock (clé privée chiffrée + clé publique) pour les hôtes ssh://.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_private_key TEXT DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_public_key TEXT DEFAULT '';")
@@ -2175,6 +2185,56 @@ func PurgeWithConfig() (int64, error) {
 		total += n
 	}
 	return total, nil
+}
+
+// BackupConfig regroupe l'activation des sauvegardes planifiées et le nombre
+// de sauvegardes à conserver (0 = illimité).
+type BackupConfig struct {
+	Enabled bool `json:"enabled"`
+	Keep    int  `json:"keep"`
+}
+
+// GetBackupConfig lit la configuration des sauvegardes (défaut : activé, 7).
+func GetBackupConfig() BackupConfig {
+	bc := BackupConfig{Enabled: true, Keep: 7}
+	db := GetDB()
+	if db == nil {
+		return bc
+	}
+	var enabled, keep sql.NullInt64
+	if err := db.QueryRow("SELECT backup_enabled, backup_keep FROM settings WHERE id = 1;").Scan(&enabled, &keep); err != nil {
+		return bc
+	}
+	if enabled.Valid {
+		bc.Enabled = enabled.Int64 != 0
+	}
+	if keep.Valid {
+		bc.Keep = int(keep.Int64)
+	}
+	return bc
+}
+
+// SetBackupConfig persiste la configuration des sauvegardes.
+func SetBackupConfig(bc BackupConfig) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	if bc.Keep < 0 {
+		bc.Keep = 0
+	}
+	enabled := 0
+	if bc.Enabled {
+		enabled = 1
+	}
+	res, err := db.Exec("UPDATE settings SET backup_enabled = ?, backup_keep = ? WHERE id = 1;", enabled, bc.Keep)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		_, err = db.Exec("INSERT INTO settings (id, backup_enabled, backup_keep) VALUES (1, ?, ?);", enabled, bc.Keep)
+	}
+	return err
 }
 
 // ==========================================================================

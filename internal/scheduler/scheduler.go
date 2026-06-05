@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/safedock/safedock/internal/backup"
 	"github.com/safedock/safedock/internal/config"
 	"github.com/safedock/safedock/internal/db"
 	"github.com/safedock/safedock/internal/docker"
@@ -215,6 +216,18 @@ func (m *Manager) runCycle(ctx context.Context) {
 	// Purge des données au-delà de la rétention configurée (par catégorie, héritage résolu).
 	if n, err := db.PurgeWithConfig(); err == nil && n > 0 {
 		log.Printf("🧹 [RÉTENTION] %d enregistrement(s) au-delà de la rétention supprimé(s).\n", n)
+	}
+
+	// Sauvegarde planifiée de la base (instantané cohérent + rotation).
+	if bc := db.GetBackupConfig(); bc.Enabled {
+		if info, err := backup.Create(time.Now()); err != nil {
+			log.Printf("[BACKUP WARNING] Sauvegarde planifiée échouée : %v\n", err)
+		} else {
+			log.Printf("💾 [BACKUP] Sauvegarde créée : %s (%d octets).\n", info.Name, info.Size)
+			if removed, perr := backup.Prune(bc.Keep); perr == nil && removed > 0 {
+				log.Printf("🧹 [BACKUP] %d ancienne(s) sauvegarde(s) supprimée(s) (rotation à %d).\n", removed, bc.Keep)
+			}
+		}
 	}
 }
 

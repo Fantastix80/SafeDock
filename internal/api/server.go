@@ -93,6 +93,12 @@ func (s *Server) Start(ctx context.Context) error {
 	// Identité SSH SafeDock (clé publique à installer sur les hôtes ssh://)
 	mux.HandleFunc("/api/ssh-identity", s.HandleSSHIdentity)
 
+	// Sauvegardes de la base (admin) : liste/création, config, suppression, téléchargement
+	mux.HandleFunc("/api/backups", s.HandleBackups)
+	mux.HandleFunc("/api/backups/config", s.HandleBackupsConfig)
+	mux.HandleFunc("/api/backups/delete", s.HandleBackupsDelete)
+	mux.HandleFunc("/api/backups/download", s.HandleBackupDownload)
+
 	// 2. Enregistrement du point d'entrée pour les fichiers statiques de l'UI
 	// On extrait le sous-répertoire "static" de notre système de fichiers embarqué
 	staticSubFS, err := fs.Sub(web.StaticFiles, "static")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, ShieldHalf, Settings2, Key, Building2, CheckCircle2, XCircle } from 'lucide-react';
+import { Mail, ShieldHalf, Settings2, Key, Building2, CheckCircle2, XCircle, DatabaseBackup, Download, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 // La gestion des comptes et des permissions vit désormais dans la page « Utilisateurs ».
@@ -8,8 +8,16 @@ const TABS = [
   { id: 'seuils',      label: 'Seuils SecOps',        icon: ShieldHalf, group: 'Base' },
   { id: 'prefs',       label: 'Préférences',          icon: Settings2,  group: 'Base' },
   { id: 'registries',  label: 'Registres Privés',     icon: Key,        group: 'Admin' },
+  { id: 'backups',     label: 'Sauvegardes',          icon: DatabaseBackup, group: 'Admin' },
   { id: 'security',    label: 'Sécurité Entreprise',  icon: Building2,  group: 'Admin' },
 ];
+
+function formatSize(bytes) {
+  if (!bytes) return '0 o';
+  const u = ['o', 'Ko', 'Mo', 'Go'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0)} ${u[i]}`;
+}
 
 export default function SettingsView({ config, registries, onSaveGlobalSettings, onAddRegistry, onDeleteRegistry }) {
   const [tab, setTab] = useState('smtp');
@@ -88,6 +96,54 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       setRegServer(''); setRegUser(''); setRegPass('');
       setStatus('Registre enregistré.'); setTimeout(() => setStatus(''), 4000);
     });
+  };
+
+  // Sauvegardes de la base
+  const [backups, setBackups] = useState([]);
+  const [backupEnabled, setBackupEnabled] = useState(true);
+  const [backupKeep, setBackupKeep] = useState(7);
+  const [backupBusy, setBackupBusy] = useState(false);
+
+  const loadBackups = () => {
+    fetch('/api/backups')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        setBackups(d.backups || []);
+        if (d.config) { setBackupEnabled(!!d.config.enabled); setBackupKeep(d.config.keep != null ? d.config.keep : 7); }
+      })
+      .catch(() => {});
+  };
+  useEffect(() => { if (tab === 'backups') loadBackups(); }, [tab]);
+
+  const createBackup = async () => {
+    setBackupBusy(true); setStatus('Création de la sauvegarde…');
+    try {
+      const res = await fetch('/api/backups', { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      setStatus('Sauvegarde créée.'); loadBackups();
+    } catch (e) { setStatus('Échec : ' + (e.message || 'sauvegarde')); }
+    finally { setBackupBusy(false); setTimeout(() => setStatus(''), 4000); }
+  };
+
+  const saveBackupCfg = async (enabled, keep) => {
+    setBackupEnabled(enabled); setBackupKeep(keep);
+    try {
+      await fetch('/api/backups/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled, keep: Number(keep) }),
+      });
+      setStatus('Paramètres de sauvegarde enregistrés.'); setTimeout(() => setStatus(''), 3000);
+    } catch { /* ignore */ }
+  };
+
+  const deleteBackup = async (name) => {
+    if (!window.confirm(`Supprimer la sauvegarde ${name} ?`)) return;
+    await fetch('/api/backups/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    loadBackups();
   };
 
   const inputClass = "w-full px-3 py-1.5 text-xs rounded-xl bg-[#0A0C10] border border-white/[0.08] text-white placeholder-[#94A3B8]/30 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono";
@@ -255,6 +311,86 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                 <OrangeBtn type="submit">Enregistrer les identifiants</OrangeBtn>
               </div>
             </form>
+          </>
+        )}
+
+        {/* Backups */}
+        {tab === 'backups' && (
+          <>
+            <SHead>Sauvegardes de la base</SHead>
+            <p className="text-xs text-[#94A3B8] -mt-2">
+              Instantanés cohérents de la base SafeDock (toute la configuration, l'historique CVE, les comptes…), créés
+              automatiquement chaque jour et conservés à côté des données. Vous pouvez aussi en déclencher un à la demande.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Toggle label="Sauvegarde quotidienne automatique" checked={backupEnabled} onChange={v => saveBackupCfg(v, backupKeep)} />
+              <div className="space-y-1">
+                <FieldLabel>Sauvegardes à conserver (rotation)</FieldLabel>
+                <select value={backupKeep} onChange={e => saveBackupCfg(backupEnabled, Number(e.target.value))} className={selectClass}>
+                  <option value={3}>3 dernières</option>
+                  <option value={7}>7 dernières (défaut)</option>
+                  <option value={14}>14 dernières</option>
+                  <option value={30}>30 dernières</option>
+                  <option value={0}>Illimité</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="font-mono text-xs text-[#94A3B8]">{backups.length} sauvegarde(s)</span>
+              <button type="button" onClick={createBackup} disabled={backupBusy}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all disabled:opacity-40">
+                {backupBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <DatabaseBackup className="w-3.5 h-3.5" />} Sauvegarder maintenant
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    <th className={thCl}>Sauvegarde</th>
+                    <th className={thCl}>Date (UTC)</th>
+                    <th className={cn(thCl, 'text-right')}>Taille</th>
+                    <th className={cn(thCl, 'text-right')}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backups.length === 0 && (
+                    <tr><td colSpan={4} className="px-3 py-6 text-center text-[#94A3B8]/40 font-mono">Aucune sauvegarde pour l'instant.</td></tr>
+                  )}
+                  {backups.map(b => (
+                    <tr key={b.name} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="px-3 py-2.5 font-mono text-[#94A3B8]/80">{b.name}</td>
+                      <td className="px-3 py-2.5 font-mono text-[#94A3B8]/60">{b.created_at ? b.created_at.replace('T', ' ').replace('Z', '') : '—'}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[#94A3B8]/80">{formatSize(b.size)}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <a href={`/api/backups/download?name=${encodeURIComponent(b.name)}`}
+                            className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F7931A] hover:bg-[#F7931A]/[0.08] transition-colors" title="Télécharger">
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                          <button type="button" onClick={() => deleteBackup(b.name)}
+                            className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/[0.08] transition-colors" title="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+              <DatabaseBackup className="w-3.5 h-3.5 text-[#94A3B8] shrink-0 mt-0.5" />
+              <p className="text-[11px] text-[#94A3B8]/80 leading-relaxed">
+                <strong className="text-[#94A3B8]">Restauration :</strong> arrêtez le conteneur SafeDock, remplacez
+                <code className="text-[#94A3B8]"> /var/lib/safedock/safedock.db </code> par le fichier de sauvegarde (renommé
+                <code className="text-[#94A3B8]"> safedock.db </code>), puis redémarrez. La clé de chiffrement
+                (<code className="text-[#94A3B8]">secret.key</code>) doit être celle d'origine pour déchiffrer les secrets.
+              </p>
+            </div>
           </>
         )}
 
