@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import {
   Boxes, TriangleAlert, CloudDownload, CheckCircle2, XCircle,
   ArrowRight, RotateCcw, ListChecks, Clock, Zap, ShieldCheck,
-  Bug, ShieldAlert, Lock, Tag
+  Bug, ShieldAlert, Lock, Tag, FileText
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg, gradeLabel, gradeStroke } from '../lib/utils';
+import { openPostureReport } from '../lib/postureReport';
 
 const CIRCUMFERENCE = 276.46;
 
@@ -73,6 +74,18 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
 
   return (
     <div className="space-y-5">
+
+      {/* Barre d'actions */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => openPostureReport(containers, stats)}
+          title="Générer un rapport de posture imprimable (PDF)"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-white/[0.04] text-[#94A3B8] hover:text-white hover:bg-white/[0.07] border border-white/[0.08] transition-all font-mono"
+        >
+          <FileText className="w-3.5 h-3.5" /> Rapport PDF
+        </button>
+      </div>
 
       {/* ============ HERO — Posture de sécurité ============ */}
       <div className="card p-6 lg:p-7">
