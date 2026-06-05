@@ -30,6 +30,33 @@ func TestBuildProvisionScript(t *testing.T) {
 	}
 }
 
+func TestBuildProvisionScriptWindows(t *testing.T) {
+	pub := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAExampleKeyData safedock"
+	script := buildProvisionScriptWindows(pub, "safedock", "10.0.1.12")
+
+	checks := []string{
+		pub,                          // clé publique intégrée
+		"#Requires -RunAsAdministrator",
+		"OpenSSH.Server",             // serveur SSH assuré
+		"docker-users",               // accès moteur Docker au moindre privilège
+		"dial-stdio",                 // relais Docker
+		"$From   = '10.0.1.12'",      // from= injecté en littéral PowerShell
+		"icacls",                     // durcissement ACL (StrictModes)
+	}
+	for _, c := range checks {
+		if !strings.Contains(script, c) {
+			t.Errorf("le script Windows ne contient pas %q", c)
+		}
+	}
+	// Pas de backtick (le template doit rester un raw-string Go valide et lisible).
+	if strings.Contains(script, "`") {
+		t.Error("le script Windows ne doit pas contenir de backtick")
+	}
+	if strings.Contains(script, "PRIVATE KEY") {
+		t.Error("le script Windows ne doit contenir aucune clé privée")
+	}
+}
+
 func TestBuildProvisionScriptWithoutFrom(t *testing.T) {
 	script := buildProvisionScript("ssh-ed25519 AAAA test", "safedock", "")
 	if strings.Contains(script, "from=") {

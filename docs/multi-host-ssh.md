@@ -122,6 +122,54 @@ tableau de bord, avec leur colonne « Hôte ».
 
 ---
 
+## Hôtes Windows
+
+La technique multi-hôtes de SafeDock (SSH + `docker system dial-stdio`) est
+**indépendante du système** : elle fonctionne aussi sur un hôte Windows, à
+condition de réunir les prérequis ci-dessous. L'assistant propose une cible
+**« Windows · PowerShell »** qui génère un script `.ps1` équivalent (à lancer dans
+une console PowerShell **en Administrateur**).
+
+Ce que fait le script Windows :
+
+1. **OpenSSH Server** : installé (capability `OpenSSH.Server`) et démarré en
+   service automatique.
+2. **Utilisateur `safedock`** : compte local **non-administrateur**, mot de passe
+   aléatoire, ajouté au groupe **`docker-users`** (accès au pipe
+   `\\.\pipe\docker_engine` au moindre privilège — pas d'admin).
+3. **authorized_keys** par-utilisateur (`C:\Users\safedock\.ssh\authorized_keys`)
+   avec la même ligne verrouillée `from=…,command="docker system dial-stdio",restrict`,
+   et des **ACL strictes** (`icacls`) conformes à `StrictModes` de sshd.
+4. Affiche la **clé publique d'hôte** (`C:\ProgramData\ssh\ssh_host_ed25519_key.pub`)
+   à coller dans SafeDock pour l'épinglage.
+
+### Est-ce que ça marche aussi bien que sur Linux ? — points de vigilance
+
+Le mécanisme est le même et **supporté**, mais Windows demande quelques
+précautions. À connaître :
+
+- **Compte non-admin obligatoire pour la clé par-utilisateur.** Si le compte est
+  administrateur, Windows OpenSSH **ignore** `~/.ssh/authorized_keys` et lit
+  `C:\ProgramData\ssh\administrators_authorized_keys`. Le script crée donc un
+  compte standard dans `docker-users` (c'est aussi le bon choix de sécurité).
+- **Moteur Docker disponible en continu.** Avec **Docker Desktop**, le moteur ne
+  tourne **que** lorsqu'une session interactive a lancé Docker Desktop : ça
+  convient au dev, moins à une supervision 24/7. Pour un serveur, préférez le
+  **Docker Engine natif en service Windows** (toujours actif) — c'est le scénario
+  le plus fiable, équivalent à Linux.
+- **Shell par défaut de sshd.** Si `HKLM:\SOFTWARE\OpenSSH\DefaultShell` pointe
+  vers **PowerShell**, le flux binaire de `dial-stdio` peut être **corrompu**
+  (ré-encodage stdout). Laissez le défaut (**cmd.exe**) — le script le rappelle.
+- **`restrict` / `from=`** : supportés par Windows OpenSSH récent (≥ 8.x, livré
+  avec Windows 10/11 et Windows Server 2019+).
+
+En résumé : **oui, ça fonctionne sur Windows**, idéalement **Windows Server +
+Docker Engine en service**. Avec Docker Desktop, c'est opérationnel mais le moteur
+n'est présent que quand Docker Desktop est lancé. Linux reste le chemin le plus
+direct (pas de subtilité admin/standard ni de shell binaire).
+
+---
+
 ## Transport TCP + TLS mutuel (alternative)
 
 Si SSH n'est pas envisageable, exposer l'API Docker en **TLS mutuel** uniquement

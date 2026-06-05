@@ -41,11 +41,13 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
 
   // Assistant SSH : l'admin saisit l'adresse, on génère un script clé-en-main.
   const [mode, setMode] = useState('ssh'); // 'ssh' | 'advanced'
+  const [targetOS, setTargetOS] = useState('linux'); // 'linux' | 'windows'
   const [sshAddr, setSshAddr] = useState('');
   const [sshPort, setSshPort] = useState('22');
   const [sshUser, setSshUser] = useState('safedock');
   const [fromIP, setFromIP] = useState('');
   const [script, setScript] = useState('');
+  const [scriptOS, setScriptOS] = useState('linux'); // OS du script affiché
   const [genBusy, setGenBusy] = useState(false);
   const [scriptCopied, setScriptCopied] = useState(false);
 
@@ -63,14 +65,18 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
           port: parseInt(sshPort, 10) || 22,
           user: sshUser.trim() || 'safedock',
           controller_ip: fromIP.trim(),
+          platform: targetOS,
         }),
       });
       if (!res.ok) throw new Error((await res.text()) || 'Échec de génération');
       const d = await res.json();
       setScript(d.script || '');
+      setScriptOS(d.platform || targetOS);
       setEndpoint(d.endpoint || '');
       if (!name.trim()) setName(sshAddr.trim());
-      setStatus({ text: "Script généré — lancez-le en root sur l'hôte cible.", type: 'ok' });
+      setStatus({ text: targetOS === 'windows'
+        ? 'Script généré — lancez-le en Administrateur (PowerShell) sur l’hôte cible.'
+        : 'Script généré — lancez-le en root sur l’hôte cible.', type: 'ok' });
     } catch (e) {
       setStatus({ text: e.message, type: 'error' });
     } finally {
@@ -262,9 +268,16 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
             {mode === 'ssh' ? (
               <>
                 <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                  Indiquez l'adresse de l'hôte : SafeDock génère un script à lancer <strong className="text-emerald-400">une fois, en root</strong>,
-                  sur la machine cible. Il y crée un accès SSH restreint (clé verrouillée à l'API Docker). Aucune commande à composer à la main.
+                  Indiquez l'adresse de l'hôte : SafeDock génère un script à lancer <strong className="text-emerald-400">une seule fois</strong> sur
+                  la machine cible. Il y crée un accès SSH restreint (clé verrouillée à l'API Docker). Aucune commande à composer à la main.
                 </p>
+                <div className="space-y-1">
+                  <label className="font-mono text-xs font-medium text-[#94A3B8]/70 uppercase tracking-wider">Système de l'hôte</label>
+                  <div className="flex gap-1 p-1 rounded-xl bg-[#0A0C10] border border-white/[0.08]">
+                    <ModeBtn active={targetOS === 'linux'} onClick={() => setTargetOS('linux')} icon={Terminal} label="Linux · bash" />
+                    <ModeBtn active={targetOS === 'windows'} onClick={() => setTargetOS('windows')} icon={Server} label="Windows · PowerShell" />
+                  </div>
+                </div>
                 <Field label="Adresse de l'hôte (IP ou DNS)" placeholder="10.0.0.5" value={sshAddr} onChange={setSshAddr} />
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Port SSH" placeholder="22" value={sshPort} onChange={setSshPort} />
@@ -280,7 +293,9 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
                 {script && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[11px] font-medium text-emerald-400/80 uppercase tracking-wider">À lancer EN ROOT sur l'hôte</span>
+                      <span className="font-mono text-[11px] font-medium text-emerald-400/80 uppercase tracking-wider">
+                        {scriptOS === 'windows' ? 'À lancer en ADMIN (PowerShell)' : "À lancer EN ROOT sur l'hôte"}
+                      </span>
                       <button type="button" onClick={copyScript} title="Copier le script"
                         className="p-1.5 rounded-lg text-[#94A3B8] hover:text-emerald-400 hover:bg-emerald-500/[0.08]">
                         {scriptCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
