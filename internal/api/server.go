@@ -62,6 +62,11 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/account/password", auth.HandleChangePassword)
 	mux.HandleFunc("/api/account/profile", auth.HandleUpdateProfile)
 
+	// Activation de compte par invitation (publiques : le jeton fait foi).
+	mux.HandleFunc("/api/invite", s.HandleInviteInfo)
+	mux.HandleFunc("/api/invite/accept", s.HandleInviteAccept)
+	mux.HandleFunc("/api/invite/verify", s.HandleInviteVerify)
+
 	// 1. Enregistrement des routes de l'API REST (protégées par le middleware d'auth)
 	mux.HandleFunc("/api/containers", s.HandleContainers)
 	mux.HandleFunc("/api/containers/history", s.HandleContainerHistory)

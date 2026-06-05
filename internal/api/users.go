@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/safedock/safedock/internal/auth"
 	"github.com/safedock/safedock/internal/crypto"
@@ -78,9 +79,10 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(list)
 
 	case http.MethodPost:
+		// Création par INVITATION : l'admin ne saisit que l'identité + le rôle.
+		// L'utilisateur définit lui-même son mot de passe et son MFA via un lien.
 		var req struct {
 			Email     string `json:"email"` // identifiant de connexion
-			Password  string `json:"password"`
 			Role      string `json:"role"`
 			FirstName string `json:"first_name"`
 			LastName  string `json:"last_name"`
@@ -91,23 +93,33 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		username := strings.TrimSpace(req.Email) // l'adresse e-mail sert d'identifiant
-		if username == "" || len(req.Password) < 10 {
-			http.Error(w, "Adresse e-mail requise et mot de passe d'au moins 10 caractères", http.StatusBadRequest)
+		if !validInviteEmail(username) {
+			http.Error(w, "Adresse e-mail valide requise", http.StatusBadRequest)
 			return
 		}
 		if !db.ValidRole(req.Role) {
 			http.Error(w, "Rôle invalide (admin, auditor ou viewer)", http.StatusBadRequest)
 			return
 		}
-		// Compte créé avec changement de mot de passe imposé au premier login.
-		if _, err := db.CreateUser(username, crypto.PasswordVerifier(req.Password), req.Role,
-			strings.TrimSpace(req.FirstName), strings.TrimSpace(req.LastName), req.ScopeAll, true); err != nil {
+		token, hash, terr := crypto.GenerateInviteToken()
+		if terr != nil {
+			http.Error(w, "Impossible de générer l'invitation", http.StatusInternalServerError)
+			return
+		}
+		if _, err := db.CreateInvitedUser(username, req.Role,
+			strings.TrimSpace(req.FirstName), strings.TrimSpace(req.LastName), req.ScopeAll,
+			hash, time.Now().Add(inviteTTL)); err != nil {
 			http.Error(w, fmt.Sprintf("Création impossible (e-mail déjà utilisé ?) : %v", err), http.StatusConflict)
 			return
 		}
-		audit(r, "user.create", username, fmt.Sprintf("rôle=%s, voit-tout=%t", req.Role, req.ScopeAll))
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Utilisateur créé."))
+		link := inviteLink(r, token)
+		emailed := s.sendInviteEmail(username, strings.TrimSpace(req.FirstName), link)
+		audit(r, "user.invite", username, fmt.Sprintf("rôle=%s, voit-tout=%t, email=%t", req.Role, req.ScopeAll, emailed))
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"invite_link": link,    // à transmettre si l'e-mail n'est pas configuré
+			"email_sent":  emailed, // true si l'invitation est partie par e-mail
+		})
 
 	default:
 		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
@@ -184,11 +196,28 @@ func (s *Server) HandleUserResetMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if u, err := db.GetUserByID(id); err == nil {
-		audit(r, "user.reset_mfa", u.Username, "ré-enrôlement requis")
+	// Réinitialiser le MFA rend le compte non finalisé : on émet une nouvelle
+	// invitation (lien) pour que l'utilisateur ré-enrôle son mot de passe + MFA.
+	token, hash, terr := crypto.GenerateInviteToken()
+	if terr != nil {
+		http.Error(w, "Impossible de générer le lien de ré-enrôlement", http.StatusInternalServerError)
+		return
 	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("MFA réinitialisé : un nouvel enrôlement sera demandé à la prochaine connexion."))
+	if err := db.SetUserInvite(id, hash, time.Now().Add(inviteTTL)); err != nil {
+		http.Error(w, "Impossible d'enregistrer l'invitation", http.StatusInternalServerError)
+		return
+	}
+	link := inviteLink(r, token)
+	emailed := false
+	if u, err := db.GetUserByID(id); err == nil {
+		emailed = s.sendInviteEmail(u.Username, u.FirstName, link)
+		audit(r, "user.reset_mfa", u.Username, fmt.Sprintf("ré-enrôlement requis, email=%t", emailed))
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"invite_link": link,
+		"email_sent":  emailed,
+	})
 }
 
 // HandleUserRole change le rôle d'un compte (admin). Empêche de rétrograder le dernier admin.

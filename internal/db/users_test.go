@@ -2,6 +2,7 @@ package db
 
 import (
 	"testing"
+	"time"
 
 	"github.com/safedock/safedock/internal/crypto"
 )
@@ -121,6 +122,53 @@ func TestUserScopes(t *testing.T) {
 	tags, _ = GetUserAllowedTags(int(id))
 	if len(tags) != 1 || tags[0] != 5 {
 		t.Errorf("le remplacement de portée a échoué : %v", tags)
+	}
+}
+
+func TestInviteLifecycle(t *testing.T) {
+	freshDB(t)
+
+	id, err := CreateInvitedUser("invitee@example.com", RoleViewer, "Inv", "Itee", false, "hash-abc", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("CreateInvitedUser : %v", err)
+	}
+	u, ok := GetUserByInviteHash("hash-abc")
+	if !ok || u.ID != int(id) || u.Username != "invitee@example.com" {
+		t.Fatalf("invitation introuvable : %+v ok=%v", u, ok)
+	}
+	if u.TOTPEnabled {
+		t.Error("un compte invité ne devrait pas avoir le MFA actif")
+	}
+
+	// Invitation expirée → introuvable.
+	if err := SetUserInvite(int(id), "hash-exp", time.Now().Add(-time.Hour)); err != nil {
+		t.Fatalf("SetUserInvite : %v", err)
+	}
+	if _, ok := GetUserByInviteHash("hash-exp"); ok {
+		t.Error("une invitation expirée ne devrait pas être valide")
+	}
+
+	// Réassignation valide, puis effacement après activation.
+	_ = SetUserInvite(int(id), "hash-xyz", time.Now().Add(time.Hour))
+	if _, ok := GetUserByInviteHash("hash-xyz"); !ok {
+		t.Error("invitation valide attendue après réassignation")
+	}
+	if err := ClearUserInvite(int(id)); err != nil {
+		t.Fatalf("ClearUserInvite : %v", err)
+	}
+	if _, ok := GetUserByInviteHash("hash-xyz"); ok {
+		t.Error("une invitation effacée ne devrait plus être valide")
+	}
+
+	// URL de base.
+	if GetBaseURL() != "" {
+		t.Error("base_url devrait être vide par défaut")
+	}
+	if err := SetBaseURL("https://safedock.local:8080"); err != nil {
+		t.Fatalf("SetBaseURL : %v", err)
+	}
+	if GetBaseURL() != "https://safedock.local:8080" {
+		t.Errorf("base_url non persistée : %q", GetBaseURL())
 	}
 }
 

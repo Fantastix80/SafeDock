@@ -172,6 +172,7 @@ func runMigrations(db *sql.DB) error {
 		retention_seclogs_days INTEGER DEFAULT -1,
 		backup_enabled INTEGER DEFAULT 1,
 		backup_keep INTEGER DEFAULT 7,
+		base_url TEXT DEFAULT '',
 		ssh_private_key TEXT DEFAULT '',
 		ssh_public_key TEXT DEFAULT ''
 	);`
@@ -270,6 +271,8 @@ func runMigrations(db *sql.DB) error {
 		totp_enabled INTEGER NOT NULL DEFAULT 0,
 		must_change_password INTEGER NOT NULL DEFAULT 0,
 		scope_all INTEGER NOT NULL DEFAULT 0,
+		invite_hash TEXT NOT NULL DEFAULT '',
+		invite_expires DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 
@@ -373,6 +376,10 @@ func runMigrations(db *sql.DB) error {
 	// Sauvegardes planifiées de la base : activées par défaut, 7 dernières conservées.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN backup_enabled INTEGER DEFAULT 1;")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN backup_keep INTEGER DEFAULT 7;")
+	// Invitations par e-mail : jeton d'activation + URL publique pour les liens.
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN invite_hash TEXT NOT NULL DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE users ADD COLUMN invite_expires DATETIME;")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN base_url TEXT DEFAULT '';")
 	// Identité SSH SafeDock (clé privée chiffrée + clé publique) pour les hôtes ssh://.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_private_key TEXT DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_public_key TEXT DEFAULT '';")
@@ -1540,6 +1547,98 @@ func CreateUser(username, passwordHash, role, firstName, lastName string, scopeA
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+// CreateInvitedUser crée un compte en attente d'activation : sans mot de passe ni
+// MFA, porteur d'une empreinte de jeton d'invitation et de son expiration.
+func CreateInvitedUser(username, role, firstName, lastName string, scopeAll bool, inviteHash string, expires time.Time) (int64, error) {
+	db := GetDB()
+	if db == nil {
+		return 0, fmt.Errorf("base de données non initialisée")
+	}
+	res, err := db.Exec(
+		`INSERT INTO users (username, password_hash, role, first_name, last_name, scope_all, must_change_password, invite_hash, invite_expires)
+		 VALUES (?, '', ?, ?, ?, ?, 0, ?, ?);`,
+		username, role, firstName, lastName, boolToInt(scopeAll), inviteHash, expires.Unix(),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// SetUserInvite (ré)assigne un jeton d'invitation à un compte (renvoi d'invitation).
+func SetUserInvite(id int, inviteHash string, expires time.Time) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE users SET invite_hash = ?, invite_expires = ? WHERE id = ?;",
+		inviteHash, expires.Unix(), id)
+	return err
+}
+
+// GetUserByInviteHash retourne le compte porteur de l'empreinte d'invitation, si
+// elle existe et n'est pas expirée.
+func GetUserByInviteHash(hash string) (User, bool) {
+	db := GetDB()
+	if db == nil || hash == "" {
+		return User{}, false
+	}
+	var u User
+	var totpEnabled, scopeAll int
+	var expires sql.NullInt64
+	err := db.QueryRow(
+		`SELECT id, username, role, first_name, last_name, totp_enabled, scope_all, invite_expires
+		 FROM users WHERE invite_hash = ?;`, hash).
+		Scan(&u.ID, &u.Username, &u.Role, &u.FirstName, &u.LastName, &totpEnabled, &scopeAll, &expires)
+	if err != nil {
+		return User{}, false
+	}
+	// Expiration stockée en epoch Unix (sans ambiguïté de format DATETIME).
+	if expires.Valid && time.Now().Unix() > expires.Int64 {
+		return User{}, false
+	}
+	u.TOTPEnabled = totpEnabled == 1
+	u.ScopeAll = scopeAll == 1
+	return u, true
+}
+
+// ClearUserInvite efface le jeton d'invitation après activation du compte.
+func ClearUserInvite(id int) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE users SET invite_hash = '', invite_expires = NULL WHERE id = ?;", id)
+	return err
+}
+
+// GetBaseURL retourne l'URL publique de SafeDock (pour bâtir les liens d'invitation).
+func GetBaseURL() string {
+	db := GetDB()
+	if db == nil {
+		return ""
+	}
+	var v sql.NullString
+	_ = db.QueryRow("SELECT base_url FROM settings WHERE id = 1;").Scan(&v)
+	return strings.TrimSpace(v.String)
+}
+
+// SetBaseURL persiste l'URL publique de SafeDock.
+func SetBaseURL(u string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	res, err := db.Exec("UPDATE settings SET base_url = ? WHERE id = 1;", u)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		_, err = db.Exec("INSERT INTO settings (id, base_url) VALUES (1, ?);", u)
+	}
+	return err
 }
 
 // SetUserProfile met à jour l'identité affichée d'un compte (prénom + nom).

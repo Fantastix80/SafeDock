@@ -95,8 +95,10 @@ func Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		// Routes publiques de connexion.
-		if path == "/api/login" || path == "/api/login/verify" || path == "/api/session" {
+		// Routes publiques de connexion et d'activation par invitation
+		// (le jeton d'invitation fait foi, pas de session).
+		if path == "/api/login" || path == "/api/login/verify" || path == "/api/session" ||
+			path == "/api/invite" || path == "/api/invite/accept" || path == "/api/invite/verify" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -195,20 +197,12 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secret, gerr := crypto.GenerateTOTPSecret()
-	if gerr != nil {
-		http.Error(w, "Impossible de générer le secret MFA", http.StatusInternalServerError)
-		return
-	}
-	if serr := db.SetUserTOTPSecret(u.ID, secret); serr != nil {
-		http.Error(w, "Impossible d'enregistrer le secret MFA", http.StatusInternalServerError)
-		return
-	}
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"status":      "enroll_required",
-		"secret":      secret,
-		"otpauth_uri": crypto.TOTPProvisioningURI(secret, u.Username, mfaIssuer),
-	})
+	// Compte sans MFA actif = compte non finalisé. L'enrôlement passe EXCLUSIVEMENT
+	// par le lien d'invitation (sinon un mot de passe volé permettrait d'enrôler son
+	// propre authenticator et de contourner le MFA obligatoire).
+	clearCookie(w, preAuthCookieName)
+	writeJSONError(w, http.StatusForbidden,
+		"Compte non finalisé : utilisez le lien d'invitation reçu par e-mail, ou demandez à un administrateur de le renvoyer.")
 }
 
 // HandleLoginVerify — étape 2 : code TOTP ou code de secours. Émet la session.

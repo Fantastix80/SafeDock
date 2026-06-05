@@ -156,6 +156,25 @@ func TestGenerateSSHKeypair(t *testing.T) {
 	}
 }
 
+func TestInviteToken(t *testing.T) {
+	tok, h, err := GenerateInviteToken()
+	if err != nil {
+		t.Fatalf("GenerateInviteToken : %v", err)
+	}
+	if tok == "" || h == "" {
+		t.Fatal("jeton/empreinte ne devraient pas être vides")
+	}
+	if HashInviteToken(tok) != h {
+		t.Error("l'empreinte d'un jeton devrait être déterministe")
+	}
+	if tok2, _, _ := GenerateInviteToken(); tok == tok2 {
+		t.Error("deux jetons générés devraient différer")
+	}
+	if HashInviteToken("autre-jeton") == h {
+		t.Error("deux jetons différents ne devraient pas partager l'empreinte")
+	}
+}
+
 func TestBackupCodes(t *testing.T) {
 	codes, err := GenerateBackupCodes(10)
 	if err != nil {

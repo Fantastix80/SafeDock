@@ -261,6 +261,28 @@ func VerifyPassword(password, verifier string) bool {
 	return subtle.ConstantTimeCompare([]byte(legacyHMACVerifier(password)), []byte(verifier)) == 1
 }
 
+// ── Jetons d'invitation ─────────────────────────────────────────────────────
+
+// GenerateInviteToken produit un jeton d'invitation aléatoire URL-safe (256 bits)
+// et son empreinte déterministe (pour recherche en base). Le jeton n'est montré
+// qu'une fois — dans le lien d'invitation — et seule l'empreinte est stockée.
+func GenerateInviteToken() (token, hash string, err error) {
+	raw := make([]byte, 32)
+	if _, err = io.ReadFull(rand.Reader, raw); err != nil {
+		return "", "", err
+	}
+	token = base64.RawURLEncoding.EncodeToString(raw)
+	return token, HashInviteToken(token), nil
+}
+
+// HashInviteToken calcule l'empreinte HMAC (clé maître) d'un jeton d'invitation,
+// utilisée pour la recherche en base sans stocker le jeton en clair.
+func HashInviteToken(token string) string {
+	mac := hmac.New(sha256.New, masterKey)
+	mac.Write([]byte("invite:" + token))
+	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
+}
+
 // ── Jetons signés à portée ──────────────────────────────────────────────────
 // Deux portées existent :
 //   - "session" : session complète, émise APRÈS validation du second facteur (MFA) ;
