@@ -232,8 +232,9 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			AllowPrivileged    bool   `json:"AllowPrivileged"`
 			SecopsScanner      string `json:"SecopsScanner"`
 		} `json:"SecOps"`
-		RetentionDays int                 `json:"RetentionDays"`
-		Retention     db.RetentionConfig  `json:"Retention"`
+		RetentionDays int                `json:"RetentionDays"`
+		Retention     db.RetentionConfig `json:"Retention"`
+		BaseURL       string             `json:"BaseURL"`
 	}{}
 
 	safeConfig.SMTP.Host = s.cfg.SMTP.Host
@@ -250,6 +251,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	safeConfig.SecOps.SecopsScanner = s.cfg.SecOps.SecopsScanner
 	safeConfig.Retention = db.GetRetentionConfig()
 	safeConfig.RetentionDays = safeConfig.Retention.Default // rétrocompat
+	safeConfig.BaseURL = db.GetBaseURL()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(safeConfig)
@@ -273,6 +275,7 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		SecOpsAllowPrivileged bool   `json:"secops_allow_privileged"`
 		SecopsScanner       string `json:"secops_scanner"`
 		RetentionDays       int    `json:"retention_days"`
+		BaseURL             string `json:"base_url"`
 		Retention           *struct {
 			Default       int `json:"default"`
 			CVE           int `json:"cve"`
@@ -336,6 +339,11 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if validDefault[req.RetentionDays] {
 		_ = db.SetRetentionDays(req.RetentionDays)
+	}
+
+	// URL publique de SafeDock (liens d'invitation) : vide ou http(s):// uniquement.
+	if bu := strings.TrimSpace(req.BaseURL); bu == "" || strings.HasPrefix(bu, "http://") || strings.HasPrefix(bu, "https://") {
+		_ = db.SetBaseURL(bu)
 	}
 
 	// Rechargement à chaud en mémoire de l'application

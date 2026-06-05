@@ -14,6 +14,7 @@ import AgentsView from './components/AgentsView';
 import ContainerDetailView from './components/ContainerDetailView';
 import AuditView from './components/AuditView';
 import LoginView from './components/LoginView';
+import InviteView from './components/InviteView';
 import ExceptionsView from './components/ExceptionsView';
 import UsersView from './components/UsersView';
 import ComplianceView from './components/ComplianceView';
@@ -193,11 +194,19 @@ export default function App() {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
   }).then(async res => { if (!res.ok) throw new Error(await res.text()); return res; });
 
-  const handleCreateUser = (u) => apiPost('/api/users', u).then(fetchUsers);
+  const handleCreateUser = (u) => apiPost('/api/users', u).then(async res => {
+    const d = await res.json().catch(() => ({}));
+    fetchUsers();
+    return d; // { invite_link, email_sent }
+  });
   const handleDeleteUser = (id) => apiPost('/api/users/delete', { id }).then(fetchUsers);
   const handleSetRole = (id, role) => apiPost('/api/users/role', { id, role }).then(fetchUsers);
   const handleResetPassword = (id, new_password) => apiPost('/api/users/password', { id, new_password });
-  const handleResetMFA = (id) => apiPost('/api/users/reset-mfa', { id }).then(fetchUsers);
+  const handleResetMFA = (id) => apiPost('/api/users/reset-mfa', { id }).then(async res => {
+    const d = await res.json().catch(() => ({}));
+    fetchUsers();
+    return d; // { invite_link, email_sent }
+  });
   const handleSetScope = (id, payload) => apiPost('/api/users/scope', { id, ...payload }).then(fetchUsers);
 
   // ── Handlers tags (admin) ──
@@ -491,6 +500,11 @@ export default function App() {
   };
 
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
+
+  // Page publique d'activation par invitation (hors authentification).
+  if (window.location.pathname === '/invite') {
+    return <InviteView />;
+  }
 
   // Gate d'authentification
   if (authed === null) {

@@ -34,6 +34,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [smtpTo, setSmtpTo] = useState('');
   const [smtpTls, setSmtpTls] = useState(false);
   const [retention, setRetention] = useState(90);
+  const [baseUrl, setBaseUrl] = useState('');
   const [retCve, setRetCve] = useState(-1);
   const [retNotif, setRetNotif] = useState(-1);
   const [retSecaudit, setRetSecaudit] = useState(-1);
@@ -55,6 +56,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
     setSmtpFrom(config.SMTP?.From || '');
     setSmtpTo(config.SMTP?.To || '');
     setSmtpTls(config.SMTP?.TLSSkipVerify || false);
+    setBaseUrl(config.BaseURL || '');
     const r = config.Retention || {};
     setRetention(r.default != null ? r.default : (config.RetentionDays != null ? config.RetentionDays : 90));
     setRetCve(r.cve != null ? r.cve : -1);
@@ -77,6 +79,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       smtp_from: smtpFrom,
       smtp_to: smtpTo,
       smtp_tls_skip_verify: smtpTls,
+      base_url: baseUrl.trim(),
       retention_days: Number(retention),
       retention: {
         default: Number(retention),
@@ -252,6 +255,14 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                   <option value="grype">Grype (Scan ultra-rapide OS)</option>
                   <option value="hybrid">Double-scan hybride (Trivy + Grype)</option>
                 </select>
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <FieldLabel>URL de base (liens d'invitation)</FieldLabel>
+                <input className={inputClass} placeholder="https://safedock.mondomaine.com:8080" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} />
+                <p className="text-xs text-[#94A3B8]/50 mt-1">
+                  Adresse par laquelle vos utilisateurs accèdent à SafeDock. Sert à bâtir les liens d'invitation envoyés par e-mail.
+                  Laissez vide pour déduire automatiquement l'adresse de chaque requête.
+                </p>
               </div>
               <div className="space-y-1">
                 <FieldLabel>Rétention des données — défaut</FieldLabel>

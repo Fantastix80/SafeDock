@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Trash2, KeyRound, Smartphone, Tag as TagIcon, Plus, Check, History, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, Trash2, KeyRound, Smartphone, Tag as TagIcon, Plus, Check, Copy, History, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const ROLES = [
@@ -13,20 +13,27 @@ export default function UsersView({
   onCreateUser, onDeleteUser, onSetRole, onResetPassword, onResetMFA, onSetScope,
   onCreateTag, onDeleteTag, audit = [], onRefreshAudit,
 }) {
-  const [nu, setNu] = useState({ email: '', password: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
+  const [nu, setNu] = useState({ email: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
   const [msg, setMsg] = useState('');
   const [tagName, setTagName] = useState('');
   const [scopeEdit, setScopeEdit] = useState(null); // user being edited
+  const [invite, setInvite] = useState(null); // { email, link, email_sent } à afficher après création/reset
+  const [copied, setCopied] = useState(false);
 
   const notify = (t) => { setMsg(t); setTimeout(() => setMsg(''), 4000); };
 
   const createUser = async (e) => {
     e.preventDefault();
     try {
-      await onCreateUser(nu);
-      setNu({ email: '', password: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
-      notify('Utilisateur créé.');
+      const res = await onCreateUser(nu);
+      setInvite({ email: nu.email, link: res?.invite_link || '', email_sent: !!res?.email_sent });
+      setNu({ email: '', first_name: '', last_name: '', role: 'viewer', scope_all: false });
     } catch (err) { notify(err.message); }
+  };
+
+  const copyInvite = () => {
+    if (!invite?.link) return;
+    navigator.clipboard?.writeText(invite.link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
 
   const resetPw = async (u) => {
@@ -59,7 +66,6 @@ export default function UsersView({
           <Inp label="Adresse e-mail (identifiant)" type="email" value={nu.email} onChange={v => setNu(p => ({ ...p, email: v }))} />
           <Inp label="Prénom" value={nu.first_name} onChange={v => setNu(p => ({ ...p, first_name: v }))} />
           <Inp label="Nom" value={nu.last_name} onChange={v => setNu(p => ({ ...p, last_name: v }))} />
-          <Inp label="Mot de passe initial" type="password" value={nu.password} onChange={v => setNu(p => ({ ...p, password: v }))} />
           <div className="space-y-1">
             <Lbl>Rôle</Lbl>
             <select value={nu.role} onChange={e => setNu(p => ({ ...p, role: e.target.value }))}
@@ -72,9 +78,35 @@ export default function UsersView({
             Voit tout le parc
           </label>
           <button type="submit" className="px-4 py-2 text-sm font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25 hover:bg-[#F7931A]/25 transition-all">
-            Créer
+            Inviter
           </button>
         </div>
+        <p className="text-xs text-[#94A3B8]/60 mt-2">
+          L'utilisateur reçoit un lien par e-mail pour définir lui-même son mot de passe et son MFA. Aucun mot de passe n'est saisi ici.
+        </p>
+
+        {invite && (
+          <div className="mt-3 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/25 space-y-2">
+            <p className="text-xs text-emerald-300">
+              Compte <strong>{invite.email}</strong> créé.{' '}
+              {invite.email_sent ? 'Invitation envoyée par e-mail.' : 'E-mail non configuré : transmettez le lien ci-dessous.'}
+            </p>
+            {invite.link ? (
+              <div className="flex items-start gap-2">
+                <code className="flex-1 break-all px-3 py-2 rounded-lg bg-[#0A0C10] border border-white/[0.08] text-[#94A3B8] font-mono text-[11px]">{invite.link}</code>
+                <button type="button" onClick={copyInvite} title="Copier le lien"
+                  className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F7931A] hover:bg-[#F7931A]/[0.08] shrink-0">
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-amber-300/90">
+                Lien indisponible : configurez l'« URL de base » dans Paramètres → Préférences pour générer des liens d'invitation.
+              </p>
+            )}
+            <button type="button" onClick={() => setInvite(null)} className="text-[11px] text-[#94A3B8]/60 hover:text-white">Fermer</button>
+          </div>
+        )}
       </form>
 
       {/* Liste utilisateurs */}
@@ -121,7 +153,7 @@ export default function UsersView({
                         <button onClick={() => setScopeEdit(u)} title="Portée" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F7931A] hover:bg-[#F7931A]/[0.08]"><TagIcon className="w-3.5 h-3.5" /></button>
                       )}
                       <button onClick={() => resetPw(u)} title="Réinitialiser le mot de passe" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F7931A] hover:bg-[#F7931A]/[0.08]"><KeyRound className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => onResetMFA(u.id).then(() => notify('MFA réinitialisé.')).catch(err => notify(err.message))} title="Réinitialiser le MFA" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-amber-400 hover:bg-amber-500/[0.08]"><Smartphone className="w-3.5 h-3.5" /></button>
+                      <button onClick={async () => { try { const res = await onResetMFA(u.id); setInvite({ email: u.username, link: res?.invite_link || '', email_sent: !!res?.email_sent }); } catch (err) { notify(err.message); } }} title="Réinitialiser le MFA (renvoie une invitation de ré-enrôlement)" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-amber-400 hover:bg-amber-500/[0.08]"><Smartphone className="w-3.5 h-3.5" /></button>
                       {u.id !== me.user_id && (
                         <button onClick={() => onDeleteUser(u.id).then(() => notify('Supprimé.')).catch(err => notify(err.message))} title="Supprimer" className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/[0.08]"><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
