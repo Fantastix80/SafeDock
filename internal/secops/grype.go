@@ -34,7 +34,9 @@ type rawGrypeArtifact struct {
 
 // ScanImageGrype exécute Anchore Grype CLI en arrière-plan et décode son rapport JSON.
 func ScanImageGrype(ctx context.Context, imageName string) (*TrivyReport, error) {
-	cmd := exec.CommandContext(ctx, "grype", imageName, "-o", "json")
+	// "--" termine les options : la référence d'image est traitée comme argument
+	// positionnel même si elle commence par '-' (anti-injection de drapeau).
+	cmd := exec.CommandContext(ctx, "grype", "-o", "json", "--", imageName)
 	
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

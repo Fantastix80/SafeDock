@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"strconv"
@@ -315,6 +316,10 @@ func runScan(ctx context.Context, scanner, ref string) (*secops.TrivyReport, err
 
 func sendDriftAlert(cfg *config.Config, name, ref string, prevCrit, curCrit, prevHigh, curHigh int, newCritIDs, newHighIDs []string) {
 	subject := fmt.Sprintf("🚨 Dérive de vulnérabilités détectée sur %s", name)
+	// Échappement HTML : le nom de conteneur et la référence d'image sont
+	// influençables par l'opérateur de l'hôte distant.
+	name = html.EscapeString(name)
+	ref = html.EscapeString(ref)
 
 	newBlock := ""
 	if len(newCritIDs) > 0 || len(newHighIDs) > 0 {

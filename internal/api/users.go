@@ -325,6 +325,26 @@ func (s *Server) HandleTagAssignments(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Filtrage par portée : un compte restreint ne doit pas énumérer
+		// l'inventaire complet de la flotte. On ne renvoie que les associations
+		// des conteneurs visibles dans son périmètre (hôte + tag).
+		if u, ok := currentUser(r); ok && u.Role != db.RoleAdmin && !u.ScopeAll {
+			idx := make(map[string]map[int]bool)
+			for _, a := range list {
+				k := fmt.Sprintf("%d|%s", a.HostID, a.ContainerName)
+				if idx[k] == nil {
+					idx[k] = make(map[int]bool)
+				}
+				idx[k][a.TagID] = true
+			}
+			filtered := make([]db.ContainerTagAssignment, 0, len(list))
+			for _, a := range list {
+				if canSeeContainer(u, a.HostID, idx[fmt.Sprintf("%d|%s", a.HostID, a.ContainerName)]) {
+					filtered = append(filtered, a)
+				}
+			}
+			list = filtered
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(list)
 

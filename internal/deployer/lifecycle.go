@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"strings"
 	"time"
@@ -268,7 +269,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 				<li>Vulnérabilités Hautes : <strong>%d</strong></li>
 				<li>Total des failles détectées : %d</li>
 			</ul>
-		`, containerName, secopsReason, fullNewImage, critCount, highCount, len(trivyReport.Vulnerabilities))
+		`, html.EscapeString(containerName), html.EscapeString(secopsReason), html.EscapeString(fullNewImage), critCount, highCount, len(trivyReport.Vulnerabilities))
 		
 		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
 		return false, fmt.Errorf("mise à jour bloquée par les règles SecOps : %s", secopsReason)
@@ -288,7 +289,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			<p>L'image de Staging pour <strong>%s</strong> a été validée par SecOps, mais l'exécution du déploiement a échoué.</p>
 			<p style="color: #e03e2f; font-weight: bold;">Erreur : %v</p>
 			<p>🛡️ <strong>SafeDock a automatiquement restauré l'ancien conteneur de manière sécurisée.</strong> Aucune coupure permanente de service.</p>
-		`, containerName, err)
+		`, html.EscapeString(containerName), html.EscapeString(err.Error()))
 		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
 		return false, err
 	}
@@ -354,7 +355,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			<li>Image déployée : <code>%s</code></li>
 			<li>Vulnérabilités résiduelles critiques : 0</li>
 		</ul>
-	`, containerName, originalImage, fullNewImage)
+	`, html.EscapeString(containerName), html.EscapeString(originalImage), html.EscapeString(fullNewImage))
 	_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, true))
 
 	return true, nil

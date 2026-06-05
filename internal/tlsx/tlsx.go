@@ -29,8 +29,9 @@ func EnsureSelfSigned(dir string, hosts []string) (tls.Certificate, error) {
 	certPath := filepath.Join(tlsDir, "cert.pem")
 	keyPath := filepath.Join(tlsDir, "key.pem")
 
-	// Réutilisation si déjà présent.
+	// Réutilisation si déjà présent (on resserre les permissions de la clé au cas où).
 	if fileExists(certPath) && fileExists(keyPath) {
+		_ = os.Chmod(keyPath, 0o600)
 		return tls.LoadX509KeyPair(certPath, keyPath)
 	}
 
@@ -49,11 +50,14 @@ func EnsureSelfSigned(dir string, hosts []string) (tls.Certificate, error) {
 		SerialNumber:          serial,
 		Subject:               pkix.Name{CommonName: "SafeDock", Organization: []string{"SafeDock"}},
 		NotBefore:             time.Now().Add(-1 * time.Hour),
-		NotAfter:              time.Now().AddDate(10, 0, 0), // 10 ans
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+		NotAfter:              time.Now().AddDate(1, 0, 0), // 1 an
+		// Certificat feuille uniquement : pas de CertSign ni IsCA, pour qu'un
+		// opérateur qui l'importe dans son magasin de confiance ne fasse pas
+		// confiance à une AC capable de signer n'importe quel hôte.
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		IsCA:                  true,
+		IsCA:                  false,
 	}
 
 	// SAN : localhost + boucle locale, plus les hôtes fournis.

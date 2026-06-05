@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/safedock/safedock/internal/auth"
 	"github.com/safedock/safedock/internal/config"
+	"github.com/safedock/safedock/internal/db"
 )
 
 func TestHandleConfig(t *testing.T) {
@@ -38,9 +40,12 @@ func TestHandleConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Impossible de créer la requête de test : %v", err)
 	}
+	// /api/config est réservé aux administrateurs : on passe par le middleware
+	// d'auth avec une session admin valide.
+	req.AddCookie(sessionCookie(t, 1, db.RoleAdmin))
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(server.HandleConfig)
+	handler := auth.Middleware(http.HandlerFunc(server.HandleConfig))
 
 	// 3. Exécution du gestionnaire d'API
 	handler.ServeHTTP(rr, req)

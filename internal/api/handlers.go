@@ -211,7 +211,11 @@ func (s *Server) HandleConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetConfig renvoie la configuration filtrée (sans mot de passe SMTP en clair).
+// Réservé aux administrateurs : expose l'identité/destinataires SMTP et la politique SecOps.
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	if !auth.RequireRole(w, r, db.RoleAdmin) {
+		return
+	}
 	safeConfig := struct {
 		SMTP struct {
 			Host          string `json:"Host"`
@@ -346,12 +350,15 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleRegistries(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		if !auth.RequireRole(w, r, db.RoleAdmin) {
+			return
+		}
 		list, err := db.GetRegistries()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		// On masque les mots de passe par sécurité
 		type safeReg struct {
 			ID            int    `json:"id"`
@@ -1027,6 +1034,11 @@ func (s *Server) HandleExceptionsDelete(w http.ResponseWriter, r *http.Request) 
 func (s *Server) HandleContainersSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		// Liste des surcharges de sécurité par conteneur (noms + politique) :
+		// réservé aux auditeurs et plus (pas aux comptes en lecture restreinte).
+		if !auth.RequireRole(w, r, db.RoleAuditor) {
+			return
+		}
 		list, err := db.GetAllContainerSettings()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

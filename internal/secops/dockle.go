@@ -55,7 +55,8 @@ type rawDockleAlert struct {
 // de l'image (User Root, Fuite de clés, structures suspectes).
 func ScanCompliance(ctx context.Context, imageName string) (*DockleReport, error) {
 	// Nous configurons : dockle --format json <imageName>
-	cmd := exec.CommandContext(ctx, "dockle", "--format", "json", imageName)
+	// "--" termine les options (anti-injection de drapeau via une référence en '-').
+	cmd := exec.CommandContext(ctx, "dockle", "--format", "json", "--", imageName)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

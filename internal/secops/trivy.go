@@ -64,7 +64,9 @@ type rawVulnerability struct {
 func ScanImage(ctx context.Context, imageName string) (*TrivyReport, error) {
 	// Nous configurons la commande : trivy image --format json --quiet <imageName>
 	// --quiet permet de désactiver les barres de chargement et logs parasites sur stderr.
-	cmd := exec.CommandContext(ctx, "trivy", "image", "--format", "json", "--quiet", imageName)
+	// "--" termine les options : une référence d'image commençant par '-' est
+	// alors traitée comme argument positionnel, jamais comme un drapeau (anti-injection).
+	cmd := exec.CommandContext(ctx, "trivy", "image", "--format", "json", "--quiet", "--", imageName)
 	
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

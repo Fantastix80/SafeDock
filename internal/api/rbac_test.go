@@ -47,6 +47,9 @@ func setupRBAC(t *testing.T) (*httptest.Server, map[string]int) {
 	mux.HandleFunc("/api/audit-logs", s.HandleAuditLogs)
 	mux.HandleFunc("/api/notifications", s.HandleNotifications)
 	mux.HandleFunc("/api/tags", s.HandleTags)
+	mux.HandleFunc("/api/config", s.HandleConfig)
+	mux.HandleFunc("/api/registries", s.HandleRegistries)
+	mux.HandleFunc("/api/containers/settings", s.HandleContainersSettings)
 	mux.HandleFunc("/api/session", auth.HandleSession)
 
 	srv := httptest.NewServer(auth.Middleware(mux))
@@ -96,6 +99,16 @@ func TestRBACGates(t *testing.T) {
 		{"/api/notifications", db.RoleViewer, "viewer", http.StatusForbidden},
 		// Liste des tags : tout compte authentifié.
 		{"/api/tags", db.RoleViewer, "viewer", http.StatusOK},
+		// Configuration (SMTP/destinataires/politique) : admin uniquement.
+		{"/api/config", db.RoleAuditor, "auditor", http.StatusForbidden},
+		{"/api/config", db.RoleViewer, "viewer", http.StatusForbidden},
+		// Registres privés : admin uniquement, y compris en lecture.
+		{"/api/registries", db.RoleAdmin, "admin", http.StatusOK},
+		{"/api/registries", db.RoleAuditor, "auditor", http.StatusForbidden},
+		{"/api/registries", db.RoleViewer, "viewer", http.StatusForbidden},
+		// Surcharges de sécurité par conteneur : auditeur+ (pas en lecture restreinte).
+		{"/api/containers/settings", db.RoleAuditor, "auditor", http.StatusOK},
+		{"/api/containers/settings", db.RoleViewer, "viewer", http.StatusForbidden},
 	}
 	for _, c := range cases {
 		got := status(t, srv, http.MethodGet, c.path, sessionCookie(t, ids[c.who], c.role))

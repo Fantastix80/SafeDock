@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -45,6 +46,12 @@ func NewServer(cfg *config.Config) *Server {
 
 // Start lance le serveur HTTP d'API REST.
 func (s *Server) Start(ctx context.Context) error {
+	// Derrière un reverse-proxy qui termine le TLS, SafeDock parle en HTTP clair :
+	// cet override force le flag Secure sur les cookies de session dans ce cas.
+	if v, _ := strconv.ParseBool(os.Getenv("SAFEDOCK_SECURE_COOKIES")); v {
+		auth.SetSecureCookies(true)
+	}
+
 	mux := http.NewServeMux()
 
 	// 0. Routes d'authentification (publiques : indispensables à l'écran de connexion)
@@ -218,6 +225,32 @@ func securityMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		// CSP : confine l'exécution de scripts à la même origine (défense anti-XSS).
+		// 'unsafe-inline' n'est toléré que pour les styles (Tailwind), jamais pour les scripts.
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data:; font-src 'self' data:; connect-src 'self'; "+
+				"object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+
+		// HSTS uniquement sur une connexion réellement sécurisée (TLS natif ou proxy de confiance).
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		}
+
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			// Réponses authentifiées : jamais mises en cache.
+			w.Header().Set("Cache-Control", "no-store")
+
+			// Anti-CSRF en profondeur (en plus de SameSite=Strict) : sur une requête
+			// mutante, l'origine déclarée doit correspondre à l'hôte de la requête.
+			switch r.Method {
+			case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+				if !sameOrigin(r) {
+					http.Error(w, "Origine de la requête non autorisée", http.StatusForbidden)
+					return
+				}
+			}
+		}
 
 		// Aucune en-tête CORS permissive : les requêtes cross-origin sont implicitement refusées
 		// par la politique same-origin du navigateur. Les pré-vols OPTIONS éventuels reçoivent 204.
@@ -228,4 +261,23 @@ func securityMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// sameOrigin vérifie qu'une requête mutante provient bien de la même origine.
+// On se base sur Origin (sinon Referer). En l'absence des deux — typiquement un
+// client non-navigateur — on autorise : l'authentification par cookie + SameSite=Strict
+// reste la protection principale, et un navigateur attaquant envoie toujours Origin.
+func sameOrigin(r *http.Request) bool {
+	src := r.Header.Get("Origin")
+	if src == "" {
+		src = r.Header.Get("Referer")
+	}
+	if src == "" {
+		return true
+	}
+	u, err := url.Parse(src)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }
