@@ -71,6 +71,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/hosts", s.HandleHosts)
 	mux.HandleFunc("/api/hosts/delete", s.HandleHostsDelete)
 	mux.HandleFunc("/api/hosts/test", s.HandleHostTest)
+	mux.HandleFunc("/api/hosts/provision-script", s.HandleHostProvision)
 
 	// Gestion des comptes (admin) et RBAC
 	mux.HandleFunc("/api/users", s.HandleUsers)

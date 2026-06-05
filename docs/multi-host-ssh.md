@@ -17,7 +17,36 @@ transport sécurisé.
 
 ---
 
-## Transport SSH (recommandé) — pas-à-pas sécurisé
+## Méthode recommandée : l'assistant SSH (script généré)
+
+Le plus simple : **Multi-hôtes → Ajouter un hôte distant → onglet « Assistant SSH »**.
+
+1. Saisir l'**adresse** de l'hôte (IP ou DNS), le **port** (22 par défaut),
+   l'**utilisateur** à créer (`safedock` par défaut) et, en option, l'**IP source
+   de SafeDock** (`from=`, voir plus bas).
+2. Cliquer **Générer le script**. SafeDock produit un script bash autonome,
+   intégrant déjà sa **clé publique** et les options de moindre privilège.
+3. **Copier** le script et le lancer **une seule fois, en root**, sur l'hôte cible :
+
+   ```bash
+   sudo bash safedock-provision.sh    # ou : copier-coller le contenu dans un shell root
+   ```
+
+   Le script est **idempotent** : il crée l'utilisateur dédié (sans mot de passe,
+   groupe `docker`), installe la clé verrouillée à `docker system dial-stdio`, puis
+   **affiche la clé publique d'hôte**.
+4. Coller cette clé publique d'hôte dans le champ **« Clé publique de l'hôte »**
+   (épinglage anti-MITM), puis **Tester** et **Ajouter**.
+
+> Le script ne manipule **jamais** de clé privée : SafeDock garde la sienne
+> chiffrée en interne, et la clé d'hôte affichée est publique par nature.
+
+Le pas-à-pas manuel ci-dessous documente **exactement ce que fait le script**, pour
+audit ou pour les environnements où l'exécution d'un script généré n'est pas permise.
+
+---
+
+## Transport SSH — pas-à-pas manuel (équivalent au script)
 
 Avec SSH, **aucun port Docker n'est ouvert** : seul SSH (port 22, déjà présent et
 durci) est utilisé. SafeDock ouvre une session SSH qui lance
@@ -114,3 +143,9 @@ client dans le formulaire d'ajout d'hôte. Ne jamais exposer l'API sans TLS.
   propre utilise automatiquement cette clé (`db.injectSSHKey`).
 - Le matériel sensible des hôtes (`tls_*`) est chiffré en base et marqué
   `json:"-"` (jamais renvoyé par l'API).
+- L'assistant SSH appelle `POST /api/hosts/provision-script` (admin) —
+  `internal/api/provision.go`, `buildProvisionScript`. Les entrées (adresse, port,
+  utilisateur, IP source) sont **strictement validées** par regex avant d'être
+  injectées dans des chaînes shell en quotes simples : le script étant exécuté en
+  root sur l'hôte, on exclut toute injection. La clé **publique** d'instance y est
+  intégrée ; aucune clé privée n'y figure jamais.

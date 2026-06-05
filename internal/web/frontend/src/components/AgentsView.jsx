@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, PlusCircle, Trash2, Loader2, CheckCircle2, XCircle, Lock, HardDrive, KeyRound, RefreshCw, Copy, Check } from 'lucide-react';
+import { Server, PlusCircle, Trash2, Loader2, CheckCircle2, XCircle, Lock, HardDrive, KeyRound, RefreshCw, Copy, Check, Terminal, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function AgentsView({ hosts = [], containers = [], onAddHost, onDeleteHost, onTestHost }) {
@@ -38,6 +38,49 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
   const [status, setStatus] = useState({ text: '', type: '' });
   const [busy, setBusy] = useState(false);
   const [testResults, setTestResults] = useState({}); // hostId -> {ok, error, loading}
+
+  // Assistant SSH : l'admin saisit l'adresse, on génère un script clé-en-main.
+  const [mode, setMode] = useState('ssh'); // 'ssh' | 'advanced'
+  const [sshAddr, setSshAddr] = useState('');
+  const [sshPort, setSshPort] = useState('22');
+  const [sshUser, setSshUser] = useState('safedock');
+  const [fromIP, setFromIP] = useState('');
+  const [script, setScript] = useState('');
+  const [genBusy, setGenBusy] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
+
+  const generateScript = async () => {
+    if (!sshAddr.trim()) return;
+    setGenBusy(true);
+    setScript('');
+    setStatus({ text: 'Génération du script…', type: 'info' });
+    try {
+      const res = await fetch('/api/hosts/provision-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: sshAddr.trim(),
+          port: parseInt(sshPort, 10) || 22,
+          user: sshUser.trim() || 'safedock',
+          controller_ip: fromIP.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.text()) || 'Échec de génération');
+      const d = await res.json();
+      setScript(d.script || '');
+      setEndpoint(d.endpoint || '');
+      if (!name.trim()) setName(sshAddr.trim());
+      setStatus({ text: "Script généré — lancez-le en root sur l'hôte cible.", type: 'ok' });
+    } catch (e) {
+      setStatus({ text: e.message, type: 'error' });
+    } finally {
+      setGenBusy(false);
+    }
+  };
+
+  const copyScript = () => {
+    navigator.clipboard?.writeText(script).then(() => { setScriptCopied(true); setTimeout(() => setScriptCopied(false), 2000); });
+  };
 
   const containerCount = (hostId) => containers.filter(c => c.host_id === hostId).length;
   const isSSH = endpoint.trim().startsWith('ssh://');
@@ -207,21 +250,68 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
             </p>
           </div>
 
+          {/* Choix du mode : assistant SSH clé-en-main vs configuration avancée */}
+          <div className="flex gap-1 p-1 mb-3 rounded-xl bg-[#0A0C10] border border-white/[0.08]">
+            <ModeBtn active={mode === 'ssh'} onClick={() => setMode('ssh')} icon={Wand2} label="Assistant SSH" />
+            <ModeBtn active={mode === 'advanced'} onClick={() => setMode('advanced')} icon={Terminal} label="Avancé · TCP/TLS" />
+          </div>
+
           <form onSubmit={handleAdd} className="space-y-3">
             <Field label="Nom d'affichage" placeholder="ex: prod-node-02" value={name} onChange={setName} />
-            <Field label="Endpoint" placeholder="ssh://root@10.0.0.5  ou  tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />
-            {isSSH ? (
+
+            {mode === 'ssh' ? (
               <>
-                <p className="text-[11px] text-emerald-400/80 font-mono leading-relaxed">
-                  SafeDock utilise sa propre clé SSH (panneau ci-dessus) — installez-la sur l'hôte. Le socket reste local, rien n'est exposé.
+                <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                  Indiquez l'adresse de l'hôte : SafeDock génère un script à lancer <strong className="text-emerald-400">une fois, en root</strong>,
+                  sur la machine cible. Il y crée un accès SSH restreint (clé verrouillée à l'API Docker). Aucune commande à composer à la main.
                 </p>
-                <Area label="Clé publique de l'hôte (optionnel, recommandé)" placeholder="ssh-ed25519 AAAA…  (cat /etc/ssh/ssh_host_ed25519_key.pub)" value={tlsCa} onChange={setTlsCa} />
+                <Field label="Adresse de l'hôte (IP ou DNS)" placeholder="10.0.0.5" value={sshAddr} onChange={setSshAddr} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Port SSH" placeholder="22" value={sshPort} onChange={setSshPort} />
+                  <Field label="Utilisateur" placeholder="safedock" value={sshUser} onChange={setSshUser} />
+                </div>
+                <Field label="IP source SafeDock — from= (optionnel)" placeholder="ex: 10.0.1.12 (IP LAN de SafeDock)" value={fromIP} onChange={setFromIP} />
+
+                <button type="button" onClick={generateScript} disabled={genBusy || !sshAddr.trim()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/25 hover:border-emerald-500/50 transition-all disabled:opacity-40">
+                  {genBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Wand2 className="w-3.5 h-3.5" /> Générer le script</>}
+                </button>
+
+                {script && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] font-medium text-emerald-400/80 uppercase tracking-wider">À lancer EN ROOT sur l'hôte</span>
+                      <button type="button" onClick={copyScript} title="Copier le script"
+                        className="p-1.5 rounded-lg text-[#94A3B8] hover:text-emerald-400 hover:bg-emerald-500/[0.08]">
+                        {scriptCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <pre className="max-h-52 overflow-auto px-3 py-2 rounded-lg bg-[#0A0C10] border border-white/[0.08] text-[#94A3B8] font-mono text-[10px] leading-relaxed whitespace-pre">{script}</pre>
+                    <p className="text-[11px] text-[#94A3B8]/70 leading-relaxed">
+                      En fin d'exécution, le script affiche la <strong className="text-[#94A3B8]">clé publique de l'hôte</strong>. Collez-la ci-dessous
+                      (épinglage anti-MITM), puis <strong className="text-[#94A3B8]">Tester</strong> et <strong className="text-[#94A3B8]">Ajouter</strong>.
+                    </p>
+                    <Area label="Clé publique de l'hôte (recommandé)" placeholder="ssh-ed25519 AAAA…" value={tlsCa} onChange={setTlsCa} />
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <Area label="CA TLS (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCa} onChange={setTlsCa} />
-                <Area label="Certificat client (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCert} onChange={setTlsCert} />
-                <Area label="Clé client (PEM)" placeholder="-----BEGIN PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
+                <Field label="Endpoint" placeholder="ssh://root@10.0.0.5  ou  tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />
+                {isSSH ? (
+                  <>
+                    <p className="text-[11px] text-emerald-400/80 font-mono leading-relaxed">
+                      SafeDock utilise sa propre clé SSH (panneau ci-dessus) — installez-la sur l'hôte. Le socket reste local, rien n'est exposé.
+                    </p>
+                    <Area label="Clé publique de l'hôte (optionnel, recommandé)" placeholder="ssh-ed25519 AAAA…  (cat /etc/ssh/ssh_host_ed25519_key.pub)" value={tlsCa} onChange={setTlsCa} />
+                  </>
+                ) : (
+                  <>
+                    <Area label="CA TLS (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCa} onChange={setTlsCa} />
+                    <Area label="Certificat client (PEM)" placeholder="-----BEGIN CERTIFICATE-----" value={tlsCert} onChange={setTlsCert} />
+                    <Area label="Clé client (PEM)" placeholder="-----BEGIN PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
+                  </>
+                )}
               </>
             )}
 
@@ -246,6 +336,16 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
         </div>
       </div>
     </div>
+  );
+}
+
+function ModeBtn({ active, onClick, icon: Icon, label }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={cn('flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+        active ? 'bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/30' : 'text-[#94A3B8] hover:text-white border border-transparent')}>
+      <Icon className="w-3.5 h-3.5" /> {label}
+    </button>
   );
 }
 
