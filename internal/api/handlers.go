@@ -228,7 +228,8 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			AllowPrivileged    bool   `json:"AllowPrivileged"`
 			SecopsScanner      string `json:"SecopsScanner"`
 		} `json:"SecOps"`
-		RetentionDays int `json:"RetentionDays"`
+		RetentionDays int                 `json:"RetentionDays"`
+		Retention     db.RetentionConfig  `json:"Retention"`
 	}{}
 
 	safeConfig.SMTP.Host = s.cfg.SMTP.Host
@@ -243,7 +244,8 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	safeConfig.SecOps.AllowRoot = s.cfg.SecOps.AllowRoot
 	safeConfig.SecOps.AllowPrivileged = s.cfg.SecOps.AllowPrivileged
 	safeConfig.SecOps.SecopsScanner = s.cfg.SecOps.SecopsScanner
-	safeConfig.RetentionDays = db.GetRetentionDays()
+	safeConfig.Retention = db.GetRetentionConfig()
+	safeConfig.RetentionDays = safeConfig.Retention.Default // rétrocompat
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(safeConfig)
@@ -267,6 +269,13 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		SecOpsAllowPrivileged bool   `json:"secops_allow_privileged"`
 		SecopsScanner       string `json:"secops_scanner"`
 		RetentionDays       int    `json:"retention_days"`
+		Retention           *struct {
+			Default       int `json:"default"`
+			CVE           int `json:"cve"`
+			Notifications int `json:"notifications"`
+			SecurityAudit int `json:"security_audit"`
+			AuditLogs     int `json:"audit_logs"`
+		} `json:"retention"`
 	}
 
 	var req updateConfigReq
@@ -300,9 +309,23 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Rétention des données (valeurs proposées : 30/90/180/365 jours, ou 0 = illimité).
-	validRetention := map[int]bool{0: true, 30: true, 90: true, 180: true, 365: true}
-	if validRetention[req.RetentionDays] {
+	// Rétention des données. Défaut : 0/30/90/180/365 jours (0 = illimité).
+	// Par catégorie : idem + -1 = hériter du défaut.
+	validDefault := map[int]bool{0: true, 30: true, 90: true, 180: true, 365: true}
+	validCat := map[int]bool{-1: true, 0: true, 30: true, 90: true, 180: true, 365: true}
+	if req.Retention != nil {
+		rc := db.RetentionConfig{
+			Default:       req.Retention.Default,
+			CVE:           req.Retention.CVE,
+			Notifications: req.Retention.Notifications,
+			SecurityAudit: req.Retention.SecurityAudit,
+			AuditLogs:     req.Retention.AuditLogs,
+		}
+		if validDefault[rc.Default] && validCat[rc.CVE] && validCat[rc.Notifications] &&
+			validCat[rc.SecurityAudit] && validCat[rc.AuditLogs] {
+			_ = db.SetRetentionConfig(rc)
+		}
+	} else if validDefault[req.RetentionDays] {
 		_ = db.SetRetentionDays(req.RetentionDays)
 	}
 

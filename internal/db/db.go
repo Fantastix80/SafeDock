@@ -161,6 +161,10 @@ func runMigrations(db *sql.DB) error {
 		secops_allow_privileged BOOLEAN,
 		secops_scanner TEXT DEFAULT 'trivy',
 		retention_days INTEGER DEFAULT 90,
+		retention_cve_days INTEGER DEFAULT -1,
+		retention_notif_days INTEGER DEFAULT -1,
+		retention_secaudit_days INTEGER DEFAULT -1,
+		retention_seclogs_days INTEGER DEFAULT -1,
 		ssh_private_key TEXT DEFAULT '',
 		ssh_public_key TEXT DEFAULT ''
 	);`
@@ -354,6 +358,11 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT '';")
 	// Rétention des données (journaux/historique), en jours. 0 = illimité.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_days INTEGER DEFAULT 90;")
+	// Rétention par catégorie. -1 = hérite du défaut (retention_days) ; 0 = illimité ; n>0 = n jours.
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_cve_days INTEGER DEFAULT -1;")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_notif_days INTEGER DEFAULT -1;")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_secaudit_days INTEGER DEFAULT -1;")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_seclogs_days INTEGER DEFAULT -1;")
 	// Identité SSH SafeDock (clé privée chiffrée + clé publique) pour les hôtes ssh://.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_private_key TEXT DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_public_key TEXT DEFAULT '';")
@@ -2046,6 +2055,118 @@ func PurgeOldData(days int) (int64, error) {
 	}
 	var total int64
 	for _, t := range targets {
+		res, err := db.Exec("DELETE FROM "+t.table+" WHERE "+t.col+" < datetime('now', ?);", cutoff)
+		if err != nil {
+			continue
+		}
+		n, _ := res.RowsAffected()
+		total += n
+	}
+	return total, nil
+}
+
+// RetentionConfig regroupe la rétention par défaut et les surcharges par catégorie.
+// Convention par catégorie : -1 = hériter du défaut, 0 = illimité, n>0 = n jours.
+type RetentionConfig struct {
+	Default       int `json:"default"`        // défaut global (jamais -1)
+	CVE           int `json:"cve"`            // historique CVE / tendances
+	Notifications int `json:"notifications"`  // notifications applicatives
+	SecurityAudit int `json:"security_audit"` // journal d'audit RBAC
+	AuditLogs     int `json:"audit_logs"`     // journal SecOps (déploiements)
+}
+
+// effective résout l'héritage d'une catégorie vers le défaut.
+func (rc RetentionConfig) effective(cat int) int {
+	if cat < 0 {
+		return rc.Default
+	}
+	return cat
+}
+
+// GetRetentionConfig lit la rétention par défaut et les surcharges par catégorie.
+func GetRetentionConfig() RetentionConfig {
+	rc := RetentionConfig{Default: 90, CVE: -1, Notifications: -1, SecurityAudit: -1, AuditLogs: -1}
+	db := GetDB()
+	if db == nil {
+		return rc
+	}
+	var def, cve, notif, secaudit, seclogs sql.NullInt64
+	err := db.QueryRow(`SELECT retention_days, retention_cve_days, retention_notif_days,
+		retention_secaudit_days, retention_seclogs_days FROM settings WHERE id = 1;`).
+		Scan(&def, &cve, &notif, &secaudit, &seclogs)
+	if err != nil {
+		return rc
+	}
+	if def.Valid {
+		rc.Default = int(def.Int64)
+	}
+	if cve.Valid {
+		rc.CVE = int(cve.Int64)
+	}
+	if notif.Valid {
+		rc.Notifications = int(notif.Int64)
+	}
+	if secaudit.Valid {
+		rc.SecurityAudit = int(secaudit.Int64)
+	}
+	if seclogs.Valid {
+		rc.AuditLogs = int(seclogs.Int64)
+	}
+	return rc
+}
+
+// SetRetentionConfig persiste la rétention par défaut et les surcharges par catégorie.
+func SetRetentionConfig(rc RetentionConfig) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	if rc.Default < 0 {
+		rc.Default = 0
+	}
+	normCat := func(v int) int {
+		if v < -1 {
+			return -1
+		}
+		return v
+	}
+	res, err := db.Exec(`UPDATE settings SET retention_days=?, retention_cve_days=?, retention_notif_days=?,
+		retention_secaudit_days=?, retention_seclogs_days=? WHERE id=1;`,
+		rc.Default, normCat(rc.CVE), normCat(rc.Notifications), normCat(rc.SecurityAudit), normCat(rc.AuditLogs))
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		_, err = db.Exec(`INSERT INTO settings (id, retention_days, retention_cve_days, retention_notif_days,
+			retention_secaudit_days, retention_seclogs_days) VALUES (1,?,?,?,?,?);`,
+			rc.Default, normCat(rc.CVE), normCat(rc.Notifications), normCat(rc.SecurityAudit), normCat(rc.AuditLogs))
+	}
+	return err
+}
+
+// PurgeWithConfig purge chaque catégorie selon sa rétention effective (héritage résolu).
+// 0 (ou hérité de 0) = illimité → aucune purge pour cette catégorie. Retourne le total supprimé.
+func PurgeWithConfig() (int64, error) {
+	db := GetDB()
+	if db == nil {
+		return 0, fmt.Errorf("base de données non initialisée")
+	}
+	rc := GetRetentionConfig()
+	targets := []struct {
+		table, col string
+		days       int
+	}{
+		{"cve_history", "scanned_at", rc.effective(rc.CVE)},
+		{"notifications", "timestamp", rc.effective(rc.Notifications)},
+		{"security_audit", "timestamp", rc.effective(rc.SecurityAudit)},
+		{"audit_logs", "timestamp", rc.effective(rc.AuditLogs)},
+	}
+	var total int64
+	for _, t := range targets {
+		if t.days <= 0 {
+			continue // illimité
+		}
+		cutoff := fmt.Sprintf("-%d days", t.days)
 		res, err := db.Exec("DELETE FROM "+t.table+" WHERE "+t.col+" < datetime('now', ?);", cutoff)
 		if err != nil {
 			continue

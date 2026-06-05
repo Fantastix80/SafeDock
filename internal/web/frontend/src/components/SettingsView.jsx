@@ -25,6 +25,10 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [smtpTo, setSmtpTo] = useState('');
   const [smtpTls, setSmtpTls] = useState(false);
   const [retention, setRetention] = useState(90);
+  const [retCve, setRetCve] = useState(-1);
+  const [retNotif, setRetNotif] = useState(-1);
+  const [retSecaudit, setRetSecaudit] = useState(-1);
+  const [retSeclogs, setRetSeclogs] = useState(-1);
   const [regServer, setRegServer] = useState('');
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
@@ -42,7 +46,12 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
     setSmtpFrom(config.SMTP?.From || '');
     setSmtpTo(config.SMTP?.To || '');
     setSmtpTls(config.SMTP?.TLSSkipVerify || false);
-    setRetention(config.RetentionDays != null ? config.RetentionDays : 90);
+    const r = config.Retention || {};
+    setRetention(r.default != null ? r.default : (config.RetentionDays != null ? config.RetentionDays : 90));
+    setRetCve(r.cve != null ? r.cve : -1);
+    setRetNotif(r.notifications != null ? r.notifications : -1);
+    setRetSecaudit(r.security_audit != null ? r.security_audit : -1);
+    setRetSeclogs(r.audit_logs != null ? r.audit_logs : -1);
   }, [config]);
 
   const saveGlobal = () => {
@@ -60,6 +69,13 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       smtp_to: smtpTo,
       smtp_tls_skip_verify: smtpTls,
       retention_days: Number(retention),
+      retention: {
+        default: Number(retention),
+        cve: Number(retCve),
+        notifications: Number(retNotif),
+        security_audit: Number(retSecaudit),
+        audit_logs: Number(retSeclogs),
+      },
     })
       .then(() => { setStatus('Paramètres sauvegardés.'); setTimeout(() => setStatus(''), 4000); })
       .catch(() => { setStatus('Erreur de sauvegarde.'); setTimeout(() => setStatus(''), 4000); });
@@ -179,7 +195,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                 </select>
               </div>
               <div className="space-y-1">
-                <FieldLabel>Rétention des données (historique CVE, notifications, journaux d'audit)</FieldLabel>
+                <FieldLabel>Rétention des données — défaut</FieldLabel>
                 <select value={retention} onChange={e => setRetention(Number(e.target.value))} className={selectClass}>
                   <option value={30}>30 jours</option>
                   <option value={90}>90 jours (défaut)</option>
@@ -188,7 +204,19 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                   <option value={0}>Illimité</option>
                 </select>
                 <p className="text-xs text-[#94A3B8]/50 mt-1">
-                  Les enregistrements plus anciens sont purgés automatiquement (cycle quotidien). « Illimité » conserve tout.
+                  Valeur appliquée à chaque catégorie réglée sur « Hériter du défaut ». Purge automatique quotidienne ; « Illimité » conserve tout.
+                </p>
+              </div>
+              <div className="space-y-2 sm:col-span-2 pt-1">
+                <FieldLabel>Affiner par catégorie (optionnel)</FieldLabel>
+                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+                  <RetentionCat label="Historique CVE / tendances" value={retCve} onChange={setRetCve} selectClass={selectClass} />
+                  <RetentionCat label="Notifications" value={retNotif} onChange={setRetNotif} selectClass={selectClass} />
+                  <RetentionCat label="Audit de sécurité (RBAC)" value={retSecaudit} onChange={setRetSecaudit} selectClass={selectClass} />
+                  <RetentionCat label="Journal SecOps (déploiements)" value={retSeclogs} onChange={setRetSeclogs} selectClass={selectClass} />
+                </div>
+                <p className="text-xs text-[#94A3B8]/50">
+                  Ex. conserver l'historique CVE 1 an pour les tendances, tout en purgeant les notifications à 30 jours.
                 </p>
               </div>
             </div>
@@ -304,6 +332,22 @@ function FieldLabel({ children }) {
 
 function SHead({ children }) {
   return <h3 className="font-heading text-sm font-semibold text-white mb-1 pb-3 border-b border-white/[0.06]">{children}</h3>;
+}
+
+function RetentionCat({ label, value, onChange, selectClass }) {
+  return (
+    <div className="space-y-1">
+      <label className="font-mono text-[11px] text-[#94A3B8]/70">{label}</label>
+      <select value={value} onChange={e => onChange(Number(e.target.value))} className={selectClass}>
+        <option value={-1}>Hériter du défaut</option>
+        <option value={30}>30 jours</option>
+        <option value={90}>90 jours</option>
+        <option value={180}>180 jours</option>
+        <option value={365}>1 an</option>
+        <option value={0}>Illimité</option>
+      </select>
+    </div>
+  );
 }
 
 function Toggle({ label, checked, onChange }) {

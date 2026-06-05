@@ -160,3 +160,44 @@ func TestRetention(t *testing.T) {
 		t.Errorf("rétention illimitée ne doit rien purger, obtenu %d", n0)
 	}
 }
+
+func TestRetentionPerCategory(t *testing.T) {
+	freshDB(t)
+
+	// Par défaut : tout hérite (-1), défaut 90.
+	rc := GetRetentionConfig()
+	if rc.Default != 90 || rc.CVE != -1 || rc.Notifications != -1 {
+		t.Fatalf("config par défaut inattendue : %+v", rc)
+	}
+	if rc.effective(rc.CVE) != 90 {
+		t.Errorf("CVE héritée devrait valoir 90, obtenu %d", rc.effective(rc.CVE))
+	}
+
+	// CVE conservé illimité (0), notifications purgées à 30 j, le reste hérite (défaut 30).
+	cfg := RetentionConfig{Default: 30, CVE: 0, Notifications: 30, SecurityAudit: -1, AuditLogs: -1}
+	if err := SetRetentionConfig(cfg); err != nil {
+		t.Fatalf("SetRetentionConfig : %v", err)
+	}
+	got := GetRetentionConfig()
+	if got.Default != 30 || got.CVE != 0 || got.Notifications != 30 || got.SecurityAudit != -1 {
+		t.Fatalf("config relue incorrecte : %+v", got)
+	}
+
+	db := GetDB()
+	// Ancienne entrée CVE : ne doit PAS être purgée (CVE = illimité).
+	_, _ = db.Exec("INSERT INTO cve_history (container_name, scanner, critical, high, medium, low, scanned_at) VALUES ('cve-old','trivy',1,0,0,0, datetime('now','-100 days'));")
+	// Ancienne notification : doit être purgée (30 j).
+	_, _ = db.Exec("INSERT INTO notifications (level, title, body, container_name, timestamp) VALUES ('CRITICAL','t','m','c', datetime('now','-100 days'));")
+
+	if _, err := PurgeWithConfig(); err != nil {
+		t.Fatalf("PurgeWithConfig : %v", err)
+	}
+	if pts, _ := GetVulnHistory("cve-old", 10); len(pts) != 1 {
+		t.Error("l'historique CVE en illimité ne devrait pas être purgé")
+	}
+	var notifCount int
+	_ = db.QueryRow("SELECT COUNT(*) FROM notifications;").Scan(&notifCount)
+	if notifCount != 0 {
+		t.Errorf("la notification ancienne aurait dû être purgée, reste %d", notifCount)
+	}
+}
