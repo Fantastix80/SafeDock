@@ -1,8 +1,35 @@
-import React, { useState } from 'react';
-import { Server, PlusCircle, Trash2, Loader2, CheckCircle2, XCircle, Lock, HardDrive } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Server, PlusCircle, Trash2, Loader2, CheckCircle2, XCircle, Lock, HardDrive, KeyRound, RefreshCw, Copy, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function AgentsView({ hosts = [], containers = [], onAddHost, onDeleteHost, onTestHost }) {
+  const [sshPub, setSshPub] = useState('');
+  const [sshFp, setSshFp] = useState('');
+  const [regen, setRegen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const loadSSHIdentity = () => {
+    fetch('/api/ssh-identity')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { setSshPub(d.public_key || ''); setSshFp(d.fingerprint || ''); } })
+      .catch(() => {});
+  };
+  useEffect(() => { loadSSHIdentity(); }, []);
+
+  const regenerateKey = async () => {
+    if (!window.confirm("Régénérer la clé SSH de SafeDock ?\n\nLes hôtes SSH déjà configurés ne seront plus joignables tant que la NOUVELLE clé publique n'aura pas été réinstallée sur leurs serveurs.")) return;
+    setRegen(true);
+    try {
+      const res = await fetch('/api/ssh-identity', { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { setSshPub(d.public_key || ''); setSshFp(d.fingerprint || ''); }
+    } finally { setRegen(false); }
+  };
+
+  const copyPub = () => {
+    navigator.clipboard?.writeText(sshPub).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
   const [name, setName] = useState('');
   const [endpoint, setEndpoint] = useState('');
   const [tlsCa, setTlsCa] = useState('');
@@ -68,6 +95,35 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
           Pour un hôte distant, deux transports : <strong className="text-emerald-400">SSH (recommandé)</strong> — le socket
           reste local, rien n'est exposé — ou <strong className="text-[#94A3B8]">TCP en TLS mutuel</strong>.
         </p>
+      </div>
+
+      {/* Identité SSH SafeDock */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-[#F7931A]" />
+            <h3 className="font-heading text-xs font-semibold text-white">Clé publique SSH de SafeDock</h3>
+          </div>
+          <button type="button" onClick={regenerateKey} disabled={regen}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded-lg bg-white/[0.04] text-[#94A3B8] hover:text-white hover:bg-white/[0.07] border border-white/[0.08] transition-all disabled:opacity-40">
+            <RefreshCw className={cn('w-3.5 h-3.5', regen && 'animate-spin')} /> Régénérer
+          </button>
+        </div>
+        <p className="text-xs text-[#94A3B8] mb-2 leading-relaxed">
+          Pour un hôte <strong className="text-emerald-400">SSH</strong>, installez cette clé publique sur le serveur cible
+          (utilisateur dédié, idéalement <code className="text-[#94A3B8]/80">command="docker system dial-stdio",restrict</code>).
+          La clé privée reste interne à SafeDock (chiffrée) et <strong>n'est jamais affichée</strong>.
+        </p>
+        {sshPub ? (
+          <div className="flex items-start gap-2">
+            <code className="flex-1 break-all px-3 py-2 rounded-lg bg-[#0A0C10] border border-white/[0.08] text-[#94A3B8] font-mono text-[11px]">{sshPub}</code>
+            <button type="button" onClick={copyPub} title="Copier"
+              className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F7931A] hover:bg-[#F7931A]/[0.08] shrink-0">
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        ) : <p className="text-xs text-[#94A3B8]/50">Chargement…</p>}
+        {sshFp && <p className="text-[11px] text-[#94A3B8]/40 mt-1.5 font-mono">Empreinte : {sshFp}</p>}
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
@@ -156,9 +212,10 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
             <Field label="Endpoint" placeholder="ssh://root@10.0.0.5  ou  tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />
             {isSSH ? (
               <>
-                <p className="text-[11px] text-emerald-400/80 font-mono">Mode SSH : le socket Docker reste local sur l'hôte, rien n'est exposé.</p>
-                <Area label="Clé privée SSH (PEM)" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" value={tlsKey} onChange={setTlsKey} />
-                <Area label="Clé publique de l'hôte (optionnel, recommandé)" placeholder="ssh-ed25519 AAAA…  (contenu de known_hosts)" value={tlsCa} onChange={setTlsCa} />
+                <p className="text-[11px] text-emerald-400/80 font-mono leading-relaxed">
+                  SafeDock utilise sa propre clé SSH (panneau ci-dessus) — installez-la sur l'hôte. Le socket reste local, rien n'est exposé.
+                </p>
+                <Area label="Clé publique de l'hôte (optionnel, recommandé)" placeholder="ssh-ed25519 AAAA…  (cat /etc/ssh/ssh_host_ed25519_key.pub)" value={tlsCa} onChange={setTlsCa} />
               </>
             ) : (
               <>

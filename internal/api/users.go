@@ -410,6 +410,37 @@ func (s *Server) HandleNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleSSHIdentity : GET la clé publique SSH de SafeDock (à installer sur les hôtes
+// cibles), POST régénère la paire. Admin uniquement. La clé privée n'est JAMAIS exposée.
+func (s *Server) HandleSSHIdentity(w http.ResponseWriter, r *http.Request) {
+	if !auth.RequireRole(w, r, db.RoleAdmin) {
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		pub, err := db.GetSSHPublicKey()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"public_key": pub, "fingerprint": crypto.SSHFingerprint(pub)})
+
+	case http.MethodPost:
+		pub, err := db.RegenerateSSHIdentity()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		audit(r, "ssh.regenerate_key", "", crypto.SSHFingerprint(pub))
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"public_key": pub, "fingerprint": crypto.SSHFingerprint(pub)})
+
+	default:
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+	}
+}
+
 func decodeID(w http.ResponseWriter, r *http.Request) (int, bool) {
 	var req struct {
 		ID int `json:"id"`

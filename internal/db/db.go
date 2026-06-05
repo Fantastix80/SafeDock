@@ -160,7 +160,9 @@ func runMigrations(db *sql.DB) error {
 		secops_allow_root BOOLEAN,
 		secops_allow_privileged BOOLEAN,
 		secops_scanner TEXT DEFAULT 'trivy',
-		retention_days INTEGER DEFAULT 90
+		retention_days INTEGER DEFAULT 90,
+		ssh_private_key TEXT DEFAULT '',
+		ssh_public_key TEXT DEFAULT ''
 	);`
 
 	// 2. Table registries (Identifiants registres privés)
@@ -352,6 +354,9 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT '';")
 	// Rétention des données (journaux/historique), en jours. 0 = illimité.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_days INTEGER DEFAULT 90;")
+	// Identité SSH SafeDock (clé privée chiffrée + clé publique) pour les hôtes ssh://.
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_private_key TEXT DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_public_key TEXT DEFAULT '';")
 
 	return nil
 }
@@ -1227,6 +1232,16 @@ func scanHost(rowScan func(...any) error) (DockerHost, error) {
 	return h, nil
 }
 
+// injectSSHKey : un hôte ssh:// sans clé propre utilise la clé privée d'instance
+// SafeDock. À n'appeler que lorsqu'aucun *sql.Rows n'est ouvert (requête imbriquée).
+func injectSSHKey(h *DockerHost) {
+	if strings.HasPrefix(h.Endpoint, "ssh://") && h.TLSKey == "" {
+		if priv, err := GetSSHPrivateKey(); err == nil {
+			h.TLSKey = priv
+		}
+	}
+}
+
 // GetHosts liste tous les hôtes (matériel TLS déchiffré).
 func GetHosts() ([]DockerHost, error) {
 	db := GetDB()
@@ -1237,15 +1252,18 @@ func GetHosts() ([]DockerHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
 	list := make([]DockerHost, 0)
 	for rows.Next() {
-		h, err := scanHost(rows.Scan)
-		if err != nil {
-			return nil, err
+		h, serr := scanHost(rows.Scan)
+		if serr != nil {
+			_ = rows.Close()
+			return nil, serr
 		}
 		list = append(list, h)
+	}
+	_ = rows.Close() // libère la connexion AVANT injectSSHKey (connexion unique)
+	for i := range list {
+		injectSSHKey(&list[i])
 	}
 	return list, nil
 }
@@ -1272,7 +1290,12 @@ func GetHost(id int) (DockerHost, error) {
 		return DockerHost{}, fmt.Errorf("base de données non initialisée")
 	}
 	row := db.QueryRow("SELECT id, name, endpoint, tls_ca, tls_cert, tls_key, enabled, created_at FROM hosts WHERE id = ?;", id)
-	return scanHost(row.Scan)
+	h, err := scanHost(row.Scan)
+	if err != nil {
+		return h, err
+	}
+	injectSSHKey(&h) // sûr : QueryRow.Scan a déjà libéré la connexion
+	return h, nil
 }
 
 // AddHost enregistre un nouvel hôte distant. Le matériel TLS est chiffré avant stockage.
@@ -2031,4 +2054,79 @@ func PurgeOldData(days int) (int64, error) {
 		total += n
 	}
 	return total, nil
+}
+
+// ==========================================================================
+// Operations : Identité SSH SafeDock (pour les hôtes ssh://)
+// ==========================================================================
+
+// ensureSSHIdentity retourne (clé privée déchiffrée, clé publique). Si aucune
+// identité n'existe encore, elle est générée et persistée (privée chiffrée).
+func ensureSSHIdentity() (priv, pub string, err error) {
+	db := GetDB()
+	if db == nil {
+		return "", "", fmt.Errorf("base de données non initialisée")
+	}
+	var encPriv, pubKey sql.NullString
+	_ = db.QueryRow("SELECT ssh_private_key, ssh_public_key FROM settings WHERE id = 1;").Scan(&encPriv, &pubKey)
+	if encPriv.Valid && encPriv.String != "" && pubKey.Valid && pubKey.String != "" {
+		if dec, derr := crypto.Decrypt(encPriv.String); derr == nil && dec != "" {
+			return dec, pubKey.String, nil
+		}
+	}
+	// Génération initiale.
+	newPriv, newPub, gerr := crypto.GenerateSSHKeypair()
+	if gerr != nil {
+		return "", "", gerr
+	}
+	if serr := storeSSHIdentity(newPriv, newPub); serr != nil {
+		return "", "", serr
+	}
+	return newPriv, newPub, nil
+}
+
+// storeSSHIdentity chiffre et persiste la paire (ligne settings unique id=1).
+func storeSSHIdentity(priv, pub string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	enc, err := crypto.Encrypt(priv)
+	if err != nil {
+		return err
+	}
+	res, err := db.Exec("UPDATE settings SET ssh_private_key = ?, ssh_public_key = ? WHERE id = 1;", enc, pub)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		_, err = db.Exec("INSERT INTO settings (id, ssh_private_key, ssh_public_key) VALUES (1, ?, ?);", enc, pub)
+	}
+	return err
+}
+
+// GetSSHPublicKey retourne la clé publique SSH de SafeDock (génère l'identité au besoin).
+func GetSSHPublicKey() (string, error) {
+	_, pub, err := ensureSSHIdentity()
+	return pub, err
+}
+
+// GetSSHPrivateKey retourne la clé privée SSH (déchiffrée) de SafeDock.
+func GetSSHPrivateKey() (string, error) {
+	priv, _, err := ensureSSHIdentity()
+	return priv, err
+}
+
+// RegenerateSSHIdentity génère une nouvelle paire et retourne la nouvelle clé publique.
+// Les hôtes ssh:// existants ne seront de nouveau joignables qu'une fois la nouvelle
+// clé publique réinstallée sur leurs serveurs.
+func RegenerateSSHIdentity() (string, error) {
+	newPriv, newPub, err := crypto.GenerateSSHKeypair()
+	if err != nil {
+		return "", err
+	}
+	if err := storeSSHIdentity(newPriv, newPub); err != nil {
+		return "", err
+	}
+	return newPub, nil
 }
