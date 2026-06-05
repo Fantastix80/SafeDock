@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Boxes, Search, ArrowUpDown, ChevronUp, ChevronDown,
-  Server, Eye, Settings2, CheckCircle2, XCircle, ShieldCheck, TriangleAlert, Loader2
+  Server, Eye, Settings2, CheckCircle2, XCircle, ShieldCheck, TriangleAlert, Loader2, Download
 } from 'lucide-react';
 import { cn, gradeColor, gradeBg } from '../lib/utils';
 
@@ -47,6 +47,30 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
     return 0;
   });
 
+  const exportCSV = () => {
+    const headers = ['Conteneur', 'Hôte', 'Image', 'Tag image', 'Score', 'Note', 'Root', 'Privilégié', 'Digest épinglé', 'Secrets', 'CVE critiques', 'CVE élevées', 'CVE moyennes', 'CVE faibles', 'Scanné', 'Tags'];
+    const esc = (v) => {
+      const s = String(v ?? '');
+      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lines = sorted.map(c => [
+      c.name, c.host_name, c.image_name, c.image_tag, c.score, c.grade,
+      c.is_root ? 'oui' : 'non', c.is_privileged ? 'oui' : 'non', c.tag_pinned ? 'oui' : 'non',
+      (c.secret_leaks || []).length, c.cve_critical || 0, c.cve_high || 0, c.cve_medium || 0, c.cve_low || 0,
+      c.scanned ? 'oui' : 'non', (c.tags || []).join(' '),
+    ].map(esc).join(','));
+    const csv = [headers.join(','), ...lines].join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM → Excel/UTF-8
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `safedock-conteneurs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const total = sorted.length;
   const totalPages = Math.ceil(total / perPage) || 1;
   const safePage = Math.min(page, totalPages);
@@ -69,15 +93,26 @@ export default function ContainersView({ containers, onSelectContainer, onNaviga
           <Boxes className="w-4 h-4 text-[#94A3B8]" />
           Inventaire des conteneurs
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]/50 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
-            className="w-64 pl-9 pr-3 py-2 text-sm rounded-xl bg-[#0F1115] border border-white/[0.08] text-white placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
-          />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={exportCSV}
+            disabled={sorted.length === 0}
+            title="Exporter la vue en CSV"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-white/[0.04] text-[#94A3B8] hover:text-white hover:bg-white/[0.07] border border-white/[0.08] transition-all disabled:opacity-40 font-mono"
+          >
+            <Download className="w-3.5 h-3.5" /> CSV
+          </button>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]/50 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+              className="w-64 pl-9 pr-3 py-2 text-sm rounded-xl bg-[#0F1115] border border-white/[0.08] text-white placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#F7931A]/40 transition-colors font-mono"
+            />
+          </div>
         </div>
       </div>
 
