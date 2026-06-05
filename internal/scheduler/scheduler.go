@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/safedock/safedock/internal/config"
@@ -158,7 +159,7 @@ func (m *Manager) runCycle(ctx context.Context) {
 		ref := c.ImageName + ":" + c.ImageTag
 
 		// Rapport précédent pour ce digest (référence de comparaison de dérive).
-		prevCrit, prevHigh, hadPrev := previousCounts(c.CurrentDigest)
+		prev := previousReport(c.CurrentDigest)
 
 		// Re-scan (l'image d'un conteneur actif est déjà locale → aucun pull, aucun coût disque).
 		report, scanErr := runScan(ctx, scanner, ref)
@@ -177,23 +178,35 @@ func (m *Manager) runCycle(ctx context.Context) {
 		_ = db.AppendVulnHistory(c.Name, c.CurrentDigest, scanner,
 			report.Summary.Critical, report.Summary.High, report.Summary.Medium, report.Summary.Low)
 
-		// Détection de dérive : même image, davantage de CVE qu'au scan précédent.
-		if hadPrev && (report.Summary.Critical > prevCrit || report.Summary.High > prevHigh) {
+		if prev == nil {
+			continue // premier scan de ce digest : pas de référence de dérive
+		}
+
+		// Détection de dérive sur une image INCHANGÉE. Deux signaux complémentaires :
+		//  1. le total de CVE critiques/hautes augmente ;
+		//  2. de NOUVELLES CVE critiques/hautes apparaissent (par identifiant) — même
+		//     si le total est stable (une CVE corrigée masquant une CVE nouvelle).
+		prevCrit, prevHigh := prev.Summary.Critical, prev.Summary.High
+		newCrit, newHigh := newVulnIDs(prev, report)
+		countDrift := report.Summary.Critical > prevCrit || report.Summary.High > prevHigh
+
+		if len(newCrit) > 0 || len(newHigh) > 0 || countDrift {
 			drifts++
-			log.Printf("🚨 [DÉRIVE] '%s' (%s) : nouvelles vulnérabilités sur une image inchangée — "+
-				"Critiques %d→%d, Hautes %d→%d\n", c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High)
+			detail := summarizeNewCVEs(newCrit, newHigh)
+			log.Printf("🚨 [DÉRIVE] '%s' (%s) sur image inchangée — Critiques %d→%d, Hautes %d→%d. %s\n",
+				c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High, detail)
 
 			_ = db.WriteAuditLog(c.Name, c.ID, ref, "DRIFT",
-				fmt.Sprintf("Dérive de vulnérabilités détectée (image inchangée) : Critiques %d→%d, Hautes %d→%d",
-					prevCrit, report.Summary.Critical, prevHigh, report.Summary.High),
+				fmt.Sprintf("Dérive de vulnérabilités (image inchangée) : Critiques %d→%d, Hautes %d→%d. %s",
+					prevCrit, report.Summary.Critical, prevHigh, report.Summary.High, detail),
 				report.Summary.Critical, report.Summary.High, report.Summary.Medium)
 
 			db.WriteNotification("CRITICAL", "Nouvelles vulnérabilités détectées",
-				fmt.Sprintf("%s (%s) : Critiques %d→%d, Élevées %d→%d sur une image inchangée.",
-					c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High),
+				fmt.Sprintf("%s (%s) : Critiques %d→%d, Élevées %d→%d sur une image inchangée. %s",
+					c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High, detail),
 				c.Name, "")
 
-			sendDriftAlert(cfg, c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High)
+			sendDriftAlert(cfg, c.Name, ref, prevCrit, report.Summary.Critical, prevHigh, report.Summary.High, newCrit, newHigh)
 		}
 	}
 
@@ -205,17 +218,75 @@ func (m *Manager) runCycle(ctx context.Context) {
 	}
 }
 
-// previousCounts lit les compteurs CVE du dernier scan en cache pour un digest.
-func previousCounts(digest string) (crit, high int, ok bool) {
+// previousReport lit le dernier rapport en cache pour un digest (référence de dérive).
+// Renvoie nil s'il n'y a pas de scan antérieur (premier passage sur ce digest).
+func previousReport(digest string) *secops.TrivyReport {
 	reportJSON, _, _, err := db.GetLatestVulnScanByDigest(digest)
 	if err != nil || reportJSON == "" {
-		return 0, 0, false
+		return nil
 	}
 	var rep secops.TrivyReport
 	if json.Unmarshal([]byte(reportJSON), &rep) != nil {
-		return 0, 0, false
+		return nil
 	}
-	return rep.Summary.Critical, rep.Summary.High, true
+	return &rep
+}
+
+// newVulnIDs renvoie les identifiants de CVE critiques/hautes présents dans le
+// rapport courant mais absents du précédent — c.-à-d. les vulnérabilités
+// nouvellement apparues sur une image inchangée. Le résultat est dédoublonné.
+func newVulnIDs(prev, cur *secops.TrivyReport) (newCrit, newHigh []string) {
+	prevSet := make(map[string]struct{}, len(prev.Vulnerabilities))
+	for _, v := range prev.Vulnerabilities {
+		prevSet[v.CVEID] = struct{}{}
+	}
+	seenCrit := make(map[string]struct{})
+	seenHigh := make(map[string]struct{})
+	for _, v := range cur.Vulnerabilities {
+		if v.CVEID == "" {
+			continue
+		}
+		if _, known := prevSet[v.CVEID]; known {
+			continue
+		}
+		switch strings.ToUpper(v.Severity) {
+		case "CRITICAL":
+			if _, dup := seenCrit[v.CVEID]; !dup {
+				seenCrit[v.CVEID] = struct{}{}
+				newCrit = append(newCrit, v.CVEID)
+			}
+		case "HIGH":
+			if _, dup := seenHigh[v.CVEID]; !dup {
+				seenHigh[v.CVEID] = struct{}{}
+				newHigh = append(newHigh, v.CVEID)
+			}
+		}
+	}
+	return newCrit, newHigh
+}
+
+// summarizeNewCVEs produit un libellé court listant les nouvelles CVE (au plus 5
+// par sévérité) pour les journaux, notifications et e-mails.
+func summarizeNewCVEs(newCrit, newHigh []string) string {
+	if len(newCrit) == 0 && len(newHigh) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, 2)
+	if len(newCrit) > 0 {
+		parts = append(parts, "nouvelles critiques : "+joinCapped(newCrit, 5))
+	}
+	if len(newHigh) > 0 {
+		parts = append(parts, "nouvelles hautes : "+joinCapped(newHigh, 5))
+	}
+	return strings.Join(parts, " ; ") + "."
+}
+
+// joinCapped joint au plus n éléments, en suffixant « (+k) » si la liste est tronquée.
+func joinCapped(ids []string, n int) string {
+	if len(ids) <= n {
+		return strings.Join(ids, ", ")
+	}
+	return strings.Join(ids[:n], ", ") + fmt.Sprintf(" (+%d)", len(ids)-n)
 }
 
 func runScan(ctx context.Context, scanner, ref string) (*secops.TrivyReport, error) {
@@ -229,8 +300,21 @@ func runScan(ctx context.Context, scanner, ref string) (*secops.TrivyReport, err
 	}
 }
 
-func sendDriftAlert(cfg *config.Config, name, ref string, prevCrit, newCrit, prevHigh, newHigh int) {
+func sendDriftAlert(cfg *config.Config, name, ref string, prevCrit, curCrit, prevHigh, curHigh int, newCritIDs, newHighIDs []string) {
 	subject := fmt.Sprintf("🚨 Dérive de vulnérabilités détectée sur %s", name)
+
+	newBlock := ""
+	if len(newCritIDs) > 0 || len(newHighIDs) > 0 {
+		newBlock = "<p><strong>CVE nouvellement apparues</strong> (image inchangée) :</p><ul>"
+		if len(newCritIDs) > 0 {
+			newBlock += fmt.Sprintf("<li>Critiques : <code>%s</code></li>", joinCapped(newCritIDs, 10))
+		}
+		if len(newHighIDs) > 0 {
+			newBlock += fmt.Sprintf("<li>Hautes : <code>%s</code></li>", joinCapped(newHighIDs, 10))
+		}
+		newBlock += "</ul>"
+	}
+
 	content := fmt.Sprintf(`
 		<p>SafeDock a détecté de <strong>nouvelles vulnérabilités</strong> sur une image qui n'a pourtant pas changé.</p>
 		<p>Cela signifie que des CVE récemment publiées affectent désormais ce conteneur.</p>
@@ -240,8 +324,9 @@ func sendDriftAlert(cfg *config.Config, name, ref string, prevCrit, newCrit, pre
 			<li>Vulnérabilités critiques : <strong style="color:#e03e2f;">%d → %d</strong></li>
 			<li>Vulnérabilités hautes : <strong>%d → %d</strong></li>
 		</ul>
+		%s
 		<p>Vérifiez s'il existe une image corrigée et envisagez une mise à jour.</p>
-	`, name, ref, prevCrit, newCrit, prevHigh, newHigh)
+	`, name, ref, prevCrit, curCrit, prevHigh, curHigh, newBlock)
 	_ = notifier.SendEmail(&cfg.SMTP, subject, notifier.BuildHTMLReport(subject, content, false))
 }
 
