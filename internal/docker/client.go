@@ -110,22 +110,26 @@ func buildSSHClient(endpoint, hostKey, privateKey string) (*client.Client, io.Cl
 	}
 
 	// Vérification de la clé hôte : si une clé publique d'hôte est fournie, on l'épingle
-	// (FixedHostKey). Sinon, on accepte à la première connexion — l'UI recommande de
-	// fournir la clé hôte pour se prémunir d'une attaque de l'homme du milieu.
+	// (FixedHostKey) et on restreint l'algorithme de clé hôte négocié à son type, sinon
+	// le serveur pourrait présenter une clé d'un autre type → faux « host key mismatch ».
+	// Sans clé fournie, on accepte à la première connexion (l'UI recommande de la fournir).
 	hostCb := ssh.InsecureIgnoreHostKey()
+	var hostAlgos []string
 	if strings.TrimSpace(hostKey) != "" {
 		pub, _, _, _, perr := ssh.ParseAuthorizedKey([]byte(hostKey))
 		if perr != nil {
 			return nil, nil, fmt.Errorf("clé publique d'hôte SSH invalide : %w", perr)
 		}
 		hostCb = ssh.FixedHostKey(pub)
+		hostAlgos = []string{pub.Type()}
 	}
 
 	cfg := &ssh.ClientConfig{
-		User:            user,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: hostCb,
-		Timeout:         10 * time.Second,
+		User:              user,
+		Auth:              []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback:   hostCb,
+		HostKeyAlgorithms: hostAlgos, // nil = ordre par défaut (cas sans épinglage)
+		Timeout:           10 * time.Second,
 	}
 	sshConn, err := ssh.Dial("tcp", host, cfg)
 	if err != nil {
