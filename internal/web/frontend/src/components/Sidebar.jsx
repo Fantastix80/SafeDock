@@ -14,9 +14,9 @@ const NAV_GROUPS = [
       { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
       { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
       { id: 'compliance',    label: 'Conformité',    icon: BadgeCheck },
-      { id: 'audit',         label: 'Audit',         icon: ScanSearch },
+      { id: 'audit',         label: 'Audit',         icon: ScanSearch, minRole: 'auditor' },
       { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
-      { id: 'notifications', label: 'Notifications', icon: Bell },
+      { id: 'notifications', label: 'Notifications', icon: Bell, minRole: 'auditor' },
     ],
   },
   {
@@ -33,7 +33,12 @@ const NAV_GROUPS = [
 ];
 
 export default function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse, onRefresh, isRefreshing, onLogout, role }) {
-  const groups = NAV_GROUPS.filter(g => !g.adminOnly || role === 'admin');
+  const rank = { viewer: 1, auditor: 2, admin: 3 };
+  const myRank = rank[role] || 1;
+  const groups = NAV_GROUPS
+    .filter(g => !g.adminOnly || role === 'admin')
+    .map(g => ({ ...g, items: g.items.filter(it => myRank >= (rank[it.minRole] || 1)) }))
+    .filter(g => g.items.length > 0);
   return (
     <aside
       className={cn(

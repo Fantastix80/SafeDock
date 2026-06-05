@@ -105,6 +105,16 @@ func Middleware(next http.Handler) http.Handler {
 			writeJSONError(w, http.StatusUnauthorized, "Authentification requise")
 			return
 		}
+
+		// Enforcement du changement de mot de passe imposé : tant qu'il n'est pas
+		// effectué, seul le changement de mot de passe (et la déconnexion) est permis.
+		if path != "/api/account/password" && path != "/api/logout" {
+			if u, uerr := db.GetUserByID(claims.UserID); uerr == nil && u.MustChangePassword {
+				writeJSONError(w, http.StatusForbidden, "Changement de mot de passe requis avant tout autre accès.")
+				return
+			}
+		}
+
 		ctx := context.WithValue(r.Context(), claimsCtxKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

@@ -228,6 +228,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 			AllowPrivileged    bool   `json:"AllowPrivileged"`
 			SecopsScanner      string `json:"SecopsScanner"`
 		} `json:"SecOps"`
+		RetentionDays int `json:"RetentionDays"`
 	}{}
 
 	safeConfig.SMTP.Host = s.cfg.SMTP.Host
@@ -242,6 +243,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	safeConfig.SecOps.AllowRoot = s.cfg.SecOps.AllowRoot
 	safeConfig.SecOps.AllowPrivileged = s.cfg.SecOps.AllowPrivileged
 	safeConfig.SecOps.SecopsScanner = s.cfg.SecOps.SecopsScanner
+	safeConfig.RetentionDays = db.GetRetentionDays()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(safeConfig)
@@ -264,6 +266,7 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		SecOpsAllowRoot      bool   `json:"secops_allow_root"`
 		SecOpsAllowPrivileged bool   `json:"secops_allow_privileged"`
 		SecopsScanner       string `json:"secops_scanner"`
+		RetentionDays       int    `json:"retention_days"`
 	}
 
 	var req updateConfigReq
@@ -295,6 +298,12 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[API CONFIG ERROR] Échec enregistrement paramètres DB : %v\n", err)
 		http.Error(w, fmt.Sprintf("Impossible de sauvegarder la configuration : %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// Rétention des données (valeurs proposées : 30/90/180/365 jours, ou 0 = illimité).
+	validRetention := map[int]bool{0: true, 30: true, 90: true, 180: true, 365: true}
+	if validRetention[req.RetentionDays] {
+		_ = db.SetRetentionDays(req.RetentionDays)
 	}
 
 	// Rechargement à chaud en mémoire de l'application
@@ -403,6 +412,11 @@ func (s *Server) HandleRegistriesDelete(w http.ResponseWriter, r *http.Request) 
 func (s *Server) HandleAuditLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		return
+	}
+	// Historique de déploiement de tout le parc : réservé aux auditeurs et admins
+	// (un lecteur restreint ne doit pas voir l'activité hors de son périmètre).
+	if !auth.RequireRole(w, r, db.RoleAuditor) {
 		return
 	}
 
@@ -907,6 +921,9 @@ func (s *Server) HandleHostTest(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleExceptions(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		if !auth.RequireRole(w, r, db.RoleAuditor) {
+			return
+		}
 		list, err := db.GetCVEExceptions()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

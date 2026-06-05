@@ -11,7 +11,7 @@ const PAGE_META = {
   settings:              { title: 'Configuration',             desc: 'Règles SecOps globales, accès et politiques' },
   'container-settings':  { title: 'Surcharges du conteneur',  desc: 'Seuils de tolérance spécifiques à ce conteneur' },
   actions:               { title: 'Actions SecOps',            desc: "Mises à jour d'images et correctifs à appliquer" },
-  agents:                { title: 'Agents SecOps',             desc: 'Gestion des agents de surveillance distribués' },
+  agents:                { title: 'Multi-hôtes',                desc: 'Supervision de plusieurs démons Docker (local + distants en TLS)' },
   permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
   'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
   'audit':               { title: 'Audit d\'Image',            desc: 'Analysez n\'importe quelle image Docker avant déploiement' },

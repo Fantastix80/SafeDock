@@ -159,7 +159,8 @@ func runMigrations(db *sql.DB) error {
 		secops_max_severity_allowed TEXT,
 		secops_allow_root BOOLEAN,
 		secops_allow_privileged BOOLEAN,
-		secops_scanner TEXT DEFAULT 'trivy'
+		secops_scanner TEXT DEFAULT 'trivy',
+		retention_days INTEGER DEFAULT 90
 	);`
 
 	// 2. Table registries (Identifiants registres privés)
@@ -349,6 +350,8 @@ func runMigrations(db *sql.DB) error {
 	// identité affichée scindée en prénom + nom.
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT '';")
+	// Rétention des données (journaux/historique), en jours. 0 = illimité.
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN retention_days INTEGER DEFAULT 90;")
 
 	return nil
 }
@@ -1401,6 +1404,9 @@ func GetUserAuth(username string) (UserAuth, error) {
 	return u, nil
 }
 
+// scanUserRow ne lit QUE les colonnes de la ligne (pas de requête imbriquée) :
+// charger les portées (tags/hôtes) doit se faire APRÈS fermeture des `rows`, car
+// la connexion SQLite est unique (SetMaxOpenConns(1)) — sinon interblocage.
 func scanUserRow(rowScan func(...any) error) (User, error) {
 	var u User
 	var totpEn, mustChange, scopeAll int
@@ -1410,9 +1416,14 @@ func scanUserRow(rowScan func(...any) error) (User, error) {
 	u.TOTPEnabled = totpEn == 1
 	u.MustChangePassword = mustChange == 1
 	u.ScopeAll = scopeAll == 1
+	return u, nil
+}
+
+// loadUserScopes complète un utilisateur avec ses tags/hôtes autorisés.
+// À n'appeler que lorsqu'aucun *sql.Rows n'est ouvert.
+func loadUserScopes(u *User) {
 	u.AllowedTags, _ = GetUserAllowedTags(u.ID)
 	u.AllowedHosts, _ = GetUserAllowedHosts(u.ID)
-	return u, nil
 }
 
 // GetUserByID retourne la vue publique d'un compte.
@@ -1424,7 +1435,12 @@ func GetUserByID(id int) (User, error) {
 	row := db.QueryRow(
 		`SELECT id, username, role, first_name, last_name, totp_enabled, must_change_password, scope_all, created_at
 		 FROM users WHERE id = ?;`, id)
-	return scanUserRow(row.Scan)
+	u, err := scanUserRow(row.Scan)
+	if err != nil {
+		return u, err
+	}
+	loadUserScopes(&u) // sûr : QueryRow.Scan a déjà libéré la connexion
+	return u, nil
 }
 
 // ListUsers retourne tous les comptes (vue publique).
@@ -1439,14 +1455,18 @@ func ListUsers() ([]User, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	list := make([]User, 0)
 	for rows.Next() {
-		u, err := scanUserRow(rows.Scan)
-		if err != nil {
-			return nil, err
+		u, serr := scanUserRow(rows.Scan)
+		if serr != nil {
+			_ = rows.Close()
+			return nil, serr
 		}
 		list = append(list, u)
+	}
+	_ = rows.Close() // libère la connexion AVANT de charger les portées (connexion unique)
+	for i := range list {
+		loadUserScopes(&list[i])
 	}
 	return list, nil
 }
@@ -1945,4 +1965,70 @@ func MarkNotificationsRead() error {
 	}
 	_, err := db.Exec("UPDATE notifications SET read = 1 WHERE read = 0;")
 	return err
+}
+
+// ==========================================================================
+// Operations : Rétention des données (purge des journaux/historique)
+// ==========================================================================
+
+// GetRetentionDays retourne la durée de rétention des journaux (en jours). 0 = illimité.
+func GetRetentionDays() int {
+	db := GetDB()
+	if db == nil {
+		return 90
+	}
+	var d sql.NullInt64
+	if err := db.QueryRow("SELECT retention_days FROM settings WHERE id = 1;").Scan(&d); err != nil || !d.Valid {
+		return 90
+	}
+	return int(d.Int64)
+}
+
+// SetRetentionDays définit la durée de rétention (jours, 0 = illimité).
+func SetRetentionDays(days int) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	if days < 0 {
+		days = 0
+	}
+	res, err := db.Exec("UPDATE settings SET retention_days = ? WHERE id = 1;", days)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		_, err = db.Exec("INSERT INTO settings (id, retention_days) VALUES (1, ?);", days)
+	}
+	return err
+}
+
+// PurgeOldData supprime les enregistrements horodatés plus vieux que `days` jours
+// des tables de journaux/historique (historique CVE, notifications, audit de sécurité,
+// audit SecOps). days <= 0 → aucune purge. Retourne le nombre total de lignes supprimées.
+func PurgeOldData(days int) (int64, error) {
+	db := GetDB()
+	if db == nil {
+		return 0, fmt.Errorf("base de données non initialisée")
+	}
+	if days <= 0 {
+		return 0, nil
+	}
+	cutoff := fmt.Sprintf("-%d days", days)
+	targets := []struct{ table, col string }{
+		{"cve_history", "scanned_at"},
+		{"notifications", "timestamp"},
+		{"security_audit", "timestamp"},
+		{"audit_logs", "timestamp"},
+	}
+	var total int64
+	for _, t := range targets {
+		res, err := db.Exec("DELETE FROM "+t.table+" WHERE "+t.col+" < datetime('now', ?);", cutoff)
+		if err != nil {
+			continue
+		}
+		n, _ := res.RowsAffected()
+		total += n
+	}
+	return total, nil
 }

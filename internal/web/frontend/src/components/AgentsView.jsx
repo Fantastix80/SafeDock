@@ -140,6 +140,14 @@ export default function AgentsView({ hosts = [], containers = [], onAddHost, onD
             <h3 className="font-heading text-xs font-semibold text-white">Ajouter un hôte distant</h3>
           </div>
 
+          <div className="flex gap-2 p-2.5 mb-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/25">
+            <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-200/90 leading-relaxed">
+              Exposer l'API Docker = accès root sur l'hôte. N'exposez l'endpoint qu'en <strong className="text-amber-300">TLS mutuel</strong>,
+              filtré par pare-feu vers la seule IP de SafeDock (idéalement via un VPN ou un proxy de socket restreint). Jamais en clair.
+            </p>
+          </div>
+
           <form onSubmit={handleAdd} className="space-y-3">
             <Field label="Nom d'affichage" placeholder="ex: prod-node-02" value={name} onChange={setName} />
             <Field label="Endpoint" placeholder="tcp://10.0.0.5:2376" value={endpoint} onChange={setEndpoint} />

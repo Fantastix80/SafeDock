@@ -384,7 +384,11 @@ func (s *Server) HandleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleNotifications : GET liste les notifications, POST les marque comme lues.
+// Réservé aux auditeurs et admins (alertes portant sur tout le parc).
 func (s *Server) HandleNotifications(w http.ResponseWriter, r *http.Request) {
+	if !auth.RequireRole(w, r, db.RoleAuditor) {
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		list, err := db.GetNotifications(200)

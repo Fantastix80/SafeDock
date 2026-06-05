@@ -24,9 +24,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [smtpFrom, setSmtpFrom] = useState('');
   const [smtpTo, setSmtpTo] = useState('');
   const [smtpTls, setSmtpTls] = useState(false);
-  const [pollInterval, setPollInterval] = useState('10');
-  const [defaultView, setDefaultView] = useState('dashboard');
-  const [autoUpdate, setAutoUpdate] = useState(false);
+  const [retention, setRetention] = useState(90);
   const [regServer, setRegServer] = useState('');
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
@@ -44,6 +42,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
     setSmtpFrom(config.SMTP?.From || '');
     setSmtpTo(config.SMTP?.To || '');
     setSmtpTls(config.SMTP?.TLSSkipVerify || false);
+    setRetention(config.RetentionDays != null ? config.RetentionDays : 90);
   }, [config]);
 
   const saveGlobal = () => {
@@ -60,6 +59,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       smtp_from: smtpFrom,
       smtp_to: smtpTo,
       smtp_tls_skip_verify: smtpTls,
+      retention_days: Number(retention),
     })
       .then(() => { setStatus('Paramètres sauvegardés.'); setTimeout(() => setStatus(''), 4000); })
       .catch(() => { setStatus('Erreur de sauvegarde.'); setTimeout(() => setStatus(''), 4000); });
@@ -168,7 +168,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
         {/* Prefs */}
         {tab === 'prefs' && (
           <>
-            <SHead>Préférences générales</SHead>
+            <SHead>Préférences & données</SHead>
             <div className="space-y-3">
               <div className="space-y-1">
                 <FieldLabel>Scanner CVE par défaut</FieldLabel>
@@ -179,22 +179,18 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                 </select>
               </div>
               <div className="space-y-1">
-                <FieldLabel>Intervalle de rafraîchissement (secondes)</FieldLabel>
-                <select value={pollInterval} onChange={e => setPollInterval(e.target.value)} className={selectClass}>
-                  <option value="5">5s</option>
-                  <option value="10">10s</option>
-                  <option value="30">30s</option>
-                  <option value="60">60s</option>
+                <FieldLabel>Rétention des données (historique CVE, notifications, journaux d'audit)</FieldLabel>
+                <select value={retention} onChange={e => setRetention(Number(e.target.value))} className={selectClass}>
+                  <option value={30}>30 jours</option>
+                  <option value={90}>90 jours (défaut)</option>
+                  <option value={180}>180 jours</option>
+                  <option value={365}>1 an</option>
+                  <option value={0}>Illimité</option>
                 </select>
+                <p className="text-xs text-[#94A3B8]/50 mt-1">
+                  Les enregistrements plus anciens sont purgés automatiquement (cycle quotidien). « Illimité » conserve tout.
+                </p>
               </div>
-              <div className="space-y-1">
-                <FieldLabel>Page d'atterrissage</FieldLabel>
-                <select value={defaultView} onChange={e => setDefaultView(e.target.value)} className={selectClass}>
-                  <option value="dashboard">Dashboard principal</option>
-                  <option value="containers">Inventaire des conteneurs</option>
-                </select>
-              </div>
-              <Toggle label="Mises à jour automatiques des conteneurs" checked={autoUpdate} onChange={setAutoUpdate} />
             </div>
             <SaveBtn onClick={saveGlobal} />
           </>

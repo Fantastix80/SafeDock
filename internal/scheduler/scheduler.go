@@ -198,6 +198,11 @@ func (m *Manager) runCycle(ctx context.Context) {
 	}
 
 	log.Printf("🛰️  [RESCAN] Cycle terminé — %d dérive(s) détectée(s).\n", drifts)
+
+	// Purge des données au-delà de la rétention configurée (journaux/historique).
+	if n, err := db.PurgeOldData(db.GetRetentionDays()); err == nil && n > 0 {
+		log.Printf("🧹 [RÉTENTION] %d enregistrement(s) au-delà de la rétention supprimé(s).\n", n)
+	}
 }
 
 // previousCounts lit les compteurs CVE du dernier scan en cache pour un digest.
