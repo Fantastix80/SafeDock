@@ -7,12 +7,17 @@ import (
 	"time"
 )
 
-// Protection anti-force-brute : après maxFailedAttempts échecs dans attemptWindow,
-// la clé (nom d'utilisateur) est verrouillée pendant lockoutDuration.
+// Protection anti-force-brute. On verrouille sur DEUX axes :
+//   - par compte (nom d'utilisateur) : stoppe le devinage ciblé d'un mot de passe ;
+//   - par IP cliente : stoppe le « password spraying » (un mot de passe testé sur
+//     de nombreux comptes depuis une même source) que le verrou par compte ne voit pas.
+// Le verrou s'allonge à chaque récidive (backoff exponentiel borné).
 const (
-	maxFailedAttempts = 5
+	maxFailedAttempts = 5  // seuil par compte
+	maxIPAttempts     = 20 // seuil par IP (plus large : agrège tous les comptes)
 	attemptWindow     = 15 * time.Minute
 	lockoutDuration   = 15 * time.Minute
+	maxBackoffShift   = 4 // plafond : lockoutDuration << 4 = 4 heures
 )
 
 // timeNow est surchargeable en test pour piloter le temps.
@@ -22,6 +27,7 @@ type attemptState struct {
 	count       int
 	windowStart time.Time
 	lockedUntil time.Time
+	lockCount   int // nombre de verrouillages successifs (pour le backoff)
 }
 
 // loginLimiter suit les tentatives de connexion échouées par clé (en mémoire).
@@ -50,8 +56,20 @@ func (l *loginLimiter) locked(key string) (bool, time.Duration) {
 	return false, 0
 }
 
-// fail enregistre un échec. Retourne true si la clé vient d'être verrouillée.
-func (l *loginLimiter) fail(key string) (bool, time.Duration) {
+// lockedAny indique si AU MOINS une des clés (compte ou IP) est verrouillée.
+func (l *loginLimiter) lockedAny(keys ...string) (bool, time.Duration) {
+	for _, k := range keys {
+		if locked, d := l.locked(k); locked {
+			return true, d
+		}
+	}
+	return false, 0
+}
+
+// fail enregistre un échec pour la clé donnée, verrouillée au-delà de `max`
+// tentatives dans la fenêtre. Retourne true si la clé vient d'être verrouillée.
+// La durée de verrouillage croît à chaque récidive (backoff exponentiel borné).
+func (l *loginLimiter) fail(key string, max int) (bool, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := timeNow()
@@ -75,9 +93,16 @@ func (l *loginLimiter) fail(key string) (bool, time.Duration) {
 		s.windowStart = now
 	}
 	s.count++
-	if s.count >= maxFailedAttempts {
-		s.lockedUntil = now.Add(lockoutDuration)
-		return true, lockoutDuration
+	if s.count >= max {
+		shift := s.lockCount
+		if shift > maxBackoffShift {
+			shift = maxBackoffShift
+		}
+		dur := lockoutDuration << uint(shift)
+		s.lockedUntil = now.Add(dur)
+		s.lockCount++
+		s.count = 0 // repart à zéro pour la prochaine salve après expiration
+		return true, dur
 	}
 	return false, 0
 }

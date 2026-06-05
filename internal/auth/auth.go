@@ -122,13 +122,14 @@ func Middleware(next http.Handler) http.Handler {
 }
 
 // recordMFAFailure enregistre un échec de second facteur (compteur + audit).
-func recordMFAFailure(r *http.Request, key string, userID int) {
-	justLocked, _ := limiter.fail(key)
+func recordMFAFailure(r *http.Request, userName string, userID int) {
+	justLockedU, _ := limiter.fail("user:"+userName, maxFailedAttempts)
+	justLockedIP, _ := limiter.fail("ip:"+clientIP(r), maxIPAttempts)
 	action := "auth.mfa_failed"
-	if justLocked {
+	if justLockedU || justLockedIP {
 		action = "auth.locked"
 	}
-	db.WriteSecurityAudit(userID, key, action, clientIP(r), "code MFA invalide")
+	db.WriteSecurityAudit(userID, userName, action, clientIP(r), "code MFA invalide")
 }
 
 // HandleLogin — étape 1 : nom d'utilisateur + mot de passe. Pose un cookie de pré-auth.
@@ -147,7 +148,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := strings.ToLower(strings.TrimSpace(req.Username))
-	if locked, retry := limiter.locked(key); locked {
+	uKey, ipKey := "user:"+key, "ip:"+clientIP(r)
+	if locked, retry := limiter.lockedAny(uKey, ipKey); locked {
 		db.WriteSecurityAudit(0, key, "auth.login_blocked", clientIP(r), "tentative pendant le verrouillage")
 		writeJSONError(w, http.StatusTooManyRequests,
 			fmt.Sprintf("Trop de tentatives. Réessayez dans %d minute(s).", int(retry.Minutes())+1))
@@ -160,9 +162,10 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !u.Found || !crypto.VerifyPassword(req.Password, u.PasswordHash) {
-		justLocked, _ := limiter.fail(key)
+		justLockedU, _ := limiter.fail(uKey, maxFailedAttempts)
+		justLockedIP, _ := limiter.fail(ipKey, maxIPAttempts)
 		action := "auth.login_failed"
-		if justLocked {
+		if justLockedU || justLockedIP {
 			action = "auth.locked"
 		}
 		db.WriteSecurityAudit(0, key, action, clientIP(r), "mot de passe incorrect")
@@ -220,7 +223,8 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	// Verrouillage anti-force-brute (mêmes compteurs que l'étape mot de passe).
 	verifyUser, _ := db.GetUserByID(claims.UserID)
 	key := strings.ToLower(verifyUser.Username)
-	if locked, retry := limiter.locked(key); locked {
+	uKey, ipKey := "user:"+key, "ip:"+clientIP(r)
+	if locked, retry := limiter.lockedAny(uKey, ipKey); locked {
 		db.WriteSecurityAudit(verifyUser.ID, key, "auth.login_blocked", clientIP(r), "MFA pendant verrouillage")
 		writeJSONError(w, http.StatusTooManyRequests,
 			fmt.Sprintf("Trop de tentatives. Réessayez dans %d minute(s).", int(retry.Minutes())+1))
@@ -286,7 +290,8 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	setCookie(w, cookieName, token, int(sessionTTL.Seconds()))
 	clearCookie(w, preAuthCookieName)
 
-	limiter.reset(key) // connexion réussie → réinitialise le compteur d'échecs
+	limiter.reset(uKey) // connexion réussie → réinitialise les compteurs d'échecs
+	limiter.reset(ipKey)
 	db.WriteSecurityAudit(user.ID, user.Username, "auth.login", clientIP(r), "connexion réussie (MFA validé)")
 
 	resp := map[string]interface{}{
