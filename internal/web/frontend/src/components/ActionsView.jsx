@@ -1,21 +1,10 @@
-import React, { useState } from 'react';
-import { CloudDownload, Bug, Settings2, CheckCircle2, TriangleAlert, RotateCw, Eye, Zap, Check } from 'lucide-react';
+import React from 'react';
+import { CloudDownload, Bug, CheckCircle2, TriangleAlert, RotateCw, Eye, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function ActionsView({ containers, onTriggerRollout, onNavigate }) {
-  const [autoUpdate, setAutoUpdate] = useState(false);
-  const [status, setStatus] = useState('');
-
   const updatesPending = (containers || []).filter(c => c.update_available);
   const vulnerable     = (containers || []).filter(c => c.score < 75 && !c.update_available);
-
-  const handleSave = () => {
-    setStatus('Enregistrement...');
-    setTimeout(() => {
-      setStatus('Politique de mise à jour sauvegardée.');
-      setTimeout(() => setStatus(''), 4000);
-    }, 800);
-  };
 
   return (
     <div className="space-y-4">
@@ -106,46 +95,33 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
           </SectionCard>
         </div>
 
-        {/* Right: Settings */}
-        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="Paramètres de mise à jour">
-          <p className="text-xs text-[#94A3B8] mb-4 leading-relaxed">
-            Comportement de mise à jour lors de la détection de versions saines.
-          </p>
-
+        {/* Right: Politique de mise à jour */}
+        <SectionCard icon={<Zap className="w-4 h-4 text-[#F7931A]" />} title="Politique de mise à jour">
           <div className="space-y-3">
-            <div
-              onClick={() => setAutoUpdate(v => !v)}
-              className="flex items-start gap-3 cursor-pointer group select-none p-3 rounded-xl border border-white/[0.06] bg-[#0A0C10] hover:border-[#F7931A]/20 transition-all"
-            >
-              <CheckboxIndicator checked={autoUpdate} className="mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-white">Mises à jour automatiques SecOps</p>
-                <p className="text-xs text-[#94A3B8] mt-0.5 leading-relaxed">
-                  Mettre à jour automatiquement dès que tous les tests SecOps sont validés.
-                </p>
-              </div>
+            <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05]">
+              <p className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 mb-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Mode actuel : notification seule
+              </p>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Aucune mise à jour n'est appliquée automatiquement. SafeDock analyse les nouvelles
+                versions et vous alerte ; vous décidez quand mettre à jour, manuellement.
+              </p>
             </div>
 
-            {!autoUpdate && (
-              <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-                <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5 mb-1">
-                  <TriangleAlert className="w-3.5 h-3.5" /> Mode Notification Seul
-                </p>
-                <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  Aucune mise à jour automatique. Vous recevrez une alerte pour mettre à jour manuellement.
-                </p>
+            <div className="p-3 rounded-xl border border-white/[0.06] bg-[#0A0C10] opacity-80">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-white">Mises à jour automatiques SecOps</p>
+                <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-white/[0.04] text-[#94A3B8] border border-white/[0.08]">Bientôt</span>
               </div>
-            )}
-
-            {status && <p className="text-xs text-center text-emerald-400 font-medium font-mono">{status}</p>}
-
-            <button
-              type="button"
-              onClick={handleSave}
-              className="w-full py-2 text-xs font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
-            >
-              Sauvegarder les règles
-            </button>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Appliquer automatiquement une mise à jour dès que tous les contrôles SecOps passent.
+              </p>
+              <p className="text-xs text-amber-300/80 leading-relaxed mt-1.5 flex items-start gap-1.5">
+                <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                À activer avec prudence : une mise à jour, même saine côté CVE, peut casser une
+                application. Des sauvegardes restent indispensables.
+              </p>
+            </div>
           </div>
         </SectionCard>
       </div>
@@ -174,16 +150,3 @@ function EmptyState({ icon, text }) {
   );
 }
 
-function CheckboxIndicator({ checked, className }) {
-  return (
-    <div className={cn(
-      'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all duration-200 border pointer-events-none',
-      checked
-        ? 'bg-[#F7931A] border-[#F7931A] shadow-[0_0_8px_rgba(247,147,26,0.4)]'
-        : 'bg-transparent border-white/25 group-hover:border-[#F7931A]/50',
-      className
-    )}>
-      {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
-    </div>
-  );
-}

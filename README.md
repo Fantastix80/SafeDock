@@ -6,6 +6,18 @@ Contrairement aux outils de mise à jour automatique aveugles, SafeDock agit com
 
 ---
 
+## ✨ Fonctionnalités principales
+
+* **Pare-feu de déploiement** : scan d'une nouvelle image en staging (CVE + conformité), déploiement transactionnel uniquement si les règles SecOps passent, sinon rollback automatique.
+* **Suivi de sécurité dans la durée** : historisation des CVE par conteneur et **courbes de tendance** ; détection de **dérive** (nouvelles CVE sur une image inchangée) ; **diff de sécurité avant/après** chaque mise à jour.
+* **Comptes & contrôle d'accès (IAM/RBAC)** : comptes multi-utilisateurs, rôles `admin` / `auditor` / `viewer`, **MFA TOTP obligatoire** + codes de secours, **portées** limitant la visibilité par **tags** et/ou par **hôte**.
+* **Conformité par tag** : posture agrégée par environnement / équipe.
+* **Multi-hôtes** : supervision de plusieurs démons Docker (local + endpoints TLS distants).
+* **Journal d'audit de sécurité** (qui fait quoi) et **centre de notifications** (alertes CVE / déploiements bloqués), avec e-mail optionnel (SMTP).
+* **Scanners** : Trivy et Grype (CVE), Dockle (conformité d'image).
+
+---
+
 ## 🔒 Sécurité du Socket Docker & Architecture Proxy
 
 Par défaut, de nombreux outils d'orchestration Docker nécessitent le montage direct du socket de l'hôte (`/var/run/docker.sock`). Ce montage comporte un risque majeur : **l'accès au socket équivaut à un accès root complet sur la machine hôte**. Si le conteneur applicatif est compromis, l'attaquant peut s'emparer de l'hôte.
@@ -124,11 +136,39 @@ networks:
 
 ---
 
+## 🔐 Authentification & contrôle d'accès (IAM/RBAC)
+
+* **Comptes multi-utilisateurs.** L'**adresse e-mail** sert d'identifiant de connexion ; identité affichée = prénom + nom.
+* **Rôles** appliqués côté serveur :
+  * `admin` — administration complète (comptes, hôtes, tags, configuration, mises à jour) ;
+  * `auditor` — consultation + lancement de scans, sans mise à jour ni administration ;
+  * `viewer` — lecture seule.
+* **MFA TOTP obligatoire** pour chaque compte (compatible Google/Microsoft Authenticator) + **codes de secours** à usage unique.
+* **Portées (scoping)** : on peut restreindre la visibilité d'un compte à un ensemble de **tags** et/ou d'**hôtes** ; un admin voit tout.
+* **Premier démarrage** : si aucun mot de passe n'est fourni, un mot de passe administrateur aléatoire est **généré et affiché dans les logs** (`docker logs`).
+
+### Variables d'environnement utiles
+| Variable | Rôle |
+|---|---|
+| `SAFEDOCK_AUTH_PASSWORD` | Définit/réinitialise le mot de passe du compte `admin` (sinon généré aléatoirement au 1er démarrage). |
+| `SAFEDOCK_RESET_MFA` | `true` → réinitialise le MFA de l'admin (récupération en cas de perte du téléphone). |
+| `SAFEDOCK_TLS_ENABLED` | `true` → active le HTTPS natif (certificat fourni ou auto-signé persistant). |
+| `SAFEDOCK_TLS_HOSTS` | Noms/IP inclus dans le certificat auto-signé. |
+| `SAFEDOCK_SECRET_KEY` | Clé maître (base64, 32 octets) pour le chiffrement des secrets ; sinon persistée dans `secret.key`. |
+| `SAFEDOCK_DB_PATH` | Emplacement de la base SQLite (par défaut `/var/lib/safedock/safedock.db`). |
+| `SAFEDOCK_RESCAN_INTERVAL_HOURS` | Intervalle du re-scan complet (défaut : 24 h). |
+
+> ⚠️ La base SQLite et la clé maître doivent être **persistées** (volume) : elles contiennent les comptes et permettent de vérifier les mots de passe. Sans volume, un nouveau compte admin est régénéré à chaque redéploiement.
+
+---
+
 ## 🛠️ Stack Technique & Outils SecOps
-* **Backend :** Go (Golang) + Docker SDK officiel.
-* **SecOps Outils tiers embarqués dans l'image :**
-  * **Trivy :** Scanner de vulnérabilités (CVE).
-  * **Dockle :** Analyseur de conformité de structure d'image.
+* **Backend :** Go (Golang) + Docker SDK officiel, base **SQLite** (pure Go, sans CGO).
+* **Frontend :** React + Vite (servi en statique, embarqué dans le binaire).
+* **Sécurité :** chiffrement des secrets AES-256-GCM, sessions signées (HMAC), MFA TOTP, RBAC appliqué côté serveur.
+* **Outils SecOps tiers embarqués dans l'image :**
+  * **Trivy** et **Grype :** scanners de vulnérabilités (CVE).
+  * **Dockle :** analyseur de conformité de structure d'image.
 
 ---
 

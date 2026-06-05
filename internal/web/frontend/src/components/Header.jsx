@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 const PAGE_META = {
   dashboard:             { title: 'Tableau de bord',           desc: 'Analyse en temps réel de votre parc Docker' },
   containers:            { title: 'Inventaire des conteneurs', desc: 'Statuts, scores SecOps et métadonnées' },
+  compliance:            { title: 'Conformité par tag',        desc: 'Posture de sécurité agrégée par environnement / équipe' },
   watch:                 { title: 'Veille SecOps & Menaces',   desc: 'Bulletins de vulnérabilités et guides de durcissement' },
   notifications:         { title: 'Centre de Notifications',  desc: 'Alertes et événements de sécurité récents' },
   account:               { title: 'Mon Compte',                desc: "Identité, sécurité et préférences d'alertes" },

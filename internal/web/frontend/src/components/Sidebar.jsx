@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard, Boxes, ShieldCheck, Server, Newspaper,
-  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw, ScanSearch, LogOut, ShieldOff, Users
+  Bell, Settings, ChevronsLeft, ChevronsRight, RefreshCw, ScanSearch, LogOut, ShieldOff, Users, BadgeCheck
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -13,6 +13,7 @@ const NAV_GROUPS = [
     items: [
       { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
       { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
+      { id: 'compliance',    label: 'Conformité',    icon: BadgeCheck },
       { id: 'audit',         label: 'Audit',         icon: ScanSearch },
       { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
       { id: 'notifications', label: 'Notifications', icon: Bell },

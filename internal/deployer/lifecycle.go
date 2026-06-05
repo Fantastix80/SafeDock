@@ -315,8 +315,28 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		return false, err
 	}
 
-	// Enregistrement du succès dans l'historique d'audit SQLite
-	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot SecOps complété avec succès", critCount, highCount, trivyReport.Summary.Medium)
+	// ── Diff de sécurité avant/après la mise à jour ────────────────────────────
+	// Compteurs de l'ancienne image (encore en cache à ce stade — la purge a lieu
+	// juste après) comparés à ceux de la nouvelle image fraîchement scannée.
+	oldC, oldH, oldM, oldL, hadOld := cachedCVECounts(inspect.Image)
+	nC, nH, nM := trivyReport.Summary.Critical, trivyReport.Summary.High, trivyReport.Summary.Medium
+	nL := trivyReport.Summary.Low
+	var diffMsg string
+	if hadOld {
+		diffMsg = fmt.Sprintf("Évolution CVE — Critiques %d→%d, Élevées %d→%d, Moyennes %d→%d, Faibles %d→%d",
+			oldC, nC, oldH, nH, oldM, nM, oldL, nL)
+	} else {
+		diffMsg = fmt.Sprintf("Nouvelle image — Critiques %d, Élevées %d, Moyennes %d, Faibles %d (pas de scan antérieur pour comparaison)", nC, nH, nM, nL)
+	}
+	// Niveau d'alerte : WARNING si la mise à jour a INTRODUIT des CVE critiques/élevées.
+	notifLevel := "INFO"
+	if hadOld && (nC > oldC || nH > oldH) {
+		notifLevel = "WARNING"
+	}
+	db.WriteNotification(notifLevel, "Mise à jour d'image : "+containerName, diffMsg, containerName, "")
+
+	// Enregistrement du succès dans l'historique d'audit SQLite (avec le diff de sécurité)
+	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot SecOps complété — "+diffMsg, critCount, highCount, trivyReport.Summary.Medium)
 
 	// Déploiement confirmé → l'image est en production, le defer ne la supprimera pas
 	deployed = true
@@ -360,6 +380,23 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, true))
 
 	return true, nil
+}
+
+// cachedCVECounts lit les compteurs CVE du dernier rapport de scan en cache pour
+// un digest d'image donné. ok=false si aucun rapport n'est disponible.
+func cachedCVECounts(digest string) (crit, high, med, low int, ok bool) {
+	if digest == "" {
+		return 0, 0, 0, 0, false
+	}
+	reportJSON, _, _, err := db.GetLatestVulnScanByDigest(digest)
+	if err != nil || reportJSON == "" {
+		return 0, 0, 0, 0, false
+	}
+	var rep secops.TrivyReport
+	if json.Unmarshal([]byte(reportJSON), &rep) != nil {
+		return 0, 0, 0, 0, false
+	}
+	return rep.Summary.Critical, rep.Summary.High, rep.Summary.Medium, rep.Summary.Low, true
 }
 
 // executeTransactionalRollout orchestre le pivotement sécurisé vers le nouveau Digest.

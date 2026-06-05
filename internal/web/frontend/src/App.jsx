@@ -17,11 +17,12 @@ import AuditView from './components/AuditView';
 import LoginView from './components/LoginView';
 import ExceptionsView from './components/ExceptionsView';
 import UsersView from './components/UsersView';
+import ComplianceView from './components/ComplianceView';
 
 export default function App() {
   const getPageFromPathname = () => {
     const path = window.location.pathname.replace('/', '');
-    const validPages = ['dashboard', 'containers', 'audit', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions', 'exceptions', 'users'];
+    const validPages = ['dashboard', 'containers', 'audit', 'watch', 'notifications', 'account', 'enterprise', 'settings', 'container-settings', 'actions', 'agents', 'container-detail', 'permissions', 'exceptions', 'users', 'compliance'];
     if (!path || path === 'dashboard') return 'dashboard';
     if (validPages.includes(path)) return path;
     return '404';
@@ -535,6 +536,10 @@ export default function App() {
               onSelectContainer={handleSelectContainer}
               onNavigate={handleNavigate}
             />
+          )}
+
+          {activePage === 'compliance' && (
+            <ComplianceView containers={scopedContainers} onNavigate={handleNavigate} />
           )}
 
           {activePage === 'audit' && (

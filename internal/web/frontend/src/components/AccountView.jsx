@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { UserSquare, Lock, Bell, ShieldCheck, Check } from 'lucide-react';
+import { UserSquare, Lock, ShieldCheck, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const TABS = [
   { id: 'infos',         label: 'Infos',         icon: UserSquare },
   { id: 'securite',      label: 'Sécurité',       icon: Lock },
-  { id: 'notifications', label: 'Notifications',  icon: Bell },
 ];
 
 const ROLE_LABEL = { admin: 'Administrateur', auditor: 'Auditeur', viewer: 'Lecteur' };
@@ -52,23 +51,6 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
       setPwStatus({ text: err.message || 'Échec du changement.', type: 'error' });
     }
   };
-  const [notif, setNotif] = useState({
-    cveAlerts: true, statusChanges: true, deployments: false,
-    secretLeaks: true, enableThreshold: true, minSeverity: 'CRITICAL'
-  });
-  const [mfa, setMfa] = useState(false);
-  const [status, setStatus] = useState('');
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    setStatus('Enregistrement...');
-    setTimeout(() => {
-      setStatus('Préférences mises à jour.');
-      setTimeout(() => setStatus(''), 4000);
-    }, 800);
-  };
-
-  const toggleNotif = (key) => setNotif(p => ({ ...p, [key]: !p[key] }));
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: '240px 1fr' }}>
@@ -119,7 +101,7 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
         </div>
 
         {/* Tab content */}
-        <form onSubmit={handleSave} className="flex-1 p-5 space-y-4">
+        <form onSubmit={e => e.preventDefault()} className="flex-1 p-5 space-y-4">
 
           {/* ── Infos ── */}
           {activeTab === 'infos' && (
@@ -164,75 +146,13 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
               </button>
               <div className="flex items-center gap-2 p-3.5 rounded-xl bg-[#0A0C10] border border-white/[0.06] mt-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <p className="text-xs text-[#94A3B8]">La double authentification (TOTP) est <strong className="text-white">obligatoire</strong> et déjà active sur votre compte.</p>
+                <p className="text-xs text-[#94A3B8]">La double authentification (TOTP) est <strong className="text-white">active</strong> sur votre compte.</p>
               </div>
             </div>
           )}
 
-          {/* ── Notifications ── */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-4">
-              <p className="text-sm text-[#94A3B8] font-mono">Événements pour lesquels vous souhaitez être averti par e-mail.</p>
-              <div className="space-y-3">
-                {[
-                  { key: 'cveAlerts',     label: 'Alertes sur les failles de sécurité (CVE)' },
-                  { key: 'statusChanges', label: 'Changements de statuts de conteneurs' },
-                  { key: 'deployments',   label: "Mises à jour d'images effectuées" },
-                  { key: 'secretLeaks',   label: 'Fuites de secrets détectées (SecOps)' },
-                ].map(({ key, label }) => (
-                  <div
-                    key={key}
-                    onClick={() => toggleNotif(key)}
-                    className="flex items-center gap-3 cursor-pointer group select-none"
-                  >
-                    <CheckboxIndicator checked={notif[key]} />
-                    <span className="text-sm text-[#94A3B8] group-hover:text-white transition-colors">{label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#0A0C10] border border-white/[0.06] space-y-3">
-                <div
-                  onClick={() => toggleNotif('enableThreshold')}
-                  className="flex items-start gap-3 cursor-pointer group select-none"
-                >
-                  <CheckboxIndicator checked={notif.enableThreshold} className="mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-white group-hover:text-[#F7931A] transition-colors">
-                      Filtrer par niveau de criticité minimum
-                    </p>
-                    <p className="text-xs text-[#94A3B8] mt-0.5">Uniquement les alertes de ce niveau ou plus élevé.</p>
-                  </div>
-                </div>
-                {notif.enableThreshold && (
-                  <select
-                    value={notif.minSeverity}
-                    onChange={e => setNotif(p => ({ ...p, minSeverity: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm rounded-xl bg-[#0F1115] border border-white/[0.08] text-white focus:outline-none focus:border-[#F7931A]/40 font-mono cursor-pointer"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <option value="CRITICAL">CRITICAL</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="LOW">LOW</option>
-                  </select>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Save footer (préférences de notifications uniquement) */}
-          {activeTab === 'notifications' && (
-          <div className="flex items-center justify-end gap-4 pt-2 border-t border-white/[0.06]">
-            {status && <p className="text-sm text-emerald-400 font-mono font-medium">{status}</p>}
-            <button
-              type="submit"
-              className="px-5 py-2 text-sm font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] hover:bg-[#F7931A]/25 border border-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]"
-            >
-              Enregistrer les préférences
-            </button>
-          </div>
-          )}
+          {/* Les alertes (CVE, déploiements bloqués) arrivent dans le Centre de
+              notifications et par e-mail si le SMTP est configuré. */}
         </form>
       </div>
     </div>

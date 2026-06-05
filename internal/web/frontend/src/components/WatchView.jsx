@@ -46,7 +46,13 @@ export default function WatchView() {
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
         {/* Bulletins feed */}
         <div className="space-y-3">
-          <p className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">Derniers Bulletins CVE</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-mono text-xs font-medium text-[#94A3B8]/60 uppercase tracking-widest">Bulletins CVE</p>
+            <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-white/[0.04] text-[#94A3B8] border border-white/[0.08]">Exemples</span>
+          </div>
+          <p className="text-xs text-[#94A3B8]/60 leading-relaxed">
+            Exemples illustratifs. L'intégration d'un flux de veille en temps réel (NVD / GHSA) est prévue.
+          </p>
           {BULLETINS.map(sb => {
             const s = SEV_STYLE[sb.severity];
             return (
@@ -86,16 +92,12 @@ export default function WatchView() {
             </div>
           ))}
 
-          {/* Live feed indicator */}
-          <div className="card p-3 border border-[#F7931A]/15 bg-[#F7931A]/[0.03] text-center">
+          {/* Flux de veille — fonctionnalité à venir */}
+          <div className="card p-3 border border-white/[0.08] bg-white/[0.02] text-center">
             <p className="font-mono text-xs text-[#94A3B8]/40 mb-2 tracking-wide">Flux de renseignement de menaces</p>
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#F7931A]">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F7931A] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F7931A]" />
-              </span>
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#94A3B8]">
               <Radio className="w-3.5 h-3.5" />
-              <span className="font-mono text-xs tracking-wide">Flux synchronisé (NVD & CERT)</span>
+              <span className="font-mono text-xs tracking-wide">Synchronisation NVD / GHSA — à venir</span>
             </div>
           </div>
         </div>
