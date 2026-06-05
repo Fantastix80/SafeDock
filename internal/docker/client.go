@@ -18,8 +18,27 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// remoteSocketPath est le socket Docker visé sur l'hôte distant via SSH.
-const remoteSocketPath = "/var/run/docker.sock"
+// sshSessionConn présente une session SSH (exécutant « docker system dial-stdio »)
+// comme une net.Conn pour le client Docker.
+type sshSessionConn struct {
+	stdin   io.WriteCloser
+	stdout  io.Reader
+	session *ssh.Session
+}
+
+func (c *sshSessionConn) Read(p []byte) (int, error)       { return c.stdout.Read(p) }
+func (c *sshSessionConn) Write(p []byte) (int, error)      { return c.stdin.Write(p) }
+func (c *sshSessionConn) Close() error                     { _ = c.stdin.Close(); return c.session.Close() }
+func (c *sshSessionConn) LocalAddr() net.Addr              { return sshAddr{} }
+func (c *sshSessionConn) RemoteAddr() net.Addr             { return sshAddr{} }
+func (c *sshSessionConn) SetDeadline(time.Time) error      { return nil }
+func (c *sshSessionConn) SetReadDeadline(time.Time) error  { return nil }
+func (c *sshSessionConn) SetWriteDeadline(time.Time) error { return nil }
+
+type sshAddr struct{}
+
+func (sshAddr) Network() string { return "ssh" }
+func (sshAddr) String() string  { return "ssh-dial-stdio" }
 
 // NewEngineClient construit un client Docker pour un endpoint :
 //   - vide               → hôte local (FromEnv) ;
@@ -113,11 +132,33 @@ func buildSSHClient(endpoint, hostKey, privateKey string) (*client.Client, io.Cl
 		return nil, nil, fmt.Errorf("connexion SSH à %s impossible : %w", host, err)
 	}
 
+	// Chaque connexion ouvre une session SSH qui lance « docker system dial-stdio »
+	// sur l'hôte distant : cette commande relaie le socket Docker local sur
+	// stdin/stdout. Avantage sécurité : la clé peut être restreinte côté serveur à
+	// CETTE seule commande (ForceCommand + restrict), sans shell ni forwarding.
 	dial := func(_ context.Context, _, _ string) (net.Conn, error) {
-		return sshConn.Dial("unix", remoteSocketPath)
+		session, serr := sshConn.NewSession()
+		if serr != nil {
+			return nil, serr
+		}
+		stdin, serr := session.StdinPipe()
+		if serr != nil {
+			_ = session.Close()
+			return nil, serr
+		}
+		stdout, serr := session.StdoutPipe()
+		if serr != nil {
+			_ = session.Close()
+			return nil, serr
+		}
+		if serr := session.Start("docker system dial-stdio"); serr != nil {
+			_ = session.Close()
+			return nil, serr
+		}
+		return &sshSessionConn{stdin: stdin, stdout: stdout, session: session}, nil
 	}
 	cli, err := client.NewClientWithOpts(
-		client.WithHost("unix://"+remoteSocketPath),
+		client.WithHost("unix:///var/run/docker.sock"), // ignoré : le dialer ci-dessus prime
 		client.WithDialContext(dial),
 		client.WithAPIVersionNegotiation(),
 	)
