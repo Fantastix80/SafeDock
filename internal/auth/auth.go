@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -120,6 +121,16 @@ func Middleware(next http.Handler) http.Handler {
 	})
 }
 
+// recordMFAFailure enregistre un échec de second facteur (compteur + audit).
+func recordMFAFailure(r *http.Request, key string, userID int) {
+	justLocked, _ := limiter.fail(key)
+	action := "auth.mfa_failed"
+	if justLocked {
+		action = "auth.locked"
+	}
+	db.WriteSecurityAudit(userID, key, action, clientIP(r), "code MFA invalide")
+}
+
 // HandleLogin — étape 1 : nom d'utilisateur + mot de passe. Pose un cookie de pré-auth.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -135,12 +146,26 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	key := strings.ToLower(strings.TrimSpace(req.Username))
+	if locked, retry := limiter.locked(key); locked {
+		db.WriteSecurityAudit(0, key, "auth.login_blocked", clientIP(r), "tentative pendant le verrouillage")
+		writeJSONError(w, http.StatusTooManyRequests,
+			fmt.Sprintf("Trop de tentatives. Réessayez dans %d minute(s).", int(retry.Minutes())+1))
+		return
+	}
+
 	u, err := db.GetUserAuth(strings.TrimSpace(req.Username))
 	if err != nil {
 		http.Error(w, "Erreur interne", http.StatusInternalServerError)
 		return
 	}
 	if !u.Found || !crypto.VerifyPassword(req.Password, u.PasswordHash) {
+		justLocked, _ := limiter.fail(key)
+		action := "auth.login_failed"
+		if justLocked {
+			action = "auth.locked"
+		}
+		db.WriteSecurityAudit(0, key, action, clientIP(r), "mot de passe incorrect")
 		time.Sleep(500 * time.Millisecond) // anti brute-force + anti énumération
 		writeJSONError(w, http.StatusUnauthorized, "Identifiants incorrects")
 		return
@@ -192,6 +217,16 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verrouillage anti-force-brute (mêmes compteurs que l'étape mot de passe).
+	verifyUser, _ := db.GetUserByID(claims.UserID)
+	key := strings.ToLower(verifyUser.Username)
+	if locked, retry := limiter.locked(key); locked {
+		db.WriteSecurityAudit(verifyUser.ID, key, "auth.login_blocked", clientIP(r), "MFA pendant verrouillage")
+		writeJSONError(w, http.StatusTooManyRequests,
+			fmt.Sprintf("Trop de tentatives. Réessayez dans %d minute(s).", int(retry.Minutes())+1))
+		return
+	}
+
 	var req struct {
 		Code string `json:"code"`
 	}
@@ -214,12 +249,14 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 			valid = db.ConsumeUserBackupCode(claims.UserID, crypto.HashBackupCode(code))
 		}
 		if !valid {
+			recordMFAFailure(r, key, verifyUser.ID)
 			time.Sleep(500 * time.Millisecond)
 			writeJSONError(w, http.StatusUnauthorized, "Code invalide")
 			return
 		}
 	} else {
 		if !crypto.ValidateTOTP(secret, code) {
+			recordMFAFailure(r, key, verifyUser.ID)
 			time.Sleep(500 * time.Millisecond)
 			writeJSONError(w, http.StatusUnauthorized, "Code invalide — vérifiez l'heure de votre téléphone")
 			return
@@ -249,7 +286,8 @@ func HandleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	setCookie(w, cookieName, token, int(sessionTTL.Seconds()))
 	clearCookie(w, preAuthCookieName)
 
-	db.WriteSecurityAudit(user.ID, user.Username, "auth.login", "", "connexion réussie (MFA validé)")
+	limiter.reset(key) // connexion réussie → réinitialise le compteur d'échecs
+	db.WriteSecurityAudit(user.ID, user.Username, "auth.login", clientIP(r), "connexion réussie (MFA validé)")
 
 	resp := map[string]interface{}{
 		"status":               "ok",
