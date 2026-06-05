@@ -5,13 +5,12 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -39,43 +38,64 @@ var secureCookies bool
 // SetSecureCookies est appelé au démarrage selon l'activation du TLS.
 func SetSecureCookies(enabled bool) { secureCookies = enabled }
 
-// ResolveAdminPassword garantit l'existence d'un mot de passe pour le compte 'admin'.
-//   - SAFEDOCK_AUTH_PASSWORD fourni → (ré)initialise le mot de passe de l'admin.
-//   - Sinon, si l'admin n'a pas encore de mot de passe → génération + journalisation unique.
-//   - Sinon, conservation de l'existant.
-func ResolveAdminPassword(envPassword string) error {
+// adminInviteTTL : validité du lien d'activation initial de l'administrateur.
+const adminInviteTTL = 7 * 24 * time.Hour
+
+// EnsureAdminBootstrap garantit l'existence du compte 'admin' et son activation
+// selon le modèle par invitation : tant que le MFA de l'admin n'est pas activé,
+// un lien d'activation est émis et journalisé (l'admin y définit lui-même mot de
+// passe + MFA). Aucun mot de passe n'est jamais écrit dans les logs.
+// SAFEDOCK_AUTH_PASSWORD, s'il est fourni, (ré)initialise le mot de passe d'un
+// admin DÉJÀ activé (récupération), sans toucher au MFA.
+func EnsureAdminBootstrap(envPassword, baseURL string) error {
 	admin, err := db.GetUserAuth("admin")
 	if err != nil {
 		return err
 	}
 	if !admin.Found {
-		// Filet de sécurité : si la migration n'a pas créé l'admin, on le crée.
-		pw := envPassword
-		generated := false
-		if pw == "" {
-			pw = generateRandomPassword(20)
-			generated = true
-		}
-		if _, cerr := db.CreateUser("admin", crypto.PasswordVerifier(pw), db.RoleAdmin, "", "", true, false); cerr != nil {
+		// Admin créé sans mot de passe : il sera défini via le lien d'activation.
+		id, cerr := db.CreateUser("admin", "", db.RoleAdmin, "", "", false, false)
+		if cerr != nil {
 			return cerr
 		}
-		if generated {
-			logGeneratedPassword(pw)
-		}
-		return nil
+		admin.ID = int(id)
+		admin.Found = true
+		admin.TOTPEnabled = false
 	}
 
-	if envPassword != "" {
-		return db.SetUserPassword(admin.ID, crypto.PasswordVerifier(envPassword), false)
-	}
-	if admin.PasswordHash == "" {
-		pw := generateRandomPassword(20)
-		if serr := db.SetUserPassword(admin.ID, crypto.PasswordVerifier(pw), false); serr != nil {
+	// Réinitialisation du mot de passe par variable d'env (admin déjà actif uniquement).
+	if envPassword != "" && admin.TOTPEnabled {
+		if serr := db.SetUserPassword(admin.ID, crypto.PasswordVerifier(envPassword), false); serr != nil {
 			return serr
 		}
-		logGeneratedPassword(pw)
+	}
+
+	// Admin pas encore activé (MFA absent) → émettre un lien d'activation.
+	if !admin.TOTPEnabled {
+		token, hash, gerr := crypto.GenerateInviteToken()
+		if gerr != nil {
+			return gerr
+		}
+		if serr := db.SetUserInvite(admin.ID, hash, time.Now().Add(adminInviteTTL)); serr != nil {
+			return serr
+		}
+		logAdminActivationLink(token, baseURL)
 	}
 	return nil
+}
+
+// logAdminActivationLink journalise (une fois) le lien d'activation de l'admin.
+func logAdminActivationLink(token, baseURL string) {
+	b := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	log.Println("════════════════════════════════════════════════════════════")
+	log.Println("🔑  ACTIVATION DU COMPTE ADMINISTRATEUR SafeDock")
+	if b != "" {
+		log.Printf("    Ouvrez ce lien pour définir votre mot de passe + MFA :\n    %s/invite?token=%s\n", b, url.QueryEscape(token))
+	} else {
+		log.Printf("    Ouvrez dans votre navigateur (remplacez l'hôte) :\n    https://VOTRE-HOTE-SAFEDOCK/invite?token=%s\n", url.QueryEscape(token))
+	}
+	log.Println("    Lien valable 7 jours. Aucun mot de passe n'est journalisé.")
+	log.Println("════════════════════════════════════════════════════════════")
 }
 
 // ResetAdminMFA réinitialise le MFA du compte admin (récupération d'urgence).
@@ -491,19 +511,3 @@ func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-func logGeneratedPassword(pw string) {
-	log.Println("============================================================")
-	log.Println("🔐 SÉCURITÉ — Mot de passe administrateur généré :")
-	log.Printf("   utilisateur : admin   mot de passe : %s\n", pw)
-	log.Println("   Notez-le : il ne sera plus affiché. Définissez")
-	log.Println("   SAFEDOCK_AUTH_PASSWORD pour le contrôler vous-même.")
-	log.Println("============================================================")
-}
-
-func generateRandomPassword(n int) string {
-	raw := make([]byte, n)
-	if _, err := io.ReadFull(rand.Reader, raw); err != nil {
-		return base64.RawURLEncoding.EncodeToString([]byte(time.Now().String()))
-	}
-	return base64.RawURLEncoding.EncodeToString(raw)[:n]
-}

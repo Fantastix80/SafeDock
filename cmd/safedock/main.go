@@ -38,19 +38,26 @@ func main() {
 		log.Fatalf("❌ ÉCHEC INITIALISATION CRYPTO : %v\n", err)
 	}
 
-	// 1c. Résolution du mot de passe administrateur (env prioritaire, sinon génération).
-	if err := auth.ResolveAdminPassword(os.Getenv("SAFEDOCK_AUTH_PASSWORD")); err != nil {
-		log.Fatalf("❌ ÉCHEC CONFIGURATION AUTHENTIFICATION : %v\n", err)
-	}
-
-	// 1d. Récupération d'urgence MFA : si SAFEDOCK_RESET_MFA=true, on réinitialise le
-	// second facteur (perte de l'authentificateur). Le prochain login forcera un ré-enrôlement.
+	// 1c. Récupération d'urgence MFA : si SAFEDOCK_RESET_MFA=true, on réinitialise le
+	// second facteur de l'admin (perte de l'authentificateur). Un lien d'activation
+	// est ré-émis par le bootstrap ci-dessous.
 	if v, _ := strconv.ParseBool(os.Getenv("SAFEDOCK_RESET_MFA")); v {
 		if err := auth.ResetAdminMFA(); err != nil {
 			log.Printf("⚠️  Réinitialisation MFA admin impossible : %v\n", err)
 		} else {
-			log.Println("🔓 MFA de l'admin réinitialisé (SAFEDOCK_RESET_MFA). Le prochain login demandera un nouvel enrôlement.")
+			log.Println("🔓 MFA de l'admin réinitialisé (SAFEDOCK_RESET_MFA).")
 		}
+	}
+
+	// 1d. Bootstrap admin (modèle invitation) : tant que l'admin n'est pas activé,
+	// un lien d'activation (mot de passe + MFA) est journalisé. Aucun mot de passe
+	// n'est écrit dans les logs. SAFEDOCK_AUTH_PASSWORD réinitialise un admin actif.
+	adminBaseURL := db.GetBaseURL()
+	if adminBaseURL == "" {
+		adminBaseURL = os.Getenv("SAFEDOCK_BASE_URL")
+	}
+	if err := auth.EnsureAdminBootstrap(os.Getenv("SAFEDOCK_AUTH_PASSWORD"), adminBaseURL); err != nil {
+		log.Fatalf("❌ ÉCHEC CONFIGURATION AUTHENTIFICATION : %v\n", err)
 	}
 
 	// 2. Chargement de la configuration
