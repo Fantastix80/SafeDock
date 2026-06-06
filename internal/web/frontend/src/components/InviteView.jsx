@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, Loader2, Smartphone, KeyRound, Copy, Check, XCircle, CheckCircle2 } from 'lucide-react';
 import QRCode from 'qrcode';
+import PasswordChecklist from './PasswordChecklist';
+import { checkPassword } from '../lib/passwordPolicy';
 
 // Page publique d'activation de compte via lien d'invitation.
 // phases : loading | invalid | password | enroll | backup | done
@@ -43,7 +45,7 @@ export default function InviteView() {
 
   const submitPassword = async (e) => {
     e.preventDefault();
-    if (password.length < 10) { setError('Le mot de passe doit faire au moins 10 caractères'); return; }
+    if (!checkPassword(password).ok) { setError('Le mot de passe ne respecte pas la politique de sécurité.'); return; }
     if (password !== confirm) { setError('Les mots de passe ne correspondent pas'); return; }
     setBusy(true); setError('');
     try {
@@ -110,12 +112,13 @@ export default function InviteView() {
                 {firstName ? `Bonjour ${firstName}, c` : 'C'}réez le mot de passe de votre compte
                 {' '}<span className="text-white font-mono">{email}</span>.
               </p>
-              <Label>Mot de passe (10 caractères min.)</Label>
+              <Label>Mot de passe</Label>
               <InputWithIcon icon={Lock} type="password" value={password} onChange={setPassword} autoFocus placeholder="••••••••••••" />
               <div className="mt-3"><Label>Confirmer le mot de passe</Label></div>
               <InputWithIcon icon={Lock} type="password" value={confirm} onChange={setConfirm} placeholder="••••••••••••" />
+              <PasswordChecklist password={password} />
               {error && <ErrorMsg>{error}</ErrorMsg>}
-              <SubmitBtn busy={busy} disabled={!password || !confirm}>Continuer</SubmitBtn>
+              <SubmitBtn busy={busy} disabled={!checkPassword(password).ok || !confirm}>Continuer</SubmitBtn>
             </form>
           )}
 

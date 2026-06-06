@@ -57,6 +57,10 @@ func (s *Server) Start(ctx context.Context) error {
 	// 0. Routes d'authentification (publiques : indispensables à l'écran de connexion)
 	mux.HandleFunc("/api/login", auth.HandleLogin)
 	mux.HandleFunc("/api/login/verify", auth.HandleLoginVerify)
+	// Amorçage du compte administrateur (mot de passe généré) : changement de mot
+	// de passe imposé puis enrôlement MFA, authentifiés par le pré-jeton.
+	mux.HandleFunc("/api/login/setup-password", auth.HandleSetupPassword)
+	mux.HandleFunc("/api/login/setup-mfa", auth.HandleSetupMFA)
 	mux.HandleFunc("/api/logout", auth.HandleLogout)
 	mux.HandleFunc("/api/session", auth.HandleSession)
 	mux.HandleFunc("/api/account/password", auth.HandleChangePassword)

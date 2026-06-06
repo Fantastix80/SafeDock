@@ -17,10 +17,9 @@ import (
 )
 
 const (
-	inviteTTL        = 72 * time.Hour
-	inviteBackupN    = 10
-	inviteMFAIssuer  = "SafeDock"
-	minPasswordChars = 10
+	inviteTTL       = 72 * time.Hour
+	inviteBackupN   = 10
+	inviteMFAIssuer = "SafeDock"
 )
 
 // jsonError écrit une erreur JSON ({"error": "..."}) — format attendu par le front.
@@ -115,8 +114,8 @@ func (s *Server) HandleInviteAccept(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusNotFound, "Invitation invalide ou expirée")
 		return
 	}
-	if len(req.Password) < minPasswordChars {
-		jsonError(w, http.StatusBadRequest, fmt.Sprintf("Mot de passe d'au moins %d caractères requis", minPasswordChars))
+	if err := crypto.ValidatePassword(req.Password); err != nil {
+		jsonError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := db.SetUserPassword(u.ID, crypto.PasswordVerifier(req.Password), false); err != nil {

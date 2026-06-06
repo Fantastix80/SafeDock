@@ -1604,6 +1604,22 @@ func GetUserByInviteHash(hash string) (User, bool) {
 	return u, true
 }
 
+// HasPendingInvite indique si un compte porte encore un jeton d'invitation non
+// consommé (compte créé par invitation et pas encore finalisé). Sert à n'autoriser
+// la finalisation via /api/login (mot de passe + MFA) qu'aux comptes amorcés
+// localement (administrateur de premier rang), jamais aux comptes invités.
+func HasPendingInvite(id int) bool {
+	db := GetDB()
+	if db == nil {
+		return false
+	}
+	var h sql.NullString
+	if err := db.QueryRow("SELECT invite_hash FROM users WHERE id = ?;", id).Scan(&h); err != nil {
+		return false
+	}
+	return strings.TrimSpace(h.String) != ""
+}
+
 // ClearUserInvite efface le jeton d'invitation après activation du compte.
 func ClearUserInvite(id int) error {
 	db := GetDB()

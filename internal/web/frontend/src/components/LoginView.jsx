@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, Loader2, Smartphone, KeyRound, Copy, Check, User as UserIcon } from 'lucide-react';
 import QRCode from 'qrcode';
+import PasswordChecklist from './PasswordChecklist';
+import { checkPassword } from '../lib/passwordPolicy';
 
 export default function LoginView({ onSuccess }) {
-  // phases : password | enroll | code | backup | mustchange
+  // phases : password | setup_mustchange | setup_enroll | code | backup | mustchange
   const [phase, setPhase] = useState('password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
   const [mustChange, setMustChange] = useState(false);
   const [code, setCode] = useState('');
   const [secret, setSecret] = useState('');
@@ -26,6 +29,9 @@ export default function LoginView({ onSuccess }) {
       .catch(() => setQrDataUrl(''));
   }, [qrSource]);
 
+  // Étape 1 : identifiants. Selon l'état du compte, on enchaîne vers la
+  // vérification MFA (compte actif) ou l'amorçage (changement de mot de passe
+  // imposé puis enrôlement MFA).
   const submitPassword = async (e) => {
     e.preventDefault();
     if (!password) return;
@@ -38,12 +44,15 @@ export default function LoginView({ onSuccess }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Erreur serveur (HTTP ${res.status})`);
 
-      // On conserve le mot de passe : utile si un changement est imposé ensuite.
-      if (data.status === 'enroll_required') {
-        setSecret(data.secret || '');
-        setQrSource(data.otpauth_uri || '');
-        setPhase('enroll');
+      if (data.status === 'setup_required') {
+        // Compte amorcé : changement de mot de passe imposé AVANT le MFA.
+        if (data.must_change_password) {
+          setPhase('setup_mustchange');
+        } else {
+          await startMfaSetup();
+        }
       } else {
+        // mfa_required (compte actif).
         setPhase('code');
       }
     } catch (err) {
@@ -53,6 +62,50 @@ export default function LoginView({ onSuccess }) {
     }
   };
 
+  // Amorçage — changement du mot de passe initial (avant le MFA).
+  const submitSetupPassword = async (e) => {
+    e.preventDefault();
+    if (!checkPassword(newPw).ok) { setError('Le mot de passe ne respecte pas la politique de sécurité.'); return; }
+    if (newPw !== confirmPw) { setError('Les mots de passe ne correspondent pas.'); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await fetch('/api/login/setup-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Erreur serveur (HTTP ${res.status})`);
+      setPassword(newPw); setNewPw(''); setConfirmPw('');
+      await startMfaSetup();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Amorçage — initialise le secret MFA et bascule sur l'écran d'enrôlement.
+  const startMfaSetup = async () => {
+    setBusy(true); setError('');
+    try {
+      const res = await fetch('/api/login/setup-mfa', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Erreur serveur (HTTP ${res.status})`);
+      setSecret(data.secret || '');
+      setQrSource(data.otpauth_uri || '');
+      setCode('');
+      setPhase('setup_enroll');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Étape MFA : valide le code TOTP (enrôlement à l'amorçage, ou code/secours
+  // pour un compte actif). Émet la session.
   const submitCode = async (e) => {
     e.preventDefault();
     if (!code) return;
@@ -83,9 +136,11 @@ export default function LoginView({ onSuccess }) {
     }
   };
 
+  // Changement de mot de passe imposé pour un compte DÉJÀ actif (récupération via
+  // SAFEDOCK_AUTH_PASSWORD) : a lieu après la validation MFA, session ouverte.
   const submitNewPassword = async (e) => {
     e.preventDefault();
-    if (newPw.length < 10) { setError('Le nouveau mot de passe doit faire au moins 10 caractères'); return; }
+    if (!checkPassword(newPw).ok) { setError('Le mot de passe ne respecte pas la politique de sécurité.'); return; }
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/account/password', {
@@ -134,8 +189,26 @@ export default function LoginView({ onSuccess }) {
             </form>
           )}
 
-          {/* ── Phase 2a : enrôlement MFA (premier login) ── */}
-          {phase === 'enroll' && (
+          {/* ── Amorçage 1 : changement de mot de passe imposé (avant le MFA) ── */}
+          {phase === 'setup_mustchange' && (
+            <form onSubmit={submitSetupPassword}>
+              <Header icon={Lock} title="Définir votre mot de passe" />
+              <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+                Votre mot de passe initial a été généré automatiquement. Choisissez-en un
+                {' '}<strong className="text-white">nouveau et robuste</strong> avant de configurer la double authentification.
+              </p>
+              <Label>Nouveau mot de passe</Label>
+              <InputWithIcon icon={Lock} type="password" value={newPw} onChange={setNewPw} autoFocus placeholder="••••••••••••" />
+              <div className="mt-3"><Label>Confirmer le mot de passe</Label></div>
+              <InputWithIcon icon={Lock} type="password" value={confirmPw} onChange={setConfirmPw} placeholder="••••••••••••" />
+              <PasswordChecklist password={newPw} />
+              {error && <ErrorMsg>{error}</ErrorMsg>}
+              <SubmitBtn busy={busy} disabled={!checkPassword(newPw).ok || !confirmPw}>Continuer</SubmitBtn>
+            </form>
+          )}
+
+          {/* ── Amorçage 2 / Phase 2a : enrôlement MFA ── */}
+          {phase === 'setup_enroll' && (
             <form onSubmit={submitCode}>
               <Header icon={Smartphone} title="Configurer le MFA" />
               <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
@@ -198,17 +271,18 @@ export default function LoginView({ onSuccess }) {
             </div>
           )}
 
-          {/* ── Phase 4 : changement de mot de passe imposé ── */}
+          {/* ── Phase 4 : changement de mot de passe imposé (compte déjà actif) ── */}
           {phase === 'mustchange' && (
             <form onSubmit={submitNewPassword}>
               <Header icon={Lock} title="Changement de mot de passe requis" />
               <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
-                Votre mot de passe a été défini par un administrateur. Choisissez-en un nouveau (au moins 10 caractères) pour continuer.
+                Votre mot de passe a été réinitialisé par un administrateur. Choisissez-en un nouveau pour continuer.
               </p>
               <Label>Nouveau mot de passe</Label>
               <InputWithIcon icon={Lock} type="password" value={newPw} onChange={setNewPw} autoFocus placeholder="••••••••••••" />
+              <PasswordChecklist password={newPw} />
               {error && <ErrorMsg>{error}</ErrorMsg>}
-              <SubmitBtn busy={busy} disabled={newPw.length < 10}>Définir et continuer</SubmitBtn>
+              <SubmitBtn busy={busy} disabled={!checkPassword(newPw).ok}>Définir et continuer</SubmitBtn>
             </form>
           )}
         </div>

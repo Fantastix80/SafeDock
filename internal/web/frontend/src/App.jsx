@@ -18,6 +18,8 @@ import InviteView from './components/InviteView';
 import ExceptionsView from './components/ExceptionsView';
 import UsersView from './components/UsersView';
 import ComplianceView from './components/ComplianceView';
+import PasswordChecklist from './components/PasswordChecklist';
+import { checkPassword } from './lib/passwordPolicy';
 import { setSessionExpiredHandler } from './lib/session';
 
 export default function App() {
@@ -689,7 +691,7 @@ function ForcedPasswordChange({ onChangePassword, onDone, onLogout }) {
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
-    if (nw.length < 10) { setErr('Le nouveau mot de passe doit faire au moins 10 caractères.'); return; }
+    if (!checkPassword(nw).ok) { setErr('Le mot de passe ne respecte pas la politique de sécurité.'); return; }
     setBusy(true); setErr('');
     try { await onChangePassword(cur, nw); await onDone(); }
     catch (e2) { setErr(e2.message || 'Échec du changement.'); }
@@ -700,11 +702,12 @@ function ForcedPasswordChange({ onChangePassword, onDone, onLogout }) {
     <div className="flex items-center justify-center min-h-screen bg-[#030304] px-4">
       <form onSubmit={submit} className="w-full max-w-sm bg-[#0F1115] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-3">
         <h1 className="font-heading text-base font-semibold text-white">Changement de mot de passe requis</h1>
-        <p className="text-sm text-[#94A3B8]">Votre mot de passe a été défini par un administrateur. Choisissez-en un nouveau (≥ 10 caractères) pour continuer.</p>
+        <p className="text-sm text-[#94A3B8]">Votre mot de passe a été défini par un administrateur. Choisissez-en un nouveau pour continuer.</p>
         <input type="password" placeholder="Mot de passe actuel" value={cur} onChange={e => setCur(e.target.value)} className={inputCls} autoFocus />
         <input type="password" placeholder="Nouveau mot de passe" value={nw} onChange={e => setNw(e.target.value)} className={inputCls} />
+        <PasswordChecklist password={nw} />
         {err && <p className="text-sm text-red-400 font-mono">{err}</p>}
-        <button type="submit" disabled={busy} className="w-full rounded-xl px-4 py-2.5 font-mono font-semibold text-sm bg-gradient-to-r from-[#EA580C] to-[#F7931A] text-black hover:opacity-90 disabled:opacity-40">
+        <button type="submit" disabled={busy || !checkPassword(nw).ok} className="w-full rounded-xl px-4 py-2.5 font-mono font-semibold text-sm bg-gradient-to-r from-[#EA580C] to-[#F7931A] text-black hover:opacity-90 disabled:opacity-40">
           {busy ? 'Veuillez patienter…' : 'Définir et continuer'}
         </button>
         <button type="button" onClick={onLogout} className="w-full text-xs text-[#94A3B8] hover:text-white font-mono">Se déconnecter</button>

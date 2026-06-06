@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { UserSquare, Lock, ShieldCheck, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
+import PasswordChecklist from './PasswordChecklist';
+import { checkPassword } from '../lib/passwordPolicy';
 
 const TABS = [
   { id: 'infos',         label: 'Infos',         icon: UserSquare },
@@ -41,7 +43,7 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
   const [pwStatus, setPwStatus] = useState({ text: '', type: '' });
 
   const changePassword = async () => {
-    if (newPw.length < 10) { setPwStatus({ text: 'Au moins 10 caractères.', type: 'error' }); return; }
+    if (!checkPassword(newPw).ok) { setPwStatus({ text: 'Le mot de passe ne respecte pas la politique de sécurité.', type: 'error' }); return; }
     if (newPw !== confirmPw) { setPwStatus({ text: 'Les mots de passe ne correspondent pas.', type: 'error' }); return; }
     try {
       await onChangePassword(curPw, newPw);
@@ -136,6 +138,7 @@ export default function AccountView({ me, onChangePassword, onUpdateProfile }) {
                 <Field label="Mot de passe actuel"        type="password" placeholder="••••••••••••" value={curPw}     onChange={setCurPw} />
                 <Field label="Nouveau mot de passe"       type="password" placeholder="••••••••••••" value={newPw}     onChange={setNewPw} />
                 <Field label="Confirmer le mot de passe"  type="password" placeholder="••••••••••••" value={confirmPw} onChange={setConfirmPw} />
+                <PasswordChecklist password={newPw} />
               </div>
               {pwStatus.text && (
                 <p className={cn('text-sm font-mono', pwStatus.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>{pwStatus.text}</p>
