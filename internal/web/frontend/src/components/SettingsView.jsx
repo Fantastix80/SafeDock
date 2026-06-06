@@ -90,6 +90,35 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       .catch(() => { setStatus('Erreur de sauvegarde.'); setTimeout(() => setStatus(''), 4000); });
   };
 
+  // Test SMTP : envoie un e-mail au compte connecté (= identifiant). Utilise les
+  // valeurs du formulaire (mot de passe vide = on garde celui enregistré).
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smtpTest, setSmtpTest] = useState({ text: '', type: '' });
+  const testSmtp = async () => {
+    setSmtpTesting(true);
+    setSmtpTest({ text: 'Envoi du test en cours…', type: 'info' });
+    try {
+      const res = await fetch('/api/config/test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtp_host: smtpHost,
+          smtp_port: smtpPort ? parseInt(smtpPort, 10) : 0,
+          smtp_user: smtpUser,
+          smtp_password: smtpPass,
+          smtp_from: smtpFrom,
+          smtp_tls_skip_verify: smtpTls,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || `Erreur serveur (HTTP ${res.status})`);
+      setSmtpTest({ text: `E-mail de test envoyé à ${d.sent_to || 'votre adresse'}. Vérifiez votre boîte (et les spams).`, type: 'ok' });
+    } catch (e) {
+      setSmtpTest({ text: e.message || "Échec de l'envoi.", type: 'error' });
+    } finally {
+      setSmtpTesting(false);
+    }
+  };
+
   const handleRegSubmit = (e) => {
     e.preventDefault();
     if (!regServer || !regUser || !regPass) return;
@@ -214,7 +243,22 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
               adresse e-mail (= son identifiant), selon ses abonnements et son périmètre de visibilité.
             </p>
             <Toggle label="Ignorer la vérification TLS" checked={smtpTls} onChange={setSmtpTls} />
-            <SaveBtn onClick={saveGlobal} />
+            <div className="flex items-center gap-3 flex-wrap">
+              <SaveBtn onClick={saveGlobal} />
+              <button type="button" onClick={testSmtp} disabled={smtpTesting}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-white/[0.04] text-[#94A3B8] border border-white/[0.12] hover:text-white hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                {smtpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                Tester l'envoi
+              </button>
+            </div>
+            {smtpTest.text && (
+              <p className={cn('text-sm font-mono', smtpTest.type === 'ok' ? 'text-emerald-400' : smtpTest.type === 'error' ? 'text-red-400' : 'text-[#94A3B8]')}>
+                {smtpTest.text}
+              </p>
+            )}
+            <p className="text-xs text-[#94A3B8]/50 font-mono">
+              Le test envoie un e-mail à l'adresse de votre compte connecté (votre identifiant). Pensez à enregistrer si vous modifiez le serveur.
+            </p>
           </>
         )}
 

@@ -84,6 +84,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/containers/settings/delete", s.HandleContainersSettingsDelete)
 	mux.HandleFunc("/api/containers/", s.HandleSingleContainerSubRoutes)
 	mux.HandleFunc("/api/config", s.HandleConfig)
+	mux.HandleFunc("/api/config/test", s.HandleTestEmail)
 	mux.HandleFunc("/api/registries", s.HandleRegistries)
 	mux.HandleFunc("/api/registries/delete", s.HandleRegistriesDelete)
 	mux.HandleFunc("/api/audit-logs", s.HandleAuditLogs)
