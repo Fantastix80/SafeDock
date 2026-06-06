@@ -66,6 +66,12 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/account/password", auth.HandleChangePassword)
 	mux.HandleFunc("/api/account/profile", auth.HandleUpdateProfile)
 
+	// Assistant de configuration initiale (publiques : actives tant qu'aucun admin
+	// n'existe, jeton de configuration à l'appui).
+	mux.HandleFunc("/api/setup/status", s.HandleSetupStatus)
+	mux.HandleFunc("/api/setup/start", s.HandleSetupStart)
+	mux.HandleFunc("/api/setup/complete", s.HandleSetupComplete)
+
 	// Activation de compte par invitation (publiques : le jeton fait foi).
 	mux.HandleFunc("/api/invite", s.HandleInviteInfo)
 	mux.HandleFunc("/api/invite/accept", s.HandleInviteAccept)

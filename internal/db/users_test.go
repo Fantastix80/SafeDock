@@ -31,9 +31,11 @@ func TestValidRole(t *testing.T) {
 func TestUserLifecycle(t *testing.T) {
 	freshDB(t)
 
-	// InitDB amorce un compte 'admin' (migration).
-	if n, _ := CountAdmins(); n != 1 {
-		t.Fatalf("attendu 1 admin amorcé, obtenu %d", n)
+	// Sur une base vierge, aucun compte n'est amorcé : l'assistant de configuration
+	// initiale (first-run) crée le premier admin. La migration n'auto-crée un 'admin'
+	// que s'il existe un mot de passe hérité dans settings (installs historiques).
+	if n, _ := CountAdmins(); n != 0 {
+		t.Fatalf("attendu 0 admin sur base vierge, obtenu %d", n)
 	}
 
 	hash := crypto.PasswordVerifier("ViewerPass10")
@@ -66,10 +68,10 @@ func TestUserLifecycle(t *testing.T) {
 		t.Errorf("identité incorrecte : %+v", u)
 	}
 
-	// ListUsers : admin + alice.
+	// ListUsers : seulement alice (base vierge, pas d'admin auto-amorcé).
 	list, _ := ListUsers()
-	if len(list) != 2 {
-		t.Errorf("attendu 2 comptes, obtenu %d", len(list))
+	if len(list) != 1 {
+		t.Errorf("attendu 1 compte, obtenu %d", len(list))
 	}
 
 	// Changement de rôle.

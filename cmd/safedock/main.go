@@ -49,12 +49,16 @@ func main() {
 		}
 	}
 
-	// 1d. Bootstrap admin : au premier lancement, un mot de passe FORT est généré et
-	// journalisé une fois ; l'admin devra le changer à la première connexion puis
-	// enrôler son MFA. SAFEDOCK_AUTH_PASSWORD réinitialise le mot de passe d'un
-	// admin déjà actif (récupération).
-	if err := auth.EnsureAdminBootstrap(os.Getenv("SAFEDOCK_AUTH_PASSWORD")); err != nil {
+	// 1d. Amorçage par assistant de configuration initiale : tant qu'aucun admin
+	// n'existe, un jeton de configuration à usage unique est journalisé ; l'opérateur
+	// crée son compte (e-mail = identifiant + mot de passe + MFA) via l'assistant web.
+	if err := auth.EnsureFirstRunSetup(); err != nil {
 		log.Fatalf("❌ ÉCHEC CONFIGURATION AUTHENTIFICATION : %v\n", err)
+	}
+	// Récupération : SAFEDOCK_AUTH_PASSWORD réinitialise le mot de passe de l'admin
+	// le plus ancien (déjà finalisé), sans toucher au MFA.
+	if err := auth.ResetAdminPassword(os.Getenv("SAFEDOCK_AUTH_PASSWORD")); err != nil {
+		log.Printf("⚠️  Réinitialisation du mot de passe admin impossible : %v\n", err)
 	}
 
 	// 2. Chargement de la configuration

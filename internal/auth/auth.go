@@ -41,75 +41,80 @@ var secureCookies bool
 // SetSecureCookies est appelé au démarrage selon l'activation du TLS.
 func SetSecureCookies(enabled bool) { secureCookies = enabled }
 
-// EnsureAdminBootstrap garantit l'existence du compte 'admin' de premier rang.
-// Au tout premier lancement (compte absent, ou présent mais sans mot de passe),
-// un mot de passe aléatoire FORT (conforme ANSSI) est généré et journalisé UNE
-// fois ; le compte est marqué « changement de mot de passe imposé » : à sa
-// première connexion, l'administrateur devra le changer PUIS enrôler son MFA.
-// SAFEDOCK_AUTH_PASSWORD, s'il est fourni, (ré)initialise le mot de passe d'un
-// admin DÉJÀ activé (récupération), sans toucher au MFA.
-func EnsureAdminBootstrap(envPassword string) error {
-	admin, err := db.GetUserAuth("admin")
+// EnsureFirstRunSetup pilote l'amorçage par ASSISTANT DE CONFIGURATION INITIALE.
+// Tant qu'aucun compte administrateur n'existe, un jeton de configuration à usage
+// unique est (re)généré à chaque démarrage et journalisé (l'opérateur le lit dans
+// les logs du conteneur — aucun e-mail requis). AUCUN compte n'est créé ici :
+// l'opérateur crée le sien via l'assistant (e-mail = identifiant, mot de passe,
+// MFA). C'est le seul secret journalisé, et uniquement avant le premier admin.
+func EnsureFirstRunSetup() error {
+	n, err := db.CountAdmins()
 	if err != nil {
 		return err
 	}
-	if !admin.Found {
-		// Compte créé avec un mot de passe généré (défini juste après) + scope_all
-		// + changement imposé au premier login.
-		id, cerr := db.CreateUser("admin", "", db.RoleAdmin, "", "", true, true)
-		if cerr != nil {
-			return cerr
-		}
-		admin.ID = int(id)
-		admin.Found = true
-		admin.PasswordHash = ""
-		admin.TOTPEnabled = false
-	}
-
-	// Amorçage : aucun mot de passe défini → en générer un fort, le journaliser et
-	// imposer son changement au premier login.
-	if admin.PasswordHash == "" {
-		pw, gerr := crypto.GenerateStrongPassword()
-		if gerr != nil {
-			return fmt.Errorf("génération du mot de passe administrateur : %w", gerr)
-		}
-		if serr := db.SetUserPassword(admin.ID, crypto.PasswordVerifier(pw), true); serr != nil {
-			return serr
-		}
-		logAdminBootstrapPassword(pw)
+	if n > 0 {
+		// Configuration déjà effectuée : on s'assure qu'aucun jeton ne traîne.
+		_ = db.ClearSetupTokenHash()
 		return nil
 	}
-
-	// Réinitialisation du mot de passe par variable d'env (admin déjà actif uniquement).
-	if envPassword != "" && admin.TOTPEnabled {
-		if serr := db.SetUserPassword(admin.ID, crypto.PasswordVerifier(envPassword), false); serr != nil {
-			return serr
-		}
+	token, hash, gerr := crypto.GenerateInviteToken()
+	if gerr != nil {
+		return fmt.Errorf("génération du jeton de configuration : %w", gerr)
 	}
+	if serr := db.SetSetupTokenHash(hash); serr != nil {
+		return serr
+	}
+	logSetupToken(token)
 	return nil
 }
 
-// logAdminBootstrapPassword journalise (une seule fois) les identifiants initiaux
-// de l'administrateur. C'est le SEUL endroit où un mot de passe apparaît en clair :
-// il n'est lisible que par l'opérateur ayant accès aux logs du conteneur, et doit
-// être changé dès la première connexion (changement imposé).
-func logAdminBootstrapPassword(pw string) {
+// logSetupToken journalise le jeton de configuration initiale (bloc délimité).
+func logSetupToken(token string) {
 	log.Println("════════════════════════════════════════════════════════════")
-	log.Println("🔑  COMPTE ADMINISTRATEUR SafeDock — IDENTIFIANTS INITIAUX")
-	log.Println("    Identifiant : admin")
-	log.Printf("    Mot de passe : %s\n", pw)
-	log.Println("    ⚠️  À changer OBLIGATOIREMENT à la première connexion,")
-	log.Println("        puis configuration du MFA. Notez-le ailleurs et purgez ce log.")
+	log.Println("🧭  CONFIGURATION INITIALE DE SafeDock")
+	log.Println("    Ouvrez SafeDock dans votre navigateur : l'assistant de")
+	log.Println("    configuration s'affichera. Collez-y ce jeton à usage unique :")
+	log.Printf("    JETON : %s\n", token)
+	log.Println("    Vous y définirez votre e-mail (= identifiant), votre mot de")
+	log.Println("    passe et votre MFA. Aucun mot de passe n'est journalisé.")
 	log.Println("════════════════════════════════════════════════════════════")
 }
 
-// ResetAdminMFA réinitialise le MFA du compte admin (récupération d'urgence).
+// ResetAdminMFA réinitialise le MFA du compte administrateur le plus ancien
+// (récupération d'urgence : perte de l'authentificateur). À la prochaine connexion,
+// cet admin ré-enrôlera son MFA via le flux setup_required.
 func ResetAdminMFA() error {
-	admin, err := db.GetUserAuth("admin")
+	admin, err := db.GetFirstAdmin()
 	if err != nil || !admin.Found {
 		return err
 	}
 	return db.ResetUserMFA(admin.ID)
+}
+
+// ResetAdminPassword réinitialise, via SAFEDOCK_AUTH_PASSWORD, le mot de passe du
+// compte administrateur le plus ancien — uniquement s'il est DÉJÀ finalisé (MFA
+// actif), pour ne pas perturber un compte en cours d'amorçage. Sans toucher au MFA.
+func ResetAdminPassword(envPassword string) error {
+	if envPassword == "" {
+		return nil
+	}
+	admin, err := db.GetFirstAdmin()
+	if err != nil || !admin.Found || !admin.TOTPEnabled {
+		return err
+	}
+	return db.SetUserPassword(admin.ID, crypto.PasswordVerifier(envPassword), false)
+}
+
+// IssuePreAuthCookie pose un cookie de pré-authentification (mot de passe vérifié,
+// MFA pas encore validé) pour un utilisateur donné. Centralise les attributs du
+// cookie ; utilisé par l'assistant de configuration initiale (package api).
+func IssuePreAuthCookie(w http.ResponseWriter, userID int, role string) error {
+	tok, err := crypto.NewToken(crypto.ScopePreAuth, userID, role, preAuthTTL)
+	if err != nil {
+		return err
+	}
+	setCookie(w, preAuthCookieName, tok, int(preAuthTTL.Seconds()))
+	return nil
 }
 
 // Middleware protège les routes /api/ : exige une session valide et injecte l'identité.
@@ -124,6 +129,7 @@ func Middleware(next http.Handler) http.Handler {
 		// (le jeton d'invitation fait foi, pas de session).
 		if path == "/api/login" || path == "/api/login/verify" || path == "/api/session" ||
 			path == "/api/login/setup-password" || path == "/api/login/setup-mfa" ||
+			path == "/api/setup/status" || path == "/api/setup/start" || path == "/api/setup/complete" ||
 			path == "/api/invite" || path == "/api/invite/accept" || path == "/api/invite/verify" {
 			next.ServeHTTP(w, r)
 			return

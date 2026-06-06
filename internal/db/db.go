@@ -120,17 +120,23 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		var totpEnabled sql.NullInt64
 		_ = db.QueryRow("SELECT auth_password_hash, totp_secret, totp_enabled FROM settings WHERE id = 1;").
 			Scan(&pwHash, &totpSecret, &totpEnabled)
-		res, ierr := db.Exec(
-			`INSERT INTO users (username, password_hash, role, totp_secret, totp_enabled, scope_all)
-			 VALUES ('admin', ?, 'admin', ?, ?, 1);`,
-			pwHash.String, totpSecret.String, totpEnabled.Int64,
-		)
-		if ierr == nil {
-			if adminID, lerr := res.LastInsertId(); lerr == nil {
-				// Rattache d'éventuels codes de secours orphelins à l'admin.
-				_, _ = db.Exec("UPDATE mfa_backup_codes SET user_id = ? WHERE user_id = 0;", adminID)
+		// On ne migre l'ancien admin unique QUE s'il existait réellement un mot de
+		// passe hérité. Sur une base vierge (aucun hash), on ne crée aucun compte :
+		// l'assistant de configuration initiale (first-run) prendra le relais
+		// (CountAdmins()==0 → jeton de setup journalisé au démarrage).
+		if strings.TrimSpace(pwHash.String) != "" {
+			res, ierr := db.Exec(
+				`INSERT INTO users (username, password_hash, role, totp_secret, totp_enabled, scope_all)
+				 VALUES ('admin', ?, 'admin', ?, ?, 1);`,
+				pwHash.String, totpSecret.String, totpEnabled.Int64,
+			)
+			if ierr == nil {
+				if adminID, lerr := res.LastInsertId(); lerr == nil {
+					// Rattache d'éventuels codes de secours orphelins à l'admin.
+					_, _ = db.Exec("UPDATE mfa_backup_codes SET user_id = ? WHERE user_id = 0;", adminID)
+				}
+				log.Println("👤 Migration : compte 'admin' créé à partir de la configuration existante.")
 			}
-			log.Println("👤 Migration : compte 'admin' créé à partir de la configuration existante.")
 		}
 	}
 
@@ -173,6 +179,7 @@ func runMigrations(db *sql.DB) error {
 		backup_enabled INTEGER DEFAULT 1,
 		backup_keep INTEGER DEFAULT 7,
 		base_url TEXT DEFAULT '',
+		setup_token_hash TEXT DEFAULT '',
 		ssh_private_key TEXT DEFAULT '',
 		ssh_public_key TEXT DEFAULT ''
 	);`
@@ -380,6 +387,8 @@ func runMigrations(db *sql.DB) error {
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN invite_hash TEXT NOT NULL DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE users ADD COLUMN invite_expires DATETIME;")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN base_url TEXT DEFAULT '';")
+	// Jeton d'amorçage (first-run) : empreinte HMAC du jeton de configuration initiale.
+	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN setup_token_hash TEXT DEFAULT '';")
 	// Identité SSH SafeDock (clé privée chiffrée + clé publique) pour les hôtes ssh://.
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_private_key TEXT DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE settings ADD COLUMN ssh_public_key TEXT DEFAULT '';")
@@ -1655,6 +1664,79 @@ func SetBaseURL(u string) error {
 		_, err = db.Exec("INSERT INTO settings (id, base_url) VALUES (1, ?);", u)
 	}
 	return err
+}
+
+// ── Jeton d'amorçage (assistant de configuration initiale) ───────────────────
+
+// SetSetupTokenHash persiste l'empreinte du jeton de configuration initiale.
+func SetSetupTokenHash(hash string) error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec(
+		`INSERT INTO settings (id, setup_token_hash) VALUES (1, ?)
+		 ON CONFLICT(id) DO UPDATE SET setup_token_hash=excluded.setup_token_hash;`, hash)
+	return err
+}
+
+// GetSetupTokenHash lit l'empreinte du jeton de configuration initiale ("" si absente).
+func GetSetupTokenHash() (string, error) {
+	db := GetDB()
+	if db == nil {
+		return "", fmt.Errorf("base de données non initialisée")
+	}
+	var h sql.NullString
+	err := db.QueryRow("SELECT setup_token_hash FROM settings WHERE id = 1;").Scan(&h)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(h.String), nil
+}
+
+// ClearSetupTokenHash efface le jeton d'amorçage (configuration initiale terminée).
+func ClearSetupTokenHash() error {
+	db := GetDB()
+	if db == nil {
+		return fmt.Errorf("base de données non initialisée")
+	}
+	_, err := db.Exec("UPDATE settings SET setup_token_hash = '' WHERE id = 1;")
+	return err
+}
+
+// GetFirstAdmin retourne le compte administrateur le plus ancien (par id). Utilisé
+// par les chemins de récupération (reset MFA / mot de passe par variable d'env)
+// désormais que l'identifiant n'est plus forcément le littéral « admin ».
+func GetFirstAdmin() (UserAuth, error) {
+	db := GetDB()
+	if db == nil {
+		return UserAuth{}, fmt.Errorf("base de données non initialisée")
+	}
+	var u UserAuth
+	var totpEnc sql.NullString
+	var totpEn, mustChange sql.NullInt64
+	err := db.QueryRow(
+		`SELECT id, username, password_hash, role, totp_secret, totp_enabled, must_change_password
+		 FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1;`,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &totpEnc, &totpEn, &mustChange)
+	if err == sql.ErrNoRows {
+		return UserAuth{Found: false}, nil
+	}
+	if err != nil {
+		return UserAuth{}, err
+	}
+	if totpEnc.Valid && totpEnc.String != "" {
+		if dec, derr := crypto.Decrypt(totpEnc.String); derr == nil {
+			u.TOTPSecret = dec
+		}
+	}
+	u.TOTPEnabled = totpEn.Int64 == 1
+	u.MustChangePassword = mustChange.Int64 == 1
+	u.Found = true
+	return u, nil
 }
 
 // SetUserProfile met à jour l'identité affichée d'un compte (prénom + nom).

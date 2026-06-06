@@ -15,6 +15,7 @@ import ContainerDetailView from './components/ContainerDetailView';
 import AuditView from './components/AuditView';
 import LoginView from './components/LoginView';
 import InviteView from './components/InviteView';
+import SetupView from './components/SetupView';
 import ExceptionsView from './components/ExceptionsView';
 import UsersView from './components/UsersView';
 import ComplianceView from './components/ComplianceView';
@@ -32,6 +33,7 @@ export default function App() {
   };
 
   const [authed, setAuthed] = useState(null); // null = vérification en cours, false = login, true = app
+  const [needsSetup, setNeedsSetup] = useState(null); // null = inconnu, true = assistant initial, false = configuré
   const [me, setMe] = useState(null);         // profil courant (rôle, username, portée)
   const [activePage, setActivePage] = useState(getPageFromPathname());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -131,6 +133,12 @@ export default function App() {
   // Theme + routing + vérification de session au montage
   useEffect(() => {
     document.documentElement.classList.add('dark');
+    // Assistant de configuration initiale : si aucun admin n'existe encore, on
+    // l'affiche avant tout (login compris).
+    fetch('/api/setup/status')
+      .then(res => res.json())
+      .then(d => setNeedsSetup(!!d.needs_setup))
+      .catch(() => setNeedsSetup(false));
     checkSession();
     const handlePopState = () => setActivePage(getPageFromPathname());
     window.addEventListener('popstate', handlePopState);
@@ -503,14 +511,17 @@ export default function App() {
 
   const selectedContainer = containers.find(c => c.id === selectedContainerId);
 
+  // Assistant de configuration initiale (aucun admin encore) : prioritaire sur tout.
+  if (needsSetup === null || authed === null) {
+    return <div className="flex items-center justify-center min-h-screen bg-[#030304] text-[#94A3B8] font-mono text-sm">Chargement…</div>;
+  }
+  if (needsSetup) {
+    return <SetupView onComplete={() => { setNeedsSetup(false); checkSession(); }} />;
+  }
+
   // Page publique d'activation par invitation (hors authentification).
   if (window.location.pathname === '/invite') {
     return <InviteView />;
-  }
-
-  // Gate d'authentification
-  if (authed === null) {
-    return <div className="flex items-center justify-center min-h-screen bg-[#030304] text-[#94A3B8] font-mono text-sm">Chargement…</div>;
   }
   if (authed === false) {
     return <LoginView onSuccess={checkSession} />;
