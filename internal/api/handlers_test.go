@@ -21,7 +21,6 @@ func TestHandleConfig(t *testing.T) {
 			Port:     587,
 			User:     "test-user",
 			Password: "SUPER_SECRET_PASSWORD_MUST_NEVER_LEAK",
-			To:       "alerts@test.local",
 		},
 		SecOps: config.SecOpsConfig{
 			MaxSeverityAllowed: "HIGH",

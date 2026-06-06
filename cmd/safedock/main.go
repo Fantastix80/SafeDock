@@ -68,7 +68,7 @@ func main() {
 	fmt.Printf("   ├─ Autoriser Root         : %t\n", cfg.SecOps.AllowRoot)
 	fmt.Printf("   ├─ Autoriser Privilégié   : %t\n", cfg.SecOps.AllowPrivileged)
 	if cfg.SMTP.Host != "" {
-		fmt.Printf("   └─ Notificateur Email     : Activé (Serveur: %s:%d, Dest: %s)\n", cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.To)
+		fmt.Printf("   └─ Notificateur Email     : Activé (Serveur: %s:%d)\n", cfg.SMTP.Host, cfg.SMTP.Port)
 	} else {
 		fmt.Printf("   └─ Notificateur Email     : Désactivé (SAFEDOCK_SMTP_HOST non configuré)\n")
 	}

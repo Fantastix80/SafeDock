@@ -220,7 +220,6 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		SMTP struct {
 			Host          string `json:"Host"`
 			Port          int    `json:"Port"`
-			To            string `json:"To"`
 			From          string `json:"From"`
 			TLSSkipVerify bool   `json:"TLSSkipVerify"`
 			User          string `json:"User"`
@@ -241,7 +240,6 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	safeConfig.SMTP.Port = s.cfg.SMTP.Port
 	safeConfig.SMTP.User = s.cfg.SMTP.User
 	safeConfig.SMTP.From = s.cfg.SMTP.From
-	safeConfig.SMTP.To = s.cfg.SMTP.To
 	safeConfig.SMTP.TLSSkipVerify = s.cfg.SMTP.TLSSkipVerify
 	safeConfig.SMTP.HasPassword = s.cfg.SMTP.Password != ""
 
@@ -268,7 +266,6 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 		SMTPUser            string `json:"smtp_user"`
 		SMTPPassword        string `json:"smtp_password"`
 		SMTPFrom            string `json:"smtp_from"`
-		SMTPTo              string `json:"smtp_to"`
 		SMTPTLSSkipVerify   bool   `json:"smtp_tls_skip_verify"`
 		SecOpsMaxSeverity   string `json:"secops_max_severity_allowed"`
 		SecOpsAllowRoot      bool   `json:"secops_allow_root"`
@@ -307,7 +304,7 @@ func (s *Server) handlePostConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Enregistrement en base de données
 	err = db.SaveSettings(
-		req.SMTPHost, req.SMTPPort, req.SMTPUser, req.SMTPPassword, req.SMTPFrom, req.SMTPTo, req.SMTPTLSSkipVerify,
+		req.SMTPHost, req.SMTPPort, req.SMTPUser, req.SMTPPassword, req.SMTPFrom, req.SMTPTLSSkipVerify,
 		maxSev, req.SecOpsAllowRoot, req.SecOpsAllowPrivileged, scanner,
 	)
 	if err != nil {

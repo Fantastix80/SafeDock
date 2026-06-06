@@ -345,7 +345,18 @@ func sendDriftAlert(cfg *config.Config, name, ref string, prevCrit, curCrit, pre
 		%s
 		<p>Vérifiez s'il existe une image corrigée et envisagez une mise à jour.</p>
 	`, name, ref, prevCrit, curCrit, prevHigh, curHigh, newBlock)
-	_ = notifier.SendEmail(&cfg.SMTP, subject, notifier.BuildHTMLReport(subject, content, false))
+	// Destinataires : gérés en phase 2 (abonnements aux alertes par utilisateur,
+	// filtrés par portée RBAC). En attendant, aucun envoi global — la notification
+	// in-app (WriteNotification) et l'audit restent en place.
+	_ = notifier.SendEmail(&cfg.SMTP, recipientsForContainer(name), subject, notifier.BuildHTMLReport(subject, content, false))
+}
+
+// recipientsForContainer renvoie la liste des destinataires e-mail pour une alerte
+// concernant un conteneur. Réservé à la phase « abonnements par utilisateur » :
+// pour l'instant aucun destinataire (les alertes e-mail globales sont désactivées,
+// seules les notifications in-app sont émises).
+func recipientsForContainer(containerName string) []string {
+	return nil
 }
 
 func scannerName(s string) string {

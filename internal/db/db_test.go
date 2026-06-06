@@ -36,14 +36,14 @@ func TestSettingsCRUD(t *testing.T) {
 	}
 
 	// 1. Test de lecture sur table vide (doit renvoyer sql.ErrNoRows)
-	_, _, _, _, _, _, _, _, _, _, _, err = GetSettings()
+	_, _, _, _, _, _, _, _, _, _, err = GetSettings()
 	if err != sql.ErrNoRows {
 		t.Errorf("Attendu ErrNoRows, obtenu : %v", err)
 	}
 
 	// 2. Test d'insertion (SaveSettings)
 	err = SaveSettings(
-		"smtp.test.local", 465, "user1", "pass123", "from@test.local", "to@test.local", true,
+		"smtp.test.local", 465, "user1", "pass123", "from@test.local", true,
 		"CRITICAL", false, true, "trivy",
 	)
 	if err != nil {
@@ -51,12 +51,12 @@ func TestSettingsCRUD(t *testing.T) {
 	}
 
 	// 3. Test de lecture (GetSettings)
-	host, port, user, pass, from, to, skip, maxSev, root, priv, _, err := GetSettings()
+	host, port, user, pass, from, skip, maxSev, root, priv, _, err := GetSettings()
 	if err != nil {
 		t.Fatalf("Impossible de lire les paramètres : %v", err)
 	}
 
-	if host != "smtp.test.local" || port != 465 || user != "user1" || pass != "pass123" || from != "from@test.local" || to != "to@test.local" || skip != true {
+	if host != "smtp.test.local" || port != 465 || user != "user1" || pass != "pass123" || from != "from@test.local" || skip != true {
 		t.Errorf("Paramètres SMTP invalides en DB")
 	}
 
@@ -67,14 +67,14 @@ func TestSettingsCRUD(t *testing.T) {
 	// 4. Test de mise à jour (SaveSettings avec ON CONFLICT DO UPDATE)
 	// On met à jour l'hôte et le port, et on laisse le mot de passe vide (ne doit pas être écrasé !)
 	err = SaveSettings(
-		"new-smtp.local", 587, "user1", "", "from@test.local", "to@test.local", false,
+		"new-smtp.local", 587, "user1", "", "from@test.local", false,
 		"HIGH", true, false, "grype",
 	)
 	if err != nil {
 		t.Fatalf("Échec mise à jour : %v", err)
 	}
 
-	host, port, _, pass, _, _, skip, maxSev, root, priv, _, err = GetSettings()
+	host, port, _, pass, _, skip, maxSev, root, priv, _, err = GetSettings()
 	if err != nil {
 		t.Fatalf("Erreur lecture après MAJ : %v", err)
 	}

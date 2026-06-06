@@ -271,7 +271,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			</ul>
 		`, html.EscapeString(containerName), html.EscapeString(secopsReason), html.EscapeString(fullNewImage), critCount, highCount, len(trivyReport.Vulnerabilities))
 		
-		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
+		// Destinataires gérés en phase 2 (abonnements par utilisateur) : aucun envoi
+		// global pour l'instant (notification in-app + audit conservés).
+		_ = notifier.SendEmail(&lo.cfg.SMTP, nil, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
 		return false, fmt.Errorf("mise à jour bloquée par les règles SecOps : %s", secopsReason)
 	}
 
@@ -290,7 +292,9 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			<p style="color: #e03e2f; font-weight: bold;">Erreur : %v</p>
 			<p>🛡️ <strong>SafeDock a automatiquement restauré l'ancien conteneur de manière sécurisée.</strong> Aucune coupure permanente de service.</p>
 		`, html.EscapeString(containerName), html.EscapeString(err.Error()))
-		_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
+		// Destinataires gérés en phase 2 (abonnements par utilisateur) : aucun envoi
+		// global pour l'instant (notification in-app + audit conservés).
+		_ = notifier.SendEmail(&lo.cfg.SMTP, nil, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
 		return false, err
 	}
 
@@ -356,7 +360,8 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 			<li>Vulnérabilités résiduelles critiques : 0</li>
 		</ul>
 	`, html.EscapeString(containerName), html.EscapeString(originalImage), html.EscapeString(fullNewImage))
-	_ = notifier.SendEmail(&lo.cfg.SMTP, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, true))
+	// Destinataires gérés en phase 2 (abonnements par utilisateur).
+	_ = notifier.SendEmail(&lo.cfg.SMTP, nil, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, true))
 
 	return true, nil
 }

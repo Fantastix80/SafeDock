@@ -31,7 +31,6 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
   const [smtpFrom, setSmtpFrom] = useState('');
-  const [smtpTo, setSmtpTo] = useState('');
   const [smtpTls, setSmtpTls] = useState(false);
   const [retention, setRetention] = useState(90);
   const [baseUrl, setBaseUrl] = useState('');
@@ -54,7 +53,6 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
     setSmtpPort(config.SMTP?.Port != null ? String(config.SMTP.Port) : '');
     setSmtpUser(config.SMTP?.User || '');
     setSmtpFrom(config.SMTP?.From || '');
-    setSmtpTo(config.SMTP?.To || '');
     setSmtpTls(config.SMTP?.TLSSkipVerify || false);
     setBaseUrl(config.BaseURL || '');
     const r = config.Retention || {};
@@ -77,7 +75,6 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
       smtp_user: smtpUser,
       smtp_password: smtpPass,
       smtp_from: smtpFrom,
-      smtp_to: smtpTo,
       smtp_tls_skip_verify: smtpTls,
       base_url: baseUrl.trim(),
       retention_days: Number(retention),
@@ -211,11 +208,11 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                 <FieldLabel>Expéditeur</FieldLabel>
                 <input type="email" className={inputClass} placeholder="alerts@safedock.local" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <FieldLabel>Destinataire</FieldLabel>
-                <input type="email" className={inputClass} placeholder="admin@domain.com" value={smtpTo} onChange={e => setSmtpTo(e.target.value)} />
-              </div>
             </div>
+            <p className="text-xs text-[#94A3B8]/70 font-mono">
+              Les destinataires ne se configurent plus ici : chaque utilisateur recevra les alertes sur son
+              adresse e-mail (= son identifiant), selon ses abonnements et son périmètre de visibilité.
+            </p>
             <Toggle label="Ignorer la vérification TLS" checked={smtpTls} onChange={setSmtpTls} />
             <SaveBtn onClick={saveGlobal} />
           </>

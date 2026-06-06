@@ -402,7 +402,7 @@ func runMigrations(db *sql.DB) error {
 
 // SaveSettings insère ou met à jour la configuration en DB (ligne unique ID=1).
 func SaveSettings(
-	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom, smtpTo string, smtpTlsSkip bool,
+	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom string, smtpTlsSkip bool,
 	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool, secopsScanner string,
 ) error {
 	db := GetDB()
@@ -418,16 +418,15 @@ func SaveSettings(
 
 	query := `
 	INSERT INTO settings (
-		id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_to, smtp_tls_skip_verify,
+		id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_tls_skip_verify,
 		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
-	) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(id) DO UPDATE SET
 		smtp_host=excluded.smtp_host,
 		smtp_port=excluded.smtp_port,
 		smtp_user=excluded.smtp_user,
 		smtp_password=CASE WHEN excluded.smtp_password <> '' THEN excluded.smtp_password ELSE settings.smtp_password END,
 		smtp_from=excluded.smtp_from,
-		smtp_to=excluded.smtp_to,
 		smtp_tls_skip_verify=excluded.smtp_tls_skip_verify,
 		secops_max_severity_allowed=excluded.secops_max_severity_allowed,
 		secops_allow_root=excluded.secops_allow_root,
@@ -435,7 +434,7 @@ func SaveSettings(
 		secops_scanner=excluded.secops_scanner;`
 
 	_, err = db.Exec(query,
-		smtpHost, smtpPort, smtpUser, encryptedPass, smtpFrom, smtpTo, smtpTlsSkip,
+		smtpHost, smtpPort, smtpUser, encryptedPass, smtpFrom, smtpTlsSkip,
 		secopsMaxSev, secopsAllowRoot, secopsAllowPrivileged, secopsScanner,
 	)
 	return err
@@ -444,7 +443,7 @@ func SaveSettings(
 // GetSettings charge la ligne de configuration depuis la base de données.
 // Retourne sql.ErrNoRows s'il n'y a aucun enregistrement.
 func GetSettings() (
-	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom, smtpTo string, smtpTlsSkip bool,
+	smtpHost string, smtpPort int, smtpUser, smtpPassword, smtpFrom string, smtpTlsSkip bool,
 	secopsMaxSev string, secopsAllowRoot, secopsAllowPrivileged bool, secopsScanner string, err error,
 ) {
 	db := GetDB()
@@ -454,13 +453,13 @@ func GetSettings() (
 	}
 
 	query := `
-	SELECT 
-		smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_to, smtp_tls_skip_verify,
+	SELECT
+		smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_tls_skip_verify,
 		secops_max_severity_allowed, secops_allow_root, secops_allow_privileged, secops_scanner
 	FROM settings WHERE id = 1;`
 
 	err = db.QueryRow(query).Scan(
-		&smtpHost, &smtpPort, &smtpUser, &smtpPassword, &smtpFrom, &smtpTo, &smtpTlsSkip,
+		&smtpHost, &smtpPort, &smtpUser, &smtpPassword, &smtpFrom, &smtpTlsSkip,
 		&secopsMaxSev, &secopsAllowRoot, &secopsAllowPrivileged, &secopsScanner,
 	)
 	if err != nil {

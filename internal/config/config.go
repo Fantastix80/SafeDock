@@ -16,7 +16,6 @@ type SMTPConfig struct {
 	User          string
 	Password      string
 	From          string
-	To            string
 	TLSSkipVerify bool
 }
 
@@ -41,7 +40,7 @@ var activeConfig *Config
 func LoadConfig() *Config {
 	// Si SQLite est déjà initialisé et contient des paramètres, on charge depuis la DB
 	if db.GetDB() != nil {
-		host, port, user, pass, from, to, skip, maxSev, allowRoot, allowPriv, scanner, err := db.GetSettings()
+		host, port, user, pass, from, skip, maxSev, allowRoot, allowPriv, scanner, err := db.GetSettings()
 		if err == nil {
 			activeConfig = &Config{
 				SMTP: SMTPConfig{
@@ -50,7 +49,6 @@ func LoadConfig() *Config {
 					User:          user,
 					Password:      pass,
 					From:          from,
-					To:            to,
 					TLSSkipVerify: skip,
 				},
 				SecOps: SecOpsConfig{
@@ -74,7 +72,6 @@ func LoadConfig() *Config {
 			User:          getEnv("SAFEDOCK_SMTP_USER", ""),
 			Password:      getEnv("SAFEDOCK_SMTP_PASSWORD", ""),
 			From:          getEnv("SAFEDOCK_SMTP_FROM", "alerts@safedock.local"),
-			To:            getEnv("SAFEDOCK_SMTP_TO", ""),
 			TLSSkipVerify: getEnvAsBool("SAFEDOCK_SMTP_TLS_SKIP_VERIFY", false),
 		},
 		SecOps: SecOpsConfig{
@@ -88,7 +85,7 @@ func LoadConfig() *Config {
 	// Si la DB est en ligne mais vide, on y insère les paramètres Env pour l'initialisation
 	if db.GetDB() != nil {
 		err := db.SaveSettings(
-			cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User, cfg.SMTP.Password, cfg.SMTP.From, cfg.SMTP.To, cfg.SMTP.TLSSkipVerify,
+			cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User, cfg.SMTP.Password, cfg.SMTP.From, cfg.SMTP.TLSSkipVerify,
 			cfg.SecOps.MaxSeverityAllowed, cfg.SecOps.AllowRoot, cfg.SecOps.AllowPrivileged, cfg.SecOps.SecopsScanner,
 		)
 		if err != nil {

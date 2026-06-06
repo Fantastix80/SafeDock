@@ -70,7 +70,7 @@ func (s *Server) sendInviteEmail(to, firstName, link string) bool {
 		<p style="color:#94A3B8;font-size:12px;">Si le lien ne s'ouvre pas, copiez cette adresse dans votre navigateur :<br><code>%s</code></p>
 		<p>Ce lien expire dans 72 heures.</p>
 	`, html.EscapeString(firstName), html.EscapeString(link), html.EscapeString(link))
-	return notifier.SendEmail(&s.cfg.SMTP, subject, notifier.BuildHTMLReport(subject, content, false)) == nil
+	return notifier.SendEmail(&s.cfg.SMTP, []string{to}, subject, notifier.BuildHTMLReport(subject, content, false)) == nil
 }
 
 // HandleInviteInfo valide un jeton d'invitation et renvoie l'identité associée

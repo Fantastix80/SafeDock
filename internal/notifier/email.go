@@ -10,11 +10,26 @@ import (
 	"github.com/safedock/safedock/internal/config"
 )
 
-// SendEmail envoie un e-mail HTML sécurisé en gérant TLS et STARTTLS automatiquement.
-func SendEmail(cfg *config.SMTPConfig, subject, htmlBody string) error {
+// SendEmail envoie un e-mail HTML sécurisé à un ou plusieurs destinataires
+// explicites, en gérant TLS et STARTTLS automatiquement. Le destinataire n'est
+// plus une valeur globale de configuration : chaque appelant fournit la liste des
+// adresses (ex. l'invité pour une invitation ; à terme, les abonnés d'une alerte).
+func SendEmail(cfg *config.SMTPConfig, to []string, subject, htmlBody string) error {
 	// Fallback si SMTP n'est pas configuré
 	if cfg.Host == "" {
 		fmt.Println("[SMTP WARNING] Serveur SMTP non configuré. Envoi d'e-mail ignoré.")
+		return nil
+	}
+
+	// Nettoyage des destinataires (vides ignorés). Sans destinataire → rien à envoyer.
+	recipients := make([]string, 0, len(to))
+	for _, addr := range to {
+		if a := strings.TrimSpace(addr); a != "" {
+			recipients = append(recipients, a)
+		}
+	}
+	if len(recipients) == 0 {
+		fmt.Println("[SMTP] Aucun destinataire pour cet e-mail. Envoi ignoré.")
 		return nil
 	}
 
@@ -23,7 +38,7 @@ func SendEmail(cfg *config.SMTPConfig, subject, htmlBody string) error {
 	// Construction du message de type MIME (HTML + UTF-8)
 	headers := make(map[string]string)
 	headers["From"] = cfg.From
-	headers["To"] = cfg.To
+	headers["To"] = strings.Join(recipients, ", ")
 	headers["Subject"] = subject
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = `text/html; charset="UTF-8"`
@@ -65,11 +80,11 @@ func SendEmail(cfg *config.SMTPConfig, subject, htmlBody string) error {
 			}
 		}
 
-		if err = sendMailViaClient(client, cfg.From, cfg.To, message); err != nil {
+		if err = sendMailViaClient(client, cfg.From, strings.Join(recipients, ","), message); err != nil {
 			return err
 		}
-		
-		fmt.Printf("📩 E-mail d'alerte SecOps envoyé avec succès (SSL/TLS) à %s !\n", cfg.To)
+
+		fmt.Printf("📩 E-mail SafeDock envoyé avec succès (SSL/TLS) à %s !\n", strings.Join(recipients, ", "))
 		return nil
 	}
 
@@ -99,11 +114,11 @@ func SendEmail(cfg *config.SMTPConfig, subject, htmlBody string) error {
 		}
 	}
 
-	if err = sendMailViaClient(client, cfg.From, cfg.To, message); err != nil {
+	if err = sendMailViaClient(client, cfg.From, strings.Join(recipients, ","), message); err != nil {
 		return err
 	}
 
-	fmt.Printf("📩 E-mail d'alerte SecOps envoyé avec succès (STARTTLS) à %s !\n", cfg.To)
+	fmt.Printf("📩 E-mail SafeDock envoyé avec succès (STARTTLS) à %s !\n", strings.Join(recipients, ", "))
 	return nil
 }
 
