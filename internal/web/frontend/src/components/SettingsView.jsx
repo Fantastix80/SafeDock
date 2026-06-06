@@ -243,8 +243,11 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
               adresse e-mail (= son identifiant), selon ses abonnements et son périmètre de visibilité.
             </p>
             <Toggle label="Ignorer la vérification TLS" checked={smtpTls} onChange={setSmtpTls} />
-            <div className="flex items-center gap-3 flex-wrap">
-              <SaveBtn onClick={saveGlobal} />
+            <div className="flex items-center gap-3 flex-wrap pt-2">
+              <button type="button" onClick={saveGlobal}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-[#F7931A]/15 text-[#F7931A] border border-[#F7931A]/25 hover:bg-[#F7931A]/25 hover:border-[#F7931A]/50 transition-all hover:shadow-[0_0_20px_-5px_rgba(247,147,26,0.3)]">
+                Enregistrer
+              </button>
               <button type="button" onClick={testSmtp} disabled={smtpTesting}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-white/[0.04] text-[#94A3B8] border border-white/[0.12] hover:text-white hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                 {smtpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
