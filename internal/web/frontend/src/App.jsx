@@ -463,7 +463,7 @@ export default function App() {
 
   const handleTriggerRollout = (containerId, containerName) => {
     setIsRolloutLoading(true);
-    setRolloutStatusMsg({ text: "Recherche de mise à jour distante et analyse SecOps...", type: "success" });
+    setRolloutStatusMsg({ text: "Recherche de mise à jour distante et analyse de sécurité...", type: "success" });
 
     const target = containers.find(c => c.id === containerId);
     const hostQ = target && target.host_id ? `?host=${target.host_id}` : '';

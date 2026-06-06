@@ -106,7 +106,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	}
 
 	fmt.Printf("   🚨 [CYCLE %s] Nouvelle version détectée sur le registre !\n", containerName)
-	fmt.Println("   ├─ Lancement du Pipeline de Staging SecOps...")
+	fmt.Println("   ├─ Lancement du pipeline de staging de sécurité...")
 
 	// 4. Staging Pipeline: Téléchargement en tâche de fond de la nouvelle version
 	fullNewImage := fmt.Sprintf("%s@%s", imageNameWithoutDigest, remoteDigest)
@@ -254,15 +254,15 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		
 		// Enregistrement dans l'historique d'audit SQLite
 		_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "BLOCKED", secopsReason, critCount, highCount, trivyReport.Summary.Medium)
-		db.WriteNotification("WARNING", "Déploiement bloqué par le pare-feu SecOps",
+		db.WriteNotification("WARNING", "Déploiement bloqué par le pare-feu SafeDock",
 			fmt.Sprintf("%s : %s", containerName, secopsReason), containerName, "")
 
 		// Envoi de l'alerte par e-mail
-		mailSubject := fmt.Sprintf("🚨 Bloqué : Alerte SecOps sur la mise à jour de %s", containerName)
+		mailSubject := fmt.Sprintf("🚨 Bloqué : mise à jour de %s refusée", containerName)
 		mailContent := fmt.Sprintf(`
 			<p>La mise à jour automatique du conteneur <strong>%s</strong> a été bloquée par le pare-feu SafeDock.</p>
 			<p style="color: #e03e2f; font-weight: bold;">Motif : %s</p>
-			<h3>Rapport de Staging SecOps :</h3>
+			<h3>Rapport de staging de sécurité :</h3>
 			<ul>
 				<li>Image de Staging : <code>%s</code></li>
 				<li>Vulnérabilités Critiques : <strong style="color:#e03e2f;">%d</strong></li>
@@ -274,11 +274,11 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		// Destinataires gérés en phase 2 (abonnements par utilisateur) : aucun envoi
 		// global pour l'instant (notification in-app + audit conservés).
 		_ = notifier.SendEmail(&lo.cfg.SMTP, nil, mailSubject, notifier.BuildHTMLReport(mailSubject, mailContent, false))
-		return false, fmt.Errorf("mise à jour bloquée par les règles SecOps : %s", secopsReason)
+		return false, fmt.Errorf("mise à jour bloquée par les règles de sécurité : %s", secopsReason)
 	}
 
 	// 8. Redéploiement transactionnel sécurisé (Pass !)
-	fmt.Printf("   ✅ [PASS] Image validée par les règles SecOps. Préparation du redéploiement...\n")
+	fmt.Printf("   ✅ [PASS] Image validée par les règles de sécurité. Préparation du redéploiement...\n")
 	
 	err = lo.executeTransactionalRollout(ctx, containerID, &inspect, fullNewImage)
 	if err != nil {
@@ -288,7 +288,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 		// Rollback mail
 		mailSubject := fmt.Sprintf("⚠️ Rollback : Échec du redéploiement de %s", containerName)
 		mailContent := fmt.Sprintf(`
-			<p>L'image de Staging pour <strong>%s</strong> a été validée par SecOps, mais l'exécution du déploiement a échoué.</p>
+			<p>L'image de staging pour <strong>%s</strong> a été validée, mais l'exécution du déploiement a échoué.</p>
 			<p style="color: #e03e2f; font-weight: bold;">Erreur : %v</p>
 			<p>🛡️ <strong>SafeDock a automatiquement restauré l'ancien conteneur de manière sécurisée.</strong> Aucune coupure permanente de service.</p>
 		`, html.EscapeString(containerName), html.EscapeString(err.Error()))
@@ -319,7 +319,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	db.WriteNotification(notifLevel, "Mise à jour d'image : "+containerName, diffMsg, containerName, "")
 
 	// Enregistrement du succès dans l'historique d'audit SQLite (avec le diff de sécurité)
-	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot SecOps complété — "+diffMsg, critCount, highCount, trivyReport.Summary.Medium)
+	_ = db.WriteAuditLog(containerName, containerID, fullNewImage, "SUCCESS", "Pivot complété — "+diffMsg, critCount, highCount, trivyReport.Summary.Medium)
 
 	// Déploiement confirmé → l'image est en production, le defer ne la supprimera pas
 	deployed = true
@@ -350,7 +350,7 @@ func (lo *LifecycleOrchestrator) CheckAndUpdateContainer(ctx context.Context, co
 	}
 
 	// Déploiement réussi mail
-	mailSubject := fmt.Sprintf("✅ Déployé : Mise à jour SecOps réussie pour %s", containerName)
+	mailSubject := fmt.Sprintf("✅ Déployé : mise à jour réussie pour %s", containerName)
 	mailContent := fmt.Sprintf(`
 		<p>Le conteneur <strong>%s</strong> a été mis à jour et déployé de manière sécurisée par SafeDock.</p>
 		<p>Le nouveau conteneur pointe désormais de façon immuable sur le **Digest SHA256** validé.</p>

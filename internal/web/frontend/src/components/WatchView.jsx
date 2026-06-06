@@ -40,7 +40,7 @@ export default function WatchView() {
     <div className="space-y-4">
       <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
         <Newspaper className="w-4 h-4 text-[#94A3B8]" />
-        Veille de Sécurité SecOps & Bulletins
+        Veille de Sécurité & Bulletins
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>

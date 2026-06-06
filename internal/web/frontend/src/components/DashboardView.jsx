@@ -249,7 +249,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         {containers.length === 0 ? (
           <div className="card py-16 flex flex-col items-center gap-3 text-[#94A3B8]">
             <div className="w-8 h-8 rounded-full border-2 border-[#94A3B8]/20 border-t-[#F7931A] animate-spin" />
-            <p className="text-sm font-mono">Audit SecOps en cours...</p>
+            <p className="text-sm font-mono">Audit en cours...</p>
           </div>
         ) : filteredContainers.length === 0 ? (
           <div className="card py-16 flex flex-col items-center gap-2 text-[#94A3B8]">
@@ -270,7 +270,7 @@ export default function DashboardView({ containers, auditLogs, stats, onSelectCo
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 font-heading text-sm font-semibold text-white">
             <Clock className="w-4 h-4 text-[#94A3B8]" />
-            Historique d'audit & activités SecOps
+            Historique d'audit & activités
           </div>
           <button
             type="button"

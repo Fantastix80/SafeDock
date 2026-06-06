@@ -6,7 +6,7 @@ import { apiGet, apiSend } from '../lib/session';
 // La gestion des comptes et des permissions vit désormais dans la page « Utilisateurs ».
 const TABS = [
   { id: 'smtp',        label: 'SMTP / Alertes',      icon: Mail,       group: 'Base' },
-  { id: 'seuils',      label: 'Seuils SecOps',        icon: ShieldHalf, group: 'Base' },
+  { id: 'seuils',      label: 'Seuils de sécurité',   icon: ShieldHalf, group: 'Base' },
   { id: 'prefs',       label: 'Préférences',          icon: Settings2,  group: 'Base' },
   { id: 'registries',  label: 'Registres Privés',     icon: Key,        group: 'Admin' },
   { id: 'backups',     label: 'Sauvegardes',          icon: DatabaseBackup, group: 'Admin' },
@@ -268,7 +268,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
         {/* Seuils */}
         {tab === 'seuils' && (
           <>
-            <SHead>Seuils de tolérance SecOps globaux</SHead>
+            <SHead>Seuils de tolérance globaux</SHead>
             <div className="space-y-1">
               <FieldLabel>Tolérance de sévérité CVE globale</FieldLabel>
               <select value={severity} onChange={e => setSeverity(e.target.value)} className={selectClass}>
@@ -327,7 +327,7 @@ export default function SettingsView({ config, registries, onSaveGlobalSettings,
                   <RetentionCat label="Historique CVE / tendances" value={retCve} onChange={setRetCve} selectClass={selectClass} />
                   <RetentionCat label="Notifications" value={retNotif} onChange={setRetNotif} selectClass={selectClass} />
                   <RetentionCat label="Audit de sécurité (RBAC)" value={retSecaudit} onChange={setRetSecaudit} selectClass={selectClass} />
-                  <RetentionCat label="Journal SecOps (déploiements)" value={retSeclogs} onChange={setRetSeclogs} selectClass={selectClass} />
+                  <RetentionCat label="Journal de sécurité (déploiements)" value={retSeclogs} onChange={setRetSeclogs} selectClass={selectClass} />
                 </div>
                 <p className="text-xs text-[#94A3B8]/50">
                   Ex. conserver l'historique CVE 1 an pour les tendances, tout en purgeant les notifications à 30 jours.

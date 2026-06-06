@@ -15,7 +15,7 @@ const NAV_GROUPS = [
       { id: 'containers',    label: 'Conteneurs',    icon: Boxes },
       { id: 'compliance',    label: 'Conformité',    icon: BadgeCheck },
       { id: 'audit',         label: 'Audit',         icon: ScanSearch, minRole: 'auditor' },
-      { id: 'watch',         label: 'Veille SecOps', icon: Newspaper },
+      { id: 'watch',         label: 'Veille',        icon: Newspaper },
       { id: 'notifications', label: 'Notifications', icon: Bell, minRole: 'auditor' },
     ],
   },

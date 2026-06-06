@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/safedock/safedock/internal/config"
 )
@@ -178,18 +179,17 @@ func BuildHTMLReport(title string, contentHTML string, isSuccess bool) string {
 	<body>
 		<div class="container">
 			<div class="header">
-				🛡️ SafeDock SecOps Alert
+				🛡️ SafeDock
 			</div>
 			<div class="content">
 				<h2>%s</h2>
 				%s
 			</div>
 			<div class="footer">
-				SafeDock - Pare-feu de Déploiement Conteneurisé Automatique<br>
-				Généré de manière sécurisée en conditions isolées.
+				SafeDock - %d
 			</div>
 		</div>
 	</body>
 	</html>
-	`, colorHeader, title, contentHTML)
+	`, colorHeader, title, contentHTML, time.Now().Year())
 }

@@ -101,7 +101,7 @@ export function openPostureReport(containers = [], stats = {}) {
     <tbody>${rows || '<tr><td colspan="8" class="center muted">Aucun conteneur.</td></tr>'}</tbody>
   </table>
 
-  <div class="foot">Document généré par SafeDock — Pare-feu de déploiement &amp; supervision SecOps. Confidentiel.</div>
+  <div class="foot">Document généré par SafeDock — Pare-feu de déploiement &amp; supervision. Confidentiel.</div>
   <script>window.onload = function () { window.print(); };</script>
 </body></html>`;
 

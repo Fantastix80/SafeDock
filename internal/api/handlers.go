@@ -819,7 +819,7 @@ func (s *Server) triggerRolloutUpdate(w http.ResponseWriter, r *http.Request, co
 
 	message := "Conteneur déjà à jour : aucune nouvelle version disponible sur le registre."
 	if updated {
-		message = "Mise à jour validée par SecOps et déployée. Évolution des CVE (avant/après) disponible dans le centre de notifications."
+		message = "Mise à jour validée et déployée. Évolution des CVE (avant/après) disponible dans le centre de notifications."
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -22,7 +22,7 @@ import (
 
 func main() {
 	fmt.Println("==================================================")
-	fmt.Println("🛡️  SafeDock - SecOps Gatekeeper & REST API Server")
+	fmt.Println("🛡️  SafeDock - Pare-feu de déploiement conteneurisé & API REST")
 	fmt.Println("==================================================")
 	fmt.Println("Initialisation et audit de démarrage en cours...")
 
@@ -63,7 +63,7 @@ func main() {
 
 	// 2. Chargement de la configuration
 	cfg := config.LoadConfig()
-	fmt.Println("\n⚙️  Configuration SecOps active :")
+	fmt.Println("\n⚙️  Configuration de sécurité active :")
 	fmt.Printf("   ├─ Seuil de tolérance CVE : %s\n", cfg.SecOps.MaxSeverityAllowed)
 	fmt.Printf("   ├─ Autoriser Root         : %t\n", cfg.SecOps.AllowRoot)
 	fmt.Printf("   ├─ Autoriser Privilégié   : %t\n", cfg.SecOps.AllowPrivileged)

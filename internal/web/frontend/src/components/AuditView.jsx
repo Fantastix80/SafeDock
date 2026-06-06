@@ -141,7 +141,7 @@ export default function AuditView() {
             <Shield className="absolute inset-0 m-auto w-8 h-8 text-[#F7931A]" />
           </div>
           <div>
-            <p className="font-heading text-base font-semibold text-white">Analyse SecOps en cours</p>
+            <p className="font-heading text-base font-semibold text-white">Analyse en cours</p>
             <p className="text-sm text-[#94A3B8] mt-1 font-mono">{image.trim()}:{tag.trim() || 'latest'}</p>
           </div>
           <div className="space-y-2 w-full max-w-sm text-left">
@@ -149,7 +149,7 @@ export default function AuditView() {
               'Récupération des métadonnées de l\'image…',
               'Extraction des couches OS et dépendances…',
               'Croisement avec les bases CVE (NVD, GHSA, OSV)…',
-              'Calcul du score de sécurité SecOps…',
+              'Calcul du score de sécurité…',
             ].map((step, i) => (
               <div key={i} className="flex items-center gap-2.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#F7931A] shrink-0 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
@@ -182,7 +182,7 @@ export default function AuditView() {
           <div className="max-w-md">
             <p className="font-heading text-base font-semibold text-white">Prêt pour l'audit</p>
             <p className="text-sm text-[#94A3B8] mt-2 leading-relaxed">
-              Renseignez une image Docker et lancez l'analyse pour obtenir un rapport de vulnérabilités complet — CVEs par sévérité, versions corrigées et recommandations SecOps.
+              Renseignez une image Docker et lancez l'analyse pour obtenir un rapport de vulnérabilités complet — CVEs par sévérité, versions corrigées et recommandations de sécurité.
             </p>
           </div>
           <div className="flex items-start gap-3 mt-2 p-4 rounded-xl bg-[#0A0C10] border border-white/[0.06] max-w-md text-left">
@@ -355,7 +355,7 @@ function ResultsPanel({ results, image, tag, sevFilter, setSevFilter }) {
             <p className="font-heading text-base font-semibold text-white">Image sécurisée</p>
             <p className="text-sm text-[#94A3B8] mt-0.5">
               Aucune vulnérabilité connue détectée pour <span className="font-mono text-white">{image}:{tag}</span>.
-              Cette image est prête pour le déploiement SecOps.
+              Cette image est prête pour le déploiement.
             </p>
           </div>
         </div>

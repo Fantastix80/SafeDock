@@ -473,7 +473,7 @@ export default function ContainerDetailView({
             <div className="space-y-3">
               <p className="font-heading text-xs font-semibold text-white mb-1">Mise à jour de l'image Docker</p>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                SafeDock récupère la dernière version de l'image, l'analyse en isolement (SecOps), et ne
+                SafeDock récupère la dernière version de l'image, l'analyse en isolement, et ne
                 recrée le conteneur sur cette nouvelle image que si les contrôles de sécurité sont validés.
               </p>
 
@@ -492,7 +492,7 @@ export default function ContainerDetailView({
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0C10] border border-white/[0.06] hover:border-[#F7931A]/15 transition-all">
                 <div>
                   <p className="text-xs font-semibold text-white">Mettre à jour l'image Docker</p>
-                  <p className="font-mono text-xs text-[#94A3B8] mt-0.5">Recherche de la nouvelle version, validation SecOps puis recréation du conteneur.</p>
+                  <p className="font-mono text-xs text-[#94A3B8] mt-0.5">Recherche de la nouvelle version, validation de sécurité puis recréation du conteneur.</p>
                 </div>
                 <button
                   type="button"

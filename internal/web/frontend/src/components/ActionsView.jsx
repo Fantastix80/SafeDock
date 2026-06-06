@@ -110,11 +110,11 @@ export default function ActionsView({ containers, onTriggerRollout, onNavigate }
 
             <div className="p-3 rounded-xl border border-white/[0.06] bg-[#0A0C10] opacity-80">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-semibold text-white">Mises à jour automatiques SecOps</p>
+                <p className="text-sm font-semibold text-white">Mises à jour automatiques</p>
                 <span className="px-1.5 py-0.5 rounded-md text-xs font-bold bg-white/[0.04] text-[#94A3B8] border border-white/[0.08]">Bientôt</span>
               </div>
               <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Appliquer automatiquement une mise à jour dès que tous les contrôles SecOps passent.
+                Appliquer automatiquement une mise à jour dès que tous les contrôles de sécurité passent.
               </p>
               <p className="text-xs text-amber-300/80 leading-relaxed mt-1.5 flex items-start gap-1.5">
                 <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />

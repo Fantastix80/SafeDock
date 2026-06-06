@@ -3,14 +3,14 @@ import { cn } from '../lib/utils';
 
 const PAGE_META = {
   dashboard:             { title: 'Tableau de bord',           desc: 'Analyse en temps réel de votre parc Docker' },
-  containers:            { title: 'Inventaire des conteneurs', desc: 'Statuts, scores SecOps et métadonnées' },
+  containers:            { title: 'Inventaire des conteneurs', desc: 'Statuts, scores de sécurité et métadonnées' },
   compliance:            { title: 'Conformité par tag',        desc: 'Posture de sécurité agrégée par environnement / équipe' },
-  watch:                 { title: 'Veille SecOps & Menaces',   desc: 'Bulletins de vulnérabilités et guides de durcissement' },
+  watch:                 { title: 'Veille & Menaces',          desc: 'Bulletins de vulnérabilités et guides de durcissement' },
   notifications:         { title: 'Centre de Notifications',  desc: 'Alertes et événements de sécurité récents' },
   account:               { title: 'Mon Compte',                desc: "Identité, sécurité et préférences d'alertes" },
-  settings:              { title: 'Configuration',             desc: 'Règles SecOps globales, accès et politiques' },
+  settings:              { title: 'Configuration',             desc: 'Règles de sécurité globales, accès et politiques' },
   'container-settings':  { title: 'Surcharges du conteneur',  desc: 'Seuils de tolérance spécifiques à ce conteneur' },
-  actions:               { title: 'Actions SecOps',            desc: "Mises à jour d'images et correctifs à appliquer" },
+  actions:               { title: 'Actions',                   desc: "Mises à jour d'images et correctifs à appliquer" },
   agents:                { title: 'Multi-hôtes',                desc: 'Supervision de plusieurs démons Docker (local + distants en TLS)' },
   permissions:           { title: 'Permissions',               desc: "Contrôle d'accès, rôles et périmètres utilisateurs" },
   'container-detail':    { title: 'Cockpit du conteneur',     desc: 'Détails, scans de vulnérabilités et conformité' },
