@@ -155,41 +155,51 @@ func sendMailViaClient(c *smtp.Client, from, to, message string) error {
 
 // BuildHTMLReport génère un template HTML esthétique et haut de gamme pour l'e-mail.
 func BuildHTMLReport(title string, contentHTML string, isSuccess bool) string {
-	colorHeader := "#e03e2f" // Rouge/Orange pour alertes/blocages
-	if isSuccess {
-		colorHeader = "#00b16a" // Vert pour succès
+	// Couleur d'accent alignée sur la charte : orange de marque par défaut,
+	// rouge sur fond sombre pour les alertes/blocages.
+	accent := "#F7931A"
+	if !isSuccess {
+		accent = "#EF5350"
 	}
 
-	return fmt.Sprintf(`
-	<!DOCTYPE html>
-	<html>
-	<head>
-		<meta charset="utf-8">
-		<style>
-			body { font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
-			.container { max-width: 650px; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin: 0 auto; }
-			.header { background-color: %s; color: #ffffff; padding: 25px; text-align: center; font-size: 24px; font-weight: bold; }
-			.content { padding: 30px; line-height: 1.6; }
-			.footer { background-color: #fafbfc; border-top: 1px solid #ededed; color: #777; font-size: 12px; text-align: center; padding: 20px; }
-			.badge { display: inline-block; padding: 5px 12px; font-weight: bold; border-radius: 4px; font-size: 12px; }
-			.badge-fail { background-color: #ffe6e2; color: #e03e2f; }
-			.badge-pass { background-color: #e6f9f0; color: #00b16a; }
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<div class="header">
-				🛡️ SafeDock
-			</div>
-			<div class="content">
-				<h2>%s</h2>
-				%s
-			</div>
-			<div class="footer">
-				SafeDock - %d
-			</div>
-		</div>
-	</body>
-	</html>
-	`, colorHeader, title, contentHTML, time.Now().Year())
+	// Thème sombre cohérent avec l'application (fond #030304 / carte #0F1115,
+	// accent orange, texte clair). Mise en page par table + styles inline pour la
+	// compatibilité des clients de messagerie ; le bloc <style> ne fait qu'embellir
+	// (code/liens) et dégrade proprement s'il est ignoré.
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark only">
+<style>
+  body { margin:0; padding:0; background:#030304; }
+  .sd-body p { margin:0 0 14px; }
+  .sd-body ul { margin:0 0 14px; padding-left:20px; }
+  .sd-body li { margin:4px 0; }
+  .sd-body strong { color:#FFFFFF; }
+  .sd-body code { font-family:'JetBrains Mono',Consolas,Menlo,monospace; background:#0A0C10; border:1px solid rgba(255,255,255,0.10); border-radius:6px; padding:2px 6px; color:#F7931A; font-size:13px; }
+  .sd-body a { color:#F7931A; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#030304;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#030304;padding:24px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%%;background:#0F1115;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;font-family:'Inter','Segoe UI',Helvetica,Arial,sans-serif;">
+    <tr><td style="height:4px;line-height:4px;font-size:4px;background:%s;">&nbsp;</td></tr>
+    <tr><td style="padding:24px 28px 0;">
+      <span style="font-family:'Space Grotesk','Inter',Helvetica,Arial,sans-serif;font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:0.5px;">&#128737;&#65039; SafeDock</span>
+    </td></tr>
+    <tr><td style="padding:16px 28px 8px;">
+      <h2 style="margin:0 0 14px;font-family:'Space Grotesk','Inter',Helvetica,Arial,sans-serif;font-size:18px;font-weight:600;color:%s;">%s</h2>
+      <div class="sd-body" style="color:#C7D2DD;font-size:15px;line-height:1.6;">%s</div>
+    </td></tr>
+    <tr><td style="padding:18px 28px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+      <span style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:12px;color:#5B6776;">SafeDock - %d</span>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`, accent, accent, title, contentHTML, time.Now().Year())
 }
